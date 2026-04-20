@@ -16,17 +16,25 @@ const _ACTION_LABELS: Dictionary = {
 	&"tab_prev": "Tab ◀", &"tab_next": "Tab ▶",
 }
 
+## Actions whose label gets highlighted when their toggle is active.
+const _TOGGLE_ACTIONS: Array[StringName] = [&"auto_mine", &"auto_attack"]
+
 var player_id: int = 0
-var _label: Label = null
+var _label: RichTextLabel = null
+var _player: PlayerController = null
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_label = Label.new()
-	_label.add_theme_font_size_override("font_size", 13)
-	_label.add_theme_color_override("font_color", Color(0.95, 0.92, 0.78))
-	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	_label.add_theme_constant_override("outline_size", 2)
+	_label = RichTextLabel.new()
+	_label.bbcode_enabled = true
+	_label.fit_content = true
+	_label.scroll_active = false
+	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_label.custom_minimum_size = Vector2(170, 0)
+	_label.add_theme_font_size_override("normal_font_size", 13)
+	_label.add_theme_font_size_override("bold_font_size", 13)
+	_label.add_theme_color_override("default_color", Color(0.95, 0.92, 0.78))
 	add_child(_label)
 	# Subtle dark backdrop.
 	var sb := StyleBoxFlat.new()
@@ -38,14 +46,31 @@ func _ready() -> void:
 	_refresh()
 
 
-func set_player(pid: int) -> void:
+func set_player(pid: int, player: PlayerController = null) -> void:
 	player_id = pid
+	_player = player
 	_refresh()
 
 
 func _on_context_changed(pid: int, _ctx: InputContext.Context) -> void:
 	if pid == player_id:
 		_refresh()
+
+
+func _process(_delta: float) -> void:
+	# Cheap polling so toggle highlights update immediately.
+	if _player != null:
+		_refresh()
+
+
+func _is_toggle_active(short_name: StringName) -> bool:
+	if _player == null:
+		return false
+	if short_name == &"auto_mine":
+		return _player.auto_mine
+	if short_name == &"auto_attack":
+		return _player.auto_attack
+	return false
 
 
 func _refresh() -> void:
@@ -58,5 +83,10 @@ func _refresh() -> void:
 		if s.begins_with(prefix):
 			s = s.substr(prefix.length())
 		var pretty: String = _ACTION_LABELS.get(StringName(s), s)
-		lines.append("%s — %s" % [InputContext.get_key_label(action), pretty])
+		var key_label: String = InputContext.get_key_label(action)
+		var short: StringName = StringName(s)
+		if short in _TOGGLE_ACTIONS and _is_toggle_active(short):
+			lines.append("[b][color=#5fff5f]%s — %s (ON)[/color][/b]" % [key_label, pretty])
+		else:
+			lines.append("%s — %s" % [key_label, pretty])
 	_label.text = "\n".join(lines)

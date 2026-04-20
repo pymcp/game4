@@ -24,11 +24,18 @@ const _BOB_HZ: float = 6.0
 
 var _world: WorldRoot = null
 var _sprite_root: Node2D = null
+var _weapon_sprite: Sprite2D = null
+var _action_vfx: ActionVFX = null
 var _bob_t: float = 0.0
 var _facing_x: int = 1
 var _facing_dir: Vector2i = Vector2i(1, 0)
 var _attack_cooldown: float = 0.0
 const ATTACK_COOLDOWN_SEC: float = 0.35  ## seconds between swings
+var auto_mine: bool = false
+var auto_attack: bool = false
+const _AUTO_MINE_RADIUS: int = 1       ## tiles around player to scan
+const _MELEE_REACH_PX: float = 24.0    ## native-px radius for melee auto-attack
+const _RANGED_REACH_PX: float = 80.0   ## native-px max range for ranged auto-attack
 var inventory: Inventory = Inventory.new()
 var equipment: Equipment = Equipment.new()
 var max_health: int = 10
@@ -50,12 +57,37 @@ func _ready() -> void:
 		n = n.get_parent()
 	_world = n as WorldRoot
 	_sprite_root = $SpriteRoot
+	_weapon_sprite = $SpriteRoot/Weapon
+	_action_vfx = $ActionVFX as ActionVFX
+	if _action_vfx != null:
+		_action_vfx.setup(self, _weapon_sprite, _world)
+	equipment.contents_changed.connect(_update_weapon_sprite)
 
 
 ## Update the WorldRoot reference. Called by [World] after re-parenting
 ## the player into a different instance (e.g. on view change).
 func set_world(w: WorldRoot) -> void:
 	_world = w
+	if _action_vfx != null:
+		_action_vfx._world = w
+
+
+func _update_weapon_sprite() -> void:
+	if _weapon_sprite == null:
+		return
+	# Priority: WEAPON slot, then TOOL slot.
+	var item_id: StringName = equipment.get_equipped(ItemDefinition.Slot.WEAPON)
+	if item_id == &"":
+		item_id = equipment.get_equipped(ItemDefinition.Slot.TOOL)
+	if item_id == &"":
+		_weapon_sprite.visible = false
+		return
+	var region: Rect2 = WeaponAtlas.region_for(item_id)
+	if region.size == Vector2.ZERO:
+		_weapon_sprite.visible = false
+		return
+	_weapon_sprite.region_rect = region
+	_weapon_sprite.visible = true
 
 
 func _physics_process(delta: float) -> void:
@@ -71,10 +103,20 @@ func _physics_process(delta: float) -> void:
 	var prefix: String = "p%d_" % (player_id + 1)
 	if Input.is_action_just_pressed(StringName(prefix + "interact")):
 		_try_interact()
+	if Input.is_action_just_pressed(StringName(prefix + "auto_mine")):
+		auto_mine = not auto_mine
+	if Input.is_action_just_pressed(StringName(prefix + "auto_attack")):
+		auto_attack = not auto_attack
 	if Input.is_action_just_pressed(StringName(prefix + "attack")):
 		if _attack_cooldown <= 0.0:
 			try_attack()
 			_attack_cooldown = ATTACK_COOLDOWN_SEC
+	# Auto-mine: mine nearest mineable within radius when cooldown ready.
+	if auto_mine and _attack_cooldown <= 0.0:
+		_tick_auto_mine()
+	# Auto-attack: attack nearby hostiles or fire ranged in facing dir.
+	if auto_attack and _attack_cooldown <= 0.0:
+		_tick_auto_attack()
 	var input := Vector2(
 		Input.get_action_strength(StringName(prefix + "right"))
 			- Input.get_action_strength(StringName(prefix + "left")),
@@ -178,6 +220,120 @@ func _try_interact() -> void:
 		best.call("interact", self)
 
 
+# --- Auto-mine / auto-attack ------------------------------------
+
+func _tick_auto_mine() -> void:
+	var my_cell: Vector2i = _cell_of(position)
+	var best_cell: Vector2i = Vector2i(-1, -1)
+	var best_d2: int = 999
+	for dy in range(-_AUTO_MINE_RADIUS, _AUTO_MINE_RADIUS + 1):
+		for dx in range(-_AUTO_MINE_RADIUS, _AUTO_MINE_RADIUS + 1):
+			if dx == 0 and dy == 0:
+				continue
+			var c := my_cell + Vector2i(dx, dy)
+			if _world._mineable.has(c):
+				var d2: int = abs(dx) + abs(dy)
+				if d2 < best_d2:
+					best_d2 = d2
+					best_cell = c
+	if best_cell == Vector2i(-1, -1):
+		return
+	# Face the target cell.
+	var diff: Vector2i = best_cell - my_cell
+	if abs(diff.y) > abs(diff.x):
+		_facing_dir = Vector2i(0, signi(diff.y))
+	else:
+		_facing_dir = Vector2i(signi(diff.x), 0)
+	var damage: int = _compute_mine_damage(best_cell)
+	var res: Dictionary = _world.mine_at(best_cell, damage)
+	var is_mineable: bool = _world._mineable.has(best_cell) or res.get("hit", false)
+	_play_action_vfx(best_cell, is_mineable, res)
+	if res.get("destroyed", false):
+		for d in res.get("drops", []):
+			inventory.add(d["id"], d["count"])
+	_attack_cooldown = ATTACK_COOLDOWN_SEC
+
+
+func _tick_auto_attack() -> void:
+	var weapon_id: StringName = equipment.get_equipped(ItemDefinition.Slot.WEAPON)
+	if weapon_id == &"bow":
+		_auto_attack_ranged()
+	else:
+		_auto_attack_melee(weapon_id)
+
+
+func _auto_attack_melee(weapon_id: StringName) -> void:
+	var best: Node2D = null
+	var best_d2: float = INF
+	var reach2: float = _MELEE_REACH_PX * _MELEE_REACH_PX
+	for n in _world.entities.get_children():
+		if n == self:
+			continue
+		var is_hostile: bool = false
+		if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
+			is_hostile = true
+		elif n is Monster and (n as Monster).health > 0:
+			is_hostile = true
+		if not is_hostile:
+			continue
+		var d2: float = position.distance_squared_to((n as Node2D).position)
+		if d2 < best_d2 and d2 <= reach2:
+			best_d2 = d2
+			best = n as Node2D
+	if best == null:
+		return
+	# Face the target.
+	var diff: Vector2 = best.position - position
+	if abs(diff.y) > abs(diff.x):
+		_facing_dir = Vector2i(0, signi(diff.y))
+	else:
+		_facing_dir = Vector2i(signi(diff.x), 0)
+	var target_cell: Vector2i = _cell_of(best.position)
+	if best.has_method("take_hit"):
+		var power: int = 1
+		if weapon_id != &"":
+			var def: ItemDefinition = ItemRegistry.get_item(weapon_id)
+			if def != null:
+				power = max(1, def.power)
+		best.call("take_hit", power, self)
+	_play_action_vfx(target_cell, false, {})
+	_attack_cooldown = ATTACK_COOLDOWN_SEC
+
+
+func _auto_attack_ranged() -> void:
+	var my_cell: Vector2i = _cell_of(position)
+	var target_cell: Vector2i = my_cell + _facing_dir
+	# Fire in the facing direction — VFX handles the arrow visual.
+	_play_action_vfx(target_cell, false, {})
+	# Check if any hostile is roughly in the facing direction within range.
+	var reach2: float = _RANGED_REACH_PX * _RANGED_REACH_PX
+	var dir := Vector2(_facing_dir).normalized()
+	for n in _world.entities.get_children():
+		if n == self:
+			continue
+		var is_hostile: bool = false
+		if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
+			is_hostile = true
+		elif n is Monster and (n as Monster).health > 0:
+			is_hostile = true
+		if not is_hostile:
+			continue
+		var to: Vector2 = (n as Node2D).position - position
+		if to.length_squared() > reach2:
+			continue
+		# Check alignment with facing direction (dot > 0.7 ≈ within ~45°).
+		if to.normalized().dot(dir) < 0.7:
+			continue
+		if n.has_method("take_hit"):
+			var def: ItemDefinition = ItemRegistry.get_item(&"bow")
+			var power: int = 1
+			if def != null:
+				power = max(1, def.power)
+			n.call("take_hit", power, self)
+		break  # One target per shot.
+	_attack_cooldown = ATTACK_COOLDOWN_SEC
+
+
 # --- Attack / mining ---------------------------------------------
 
 ## Returns the mining damage for a given target cell, factoring in
@@ -197,12 +353,48 @@ func try_attack() -> Dictionary:
 	var target: Vector2i = my_cell + _facing_dir
 	var damage: int = _compute_mine_damage(target)
 	var res: Dictionary = _world.mine_at(target, damage)
+
+	# Determine and play the appropriate VFX.
+	var is_mineable: bool = _world._mineable.has(target) or res.get("hit", false)
+	_play_action_vfx(target, is_mineable, res)
+
 	if not res.get("hit", false):
 		return res
 	if res.get("destroyed", false):
 		for d in res.get("drops", []):
 			inventory.add(d["id"], d["count"])
-		_world.spawn_break_burst(target)
-	else:
-		_world.spawn_hit_burst(target)
 	return res
+
+
+func _play_action_vfx(target: Vector2i, is_mineable: bool, res: Dictionary) -> void:
+	if _action_vfx == null:
+		# Fallback to old particle-only bursts.
+		if res.get("destroyed", false):
+			_world.spawn_break_burst(target)
+		elif res.get("hit", false):
+			_world.spawn_hit_burst(target)
+		return
+
+	var kind: StringName = res.get("kind", &"")
+
+	if res.get("destroyed", false):
+		# Destruction burst (big particles, replaces spawn_break_burst).
+		var pos: Vector2 = (Vector2(target) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+		ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.BREAK, kind)
+
+	if is_mineable:
+		var tool_id: StringName = equipment.get_equipped(ItemDefinition.Slot.TOOL)
+		if tool_id == &"pickaxe":
+			_action_vfx.play_mine_swing(target, kind)
+		else:
+			_action_vfx.play_gather(target)
+	else:
+		var weapon_id: StringName = equipment.get_equipped(ItemDefinition.Slot.WEAPON)
+		if weapon_id == &"bow":
+			_action_vfx.play_ranged(target)
+		elif weapon_id != &"":
+			_action_vfx.play_melee_swing(target)
+		else:
+			# Bare-hands punch — just particles, no swing sprite.
+			var pos: Vector2 = (Vector2(target) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+			ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.MELEE)

@@ -127,3 +127,8 @@ interior_terrain = {
 "floor": [Vector2i(24, 1)],
 "wall": [Vector2i(24, 6)]
 }
+weapon_sprites = {
+"bow": [Vector2i(52, 0)],
+"pickaxe": [Vector2i(50, 0)],
+"sword": [Vector2i(42, 5)]
+}

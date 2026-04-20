@@ -55,6 +55,8 @@ static func _init_defaults() -> void:
 		"Doubles mining damage against rocks and ore veins.")
 	_define(&"sword", "Iron Sword", 21, ItemDefinition.Slot.WEAPON, 4, 1,
 		"A balanced blade for combat.")
+	_define(&"bow", "Wooden Bow", 24, ItemDefinition.Slot.WEAPON, 3, 1,
+		"Fires arrows at distant targets.")
 	_define(&"helmet", "Leather Helmet", 31, ItemDefinition.Slot.HEAD, 2, 1,
 		"Reduces damage taken to the head.")
 	_define(&"armor", "Leather Armor", 32, ItemDefinition.Slot.BODY, 3, 1,

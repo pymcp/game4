@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://b1playerscene"]
+[gd_scene load_steps=4 format=3 uid="uid://b1playerscene"]
 
 [ext_resource type="Script" path="res://scripts/entities/player_controller.gd" id="1_pc"]
 [ext_resource type="Texture2D" path="res://assets/characters/roguelike/characters_sheet.png" id="2_sheet"]
+[ext_resource type="Script" path="res://scripts/entities/action_vfx.gd" id="3_vfx"]
 
 [node name="Player" type="Node2D"]
 y_sort_enabled = true
@@ -29,3 +30,14 @@ region_enabled = true
 region_rect = Rect2(323, 0, 16, 16)
 centered = true
 offset = Vector2(0, -8)
+
+[node name="Weapon" type="Sprite2D" parent="SpriteRoot"]
+visible = false
+texture = ExtResource("2_sheet")
+region_enabled = true
+region_rect = Rect2(0, 0, 16, 33)
+centered = true
+offset = Vector2(0, -8)
+
+[node name="ActionVFX" type="Node2D" parent="."]
+script = ExtResource("3_vfx")

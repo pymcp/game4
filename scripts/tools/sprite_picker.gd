@@ -71,6 +71,9 @@ const _MAPPINGS: Array = [
 	{"id": &"interior_terrain",                  "label": "Interior terrain",
 	 "sheet": "res://assets/tiles/roguelike/interior_sheet.png",
 	 "field": &"interior_terrain",                  "kind": &"list"},
+	{"id": &"weapon_sprites",                    "label": "Weapon / tool sprites",
+	 "sheet": "res://assets/characters/roguelike/characters_sheet.png",
+	 "field": &"weapon_sprites",                    "kind": &"list"},
 ]
 
 # Tile-sheet geometry. Matches WorldConst.TILE_PX (16) and the 1-px

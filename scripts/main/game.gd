@@ -105,12 +105,16 @@ func _wire_hud_and_cameras() -> void:
 			_hotbar_p1.set_inventory(p1.inventory)
 		if _inv_p1 != null:
 			_inv_p1.set_player(p1)
+		if _controls_p1 != null:
+			_controls_p1.set_player(0, p1)
 		_camera_p1 = _make_camera(p1, _vp_p1)
 	if p2 != null:
 		if _hotbar_p2 != null:
 			_hotbar_p2.set_inventory(p2.inventory)
 		if _inv_p2 != null:
 			_inv_p2.set_player(p2)
+		if _controls_p2 != null:
+			_controls_p2.set_player(1, p2)
 		_camera_p2 = _make_camera(p2, _vp_p2)
 
 
