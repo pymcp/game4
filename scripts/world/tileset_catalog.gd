@@ -38,43 +38,41 @@ const CUSTOM_WALKABLE: String = "walkable"    # bool
 # `cell_for_variant()` at the per-terrain probability defined in
 # `GROUND_VARIANT_CHANCE_BY_TERRAIN`. All variants must be 100% opaque so
 # they can replace the canonical ground tile cleanly.
-const OVERWORLD_TERRAIN_CELLS: Dictionary = {
+# Fallback defaults when the .tres is missing (fresh checkout).
+const _DEFAULT_OVERWORLD_TERRAIN: Dictionary = {
 	&"dirt":  [Vector2i(1, 26)],
 	&"stone": [Vector2i(4, 26)],
 	&"sand":  [Vector2i(7, 26)],
 	&"grass": [
-		Vector2i(10, 26),                                    # canonical
-		Vector2i(0, 6), Vector2i(1, 6), Vector2i(0, 7),      # orange flowers
-		Vector2i(0, 9), Vector2i(1, 9), Vector2i(0, 10),     # white daisies
+		Vector2i(10, 26),
+		Vector2i(0, 6), Vector2i(1, 6), Vector2i(0, 7),
+		Vector2i(0, 9), Vector2i(1, 9), Vector2i(0, 10),
 	],
 	&"clay":  [Vector2i(13, 26)],
-	# Plain water — top-left of the sheet. (0,1) is a near-identical
-	# variant used interchangeably to break up large bodies of water.
 	&"water": [
-		Vector2i(0, 0),                                       # canonical
-		Vector2i(0, 1),                                       # speck variant
+		Vector2i(0, 0),
+		Vector2i(0, 1),
 	],
 	&"deep_water": [Vector2i(32, 26)],
 	&"snow":  [Vector2i(45, 26)],
 }
+static var OVERWORLD_TERRAIN_CELLS: Dictionary = _DEFAULT_OVERWORLD_TERRAIN
 
 # Overworld decoration cells. Some are collidable obstacles (trees/rocks),
 # others are purely cosmetic single-tile sprites with transparent corners
 # (flowers/lilypads) that overlay grass/water without blocking movement.
 # Each value is an Array of (atlas_x, atlas_y) cell variants. The variant
 # is chosen by the generator's `entry["variant"]` modulo arr.size().
-const OVERWORLD_DECORATION_CELLS: Dictionary = {
+const _DEFAULT_OVERWORLD_DECORATION: Dictionary = {
 	&"tree":   [Vector2i(13, 9), Vector2i(14, 9), Vector2i(15, 9), Vector2i(16, 9)],
 	&"bush":   [Vector2i(20, 9), Vector2i(21, 9)],
 	&"rock":   [Vector2i(7, 13), Vector2i(8, 13), Vector2i(9, 13)],
-	# Mineable resources (decorations the player chops/mines).
 	&"iron_vein":   [Vector2i(10, 13), Vector2i(11, 13)],
 	&"copper_vein": [Vector2i(12, 13)],
-	# Cosmetic scatter — single-tile flowers/leaves with transparent
-	# backgrounds. Walkable; never block the player.
 	&"flower":  [Vector2i(28, 9), Vector2i(29, 9), Vector2i(30, 9), Vector2i(31, 9)],
 	&"lilypad": [Vector2i(28, 10)],
 }
+static var OVERWORLD_DECORATION_CELLS: Dictionary = _DEFAULT_OVERWORLD_DECORATION
 
 # Default probability a given cell rolls into a registered variant.
 # Kept low for grass so flower variants read as occasional accents, not
@@ -96,7 +94,7 @@ const GROUND_VARIANT_CHANCE_BY_TERRAIN: Dictionary = {
 #
 # Cell order is row-major NW, N, NE, W, C, E, SW, S, SE — see
 # `_patch_index_for_neighbors` in world_root.gd for the mapping.
-const OVERWORLD_TERRAIN_PATCH_3X3: Dictionary = {
+const _DEFAULT_OVERWORLD_PATCH_3X3: Dictionary = {
 	&"dirt": [
 		Vector2i(0, 25), Vector2i(1, 25), Vector2i(2, 25),
 		Vector2i(0, 26), Vector2i(1, 26), Vector2i(2, 26),
@@ -118,6 +116,7 @@ const OVERWORLD_TERRAIN_PATCH_3X3: Dictionary = {
 		Vector2i(12, 27), Vector2i(13, 27), Vector2i(14, 27),
 	],
 }
+static var OVERWORLD_TERRAIN_PATCH_3X3: Dictionary = _DEFAULT_OVERWORLD_PATCH_3X3
 
 # 3×3 corner/edge tiles that paint a curved water-on-grass boundary.
 # Unlike `OVERWORLD_TERRAIN_PATCH_3X3`, these tiles are FULLY OPAQUE: the
@@ -129,11 +128,12 @@ const OVERWORLD_TERRAIN_PATCH_3X3: Dictionary = {
 #
 # Cell order: NW, N, NE, W, C, E, SW, S, SE — same mapping as the patch
 # helper so we can reuse `_patch_index_for_neighbors`.
-const OVERWORLD_WATER_BORDER_GRASS_3X3: Array = [
+const _DEFAULT_WATER_BORDER_3X3: Array = [
 	Vector2i(2, 0), Vector2i(3, 0), Vector2i(4, 0),
 	Vector2i(2, 1), Vector2i(3, 1), Vector2i(4, 1),
 	Vector2i(2, 2), Vector2i(3, 2), Vector2i(4, 2),
 ]
+static var OVERWORLD_WATER_BORDER_GRASS_3X3: Array = _DEFAULT_WATER_BORDER_3X3
 
 # Convex / outer corner tiles for water cells that touch grass only on a
 # diagonal (i.e. all four orthogonal neighbours are still water, so the
@@ -143,21 +143,23 @@ const OVERWORLD_WATER_BORDER_GRASS_3X3: Array = [
 #
 # Keys are the diagonal direction (dx, dy) of the grass cell relative to
 # the water cell. Values are atlas cells in the overworld sheet.
-const OVERWORLD_WATER_OUTER_CORNERS: Dictionary = {
-	Vector2i(-1, -1): Vector2i(1, 2),  # grass to NW → speck in TL
-	Vector2i( 1, -1): Vector2i(0, 2),  # grass to NE → speck in TR
-	Vector2i(-1,  1): Vector2i(1, 1),  # grass to SW → speck in BL
-	Vector2i( 1,  1): Vector2i(0, 1),  # grass to SE → speck in BR
+const _DEFAULT_WATER_OUTER_CORNERS: Dictionary = {
+	Vector2i(-1, -1): Vector2i(1, 2),
+	Vector2i( 1, -1): Vector2i(0, 2),
+	Vector2i(-1,  1): Vector2i(1, 1),
+	Vector2i( 1,  1): Vector2i(0, 1),
 }
+static var OVERWORLD_WATER_OUTER_CORNERS: Dictionary = _DEFAULT_WATER_OUTER_CORNERS
 
 # City sheet: roads, sidewalks, building exteriors.
 # Same `Array[Vector2i]` schema as `OVERWORLD_TERRAIN_CELLS`.
-const CITY_TERRAIN_CELLS: Dictionary = {
+const _DEFAULT_CITY_TERRAIN: Dictionary = {
 	&"road":     [Vector2i(7, 19)],
 	&"sidewalk": [Vector2i(15, 1)],
 	&"grass":    [Vector2i(35, 27)],
 	&"water":    [Vector2i(33, 1)],
 }
+static var CITY_TERRAIN_CELLS: Dictionary = _DEFAULT_CITY_TERRAIN
 
 # Dungeon sheet: cave floor + cave wall autotile.
 #
@@ -171,15 +173,16 @@ const CITY_TERRAIN_CELLS: Dictionary = {
 # darkened (9, 7) on a separate dim TileMapLayer at runtime.
 # Floor cells additionally get a 10% chance of one decorative overlay
 # tile from `DUNGEON_FLOOR_DECOR_CELLS`.
-const DUNGEON_TERRAIN_CELLS: Dictionary = {
-	&"floor": [Vector2i(10, 8)],
+const _DEFAULT_DUNGEON_TERRAIN: Dictionary = {
+	&"floor": [Vector2i(9, 7)],
 	&"wall":  [
-		Vector2i(9, 8), Vector2i(11, 8),
-		Vector2i(10, 10), Vector2i(11, 10), Vector2i(12, 10),
+		Vector2i(8, 7), Vector2i(10, 7),
+		Vector2i(9, 9), Vector2i(10, 9), Vector2i(11, 9),
 	],
 	&"door":  [Vector2i(2, 8)],
 	&"water": [Vector2i(2, 12)],
 }
+static var DUNGEON_TERRAIN_CELLS: Dictionary = _DEFAULT_DUNGEON_TERRAIN
 
 # Wall autotile lookup. Key is a 4-bit floor-neighbour mask:
 #   bit 3 (8) = floor to north
@@ -190,45 +193,43 @@ const DUNGEON_TERRAIN_CELLS: Dictionary = {
 # tile must be flipped vertically to render as a top-of-wall tile.
 # Mask 0 (no floor neighbour) is omitted — those cells are dead space and
 # rendered separately.
-const DUNGEON_WALL_AUTOTILE: Dictionary = {
-	# vertical column walls (one floor neighbour to the side)
-	2:  [Vector2i(9, 8),  false],   # E only       → left-wall
-	1:  [Vector2i(11, 8), false],   # W only       → right-wall
-	# bottom row (floor north): wall meets floor below
-	8:  [Vector2i(11, 10), false],  # N only       → bottom-centre
-	10: [Vector2i(10, 10), false],  # N + E        → bottom-left
-	9:  [Vector2i(12, 10), false],  # N + W        → bottom-right
-	11: [Vector2i(11, 10), false],  # N + E + W
-	# top row (floor south): wall meets floor above (flipped bottom row)
-	4:  [Vector2i(11, 10), true],   # S only       → top-centre
-	6:  [Vector2i(10, 10), true],   # S + E        → top-left
-	5:  [Vector2i(12, 10), true],   # S + W        → top-right
-	7:  [Vector2i(11, 10), true],   # S + E + W
-	# wall surrounded by floor on opposing sides — freestanding pillar /
-	# corridor wall fragment. Use bottom-centre as a generic wall face.
-	3:  [Vector2i(11, 10), false],  # E + W
-	12: [Vector2i(11, 10), false],  # N + S
-	13: [Vector2i(11, 8),  false],  # N + S + W    → right-wall
-	14: [Vector2i(9, 8),   false],  # N + S + E    → left-wall
-	15: [Vector2i(11, 10), false],  # all four     → isolated pillar
+const _DEFAULT_DUNGEON_WALL_AUTOTILE: Dictionary = {
+	2:  [Vector2i(8, 7),  false],
+	1:  [Vector2i(10, 7), false],
+	8:  [Vector2i(9, 9),  false],
+	10: [Vector2i(8, 9),  false],
+	9:  [Vector2i(10, 9), false],
+	11: [Vector2i(9, 9),  false],
+	4:  [Vector2i(9, 9),  true],
+	6:  [Vector2i(8, 9),  true],
+	5:  [Vector2i(10, 9), true],
+	7:  [Vector2i(9, 9),  true],
+	3:  [Vector2i(9, 9),  false],
+	12: [Vector2i(9, 9),  false],
+	13: [Vector2i(10, 7), false],
+	14: [Vector2i(8, 7),  false],
+	15: [Vector2i(9, 9),  false],
 }
+static var DUNGEON_WALL_AUTOTILE: Dictionary = _DEFAULT_DUNGEON_WALL_AUTOTILE
 
 # Decorative floor overlay tiles. Painted on the decoration layer over a
 # (9, 7) floor cell at ~10% chance. Range covers atlas cells (12, 10)
 # through (13, 14) — 2 columns × 5 rows = 10 unique tiles.
-const DUNGEON_FLOOR_DECOR_CELLS: Array = [
-	Vector2i(13, 11), Vector2i(14, 11),
-	Vector2i(13, 12), Vector2i(14, 12),
-	Vector2i(13, 13), Vector2i(14, 13),
-	Vector2i(13, 14), Vector2i(14, 14),
-	Vector2i(13, 15), Vector2i(14, 15),
+const _DEFAULT_DUNGEON_FLOOR_DECOR: Array = [
+	Vector2i(12, 10), Vector2i(13, 10),
+	Vector2i(12, 11), Vector2i(13, 11),
+	Vector2i(12, 12), Vector2i(13, 12),
+	Vector2i(12, 13), Vector2i(13, 13),
+	Vector2i(12, 14), Vector2i(13, 14),
 ]
+static var DUNGEON_FLOOR_DECOR_CELLS: Array = _DEFAULT_DUNGEON_FLOOR_DECOR
 
 # Cave entrance marker on the overworld. Two side-by-side dungeon-sheet
 # tiles (anchor cell + cell to the east) drawn on a Sprite-based marker.
-const DUNGEON_OVERWORLD_ENTRANCE_CELLS: Array = [
-	Vector2i(25, 5), Vector2i(26, 5),
+const _DEFAULT_DUNGEON_ENTRANCE: Array = [
+	Vector2i(24, 4), Vector2i(25, 4),
 ]
+static var DUNGEON_OVERWORLD_ENTRANCE_CELLS: Array = _DEFAULT_DUNGEON_ENTRANCE
 
 # Wooden doorframe drawn at the south end of a north-south cave corridor
 # where it opens into a room. Purely decorative — placed as Sprite2D
@@ -239,21 +240,41 @@ const DUNGEON_OVERWORLD_ENTRANCE_CELLS: Array = [
 #   y=row     : TL  top×N  TR             ← the lintel
 #   y=row+1   : LW          RW            ← side jambs (top half)
 #   y=row+2   : LW2         RW2           ← side jambs (bottom half)
-const DUNGEON_DOORFRAME_TL:  Vector2i = Vector2i(5, 8)
-const DUNGEON_DOORFRAME_TOP: Vector2i = Vector2i(6, 9)
-const DUNGEON_DOORFRAME_TR:  Vector2i = Vector2i(8, 9)
-const DUNGEON_DOORFRAME_LW:  Vector2i = Vector2i(5, 9)
-const DUNGEON_DOORFRAME_LW2: Vector2i = Vector2i(5, 10)
-const DUNGEON_DOORFRAME_RW:  Vector2i = Vector2i(8, 10)
-const DUNGEON_DOORFRAME_RW2: Vector2i = Vector2i(8, 11)
+const _DEFAULT_DUNGEON_DOORFRAME: Dictionary = {
+	&"TL":  Vector2i(5, 8),
+	&"TOP": Vector2i(6, 9),
+	&"TR":  Vector2i(8, 9),
+	&"LW":  Vector2i(5, 9),
+	&"LW2": Vector2i(5, 10),
+	&"RW":  Vector2i(8, 10),
+	&"RW2": Vector2i(8, 11),
+}
+static var DUNGEON_DOORFRAME: Dictionary = _DEFAULT_DUNGEON_DOORFRAME
+
+## Legacy accessors for doorframe slots — reads from the loaded dict.
+static var DUNGEON_DOORFRAME_TL:  Vector2i:
+	get: return DUNGEON_DOORFRAME.get(&"TL", Vector2i(5, 8))
+static var DUNGEON_DOORFRAME_TOP: Vector2i:
+	get: return DUNGEON_DOORFRAME.get(&"TOP", Vector2i(6, 9))
+static var DUNGEON_DOORFRAME_TR:  Vector2i:
+	get: return DUNGEON_DOORFRAME.get(&"TR", Vector2i(8, 9))
+static var DUNGEON_DOORFRAME_LW:  Vector2i:
+	get: return DUNGEON_DOORFRAME.get(&"LW", Vector2i(5, 9))
+static var DUNGEON_DOORFRAME_LW2: Vector2i:
+	get: return DUNGEON_DOORFRAME.get(&"LW2", Vector2i(5, 10))
+static var DUNGEON_DOORFRAME_RW:  Vector2i:
+	get: return DUNGEON_DOORFRAME.get(&"RW", Vector2i(8, 10))
+static var DUNGEON_DOORFRAME_RW2: Vector2i:
+	get: return DUNGEON_DOORFRAME.get(&"RW2", Vector2i(8, 11))
 
 # Interior sheet: wood floor, wood wall.
 # Same `Array[Vector2i]` schema as `OVERWORLD_TERRAIN_CELLS`.
-const INTERIOR_TERRAIN_CELLS: Dictionary = {
+const _DEFAULT_INTERIOR_TERRAIN: Dictionary = {
 	&"floor": [Vector2i(5, 13)],
 	&"wall":  [Vector2i(5, 1)],
 	&"door":  [Vector2i(20, 9)],
 }
+static var INTERIOR_TERRAIN_CELLS: Dictionary = _DEFAULT_INTERIOR_TERRAIN
 
 # ─── Walkability rules (used by generators + collision) ────────────────
 const WALKABLE: Dictionary = {
@@ -267,6 +288,54 @@ const WALKABLE: Dictionary = {
 	&"floor": true, &"wall": false, &"door": true,
 }
 
+# ─── .tres loading ──────────────────────────────────────────────────────
+const _TRES_PATH: String = "res://resources/tilesets/tile_mappings.tres"
+static var _loaded: bool = false
+
+## Load cell coordinates from the .tres resource, replacing the hardcoded
+## defaults. Called lazily on first access to any TileSet or cell_for*().
+static func _ensure_loaded() -> void:
+	if _loaded:
+		return
+	_loaded = true
+	var res: Resource = load(_TRES_PATH)
+	if res == null:
+		push_warning("TilesetCatalog: %s not found, using built-in defaults" % _TRES_PATH)
+		return
+	var m: TileMappings = res as TileMappings
+	if m == null:
+		push_warning("TilesetCatalog: %s is not a TileMappings resource" % _TRES_PATH)
+		return
+	# Overworld
+	if not m.overworld_terrain.is_empty():
+		OVERWORLD_TERRAIN_CELLS = m.overworld_terrain
+	if not m.overworld_decoration.is_empty():
+		OVERWORLD_DECORATION_CELLS = m.overworld_decoration
+	if not m.overworld_terrain_patches_3x3.is_empty():
+		OVERWORLD_TERRAIN_PATCH_3X3 = m.overworld_terrain_patches_3x3
+	if not m.overworld_water_border_grass_3x3.is_empty():
+		OVERWORLD_WATER_BORDER_GRASS_3X3 = m.overworld_water_border_grass_3x3
+	if not m.overworld_water_outer_corners.is_empty():
+		OVERWORLD_WATER_OUTER_CORNERS = m.overworld_water_outer_corners
+	# City
+	if not m.city_terrain.is_empty():
+		CITY_TERRAIN_CELLS = m.city_terrain
+	# Dungeon
+	if not m.dungeon_terrain.is_empty():
+		DUNGEON_TERRAIN_CELLS = m.dungeon_terrain
+	var autotile: Dictionary = m.build_dungeon_wall_autotile_dict()
+	if not autotile.is_empty():
+		DUNGEON_WALL_AUTOTILE = autotile
+	if not m.dungeon_floor_decor.is_empty():
+		DUNGEON_FLOOR_DECOR_CELLS = m.dungeon_floor_decor
+	if not m.dungeon_entrance_pair.is_empty():
+		DUNGEON_OVERWORLD_ENTRANCE_CELLS = m.dungeon_entrance_pair
+	if not m.dungeon_doorframe.is_empty():
+		DUNGEON_DOORFRAME = m.dungeon_doorframe
+	# Interior
+	if not m.interior_terrain.is_empty():
+		INTERIOR_TERRAIN_CELLS = m.interior_terrain
+
 # ─── Cached TileSets ────────────────────────────────────────────────────
 static var _overworld_ts: TileSet = null
 static var _city_ts: TileSet = null
@@ -276,24 +345,28 @@ static var _runes_ts: TileSet = null
 
 
 static func overworld() -> TileSet:
+	_ensure_loaded()
 	if _overworld_ts == null:
 		_overworld_ts = _build(OVERWORLD_PNG, OVERWORLD_TERRAIN_CELLS)
 	return _overworld_ts
 
 
 static func city() -> TileSet:
+	_ensure_loaded()
 	if _city_ts == null:
 		_city_ts = _build(CITY_PNG, CITY_TERRAIN_CELLS)
 	return _city_ts
 
 
 static func dungeon() -> TileSet:
+	_ensure_loaded()
 	if _dungeon_ts == null:
 		_dungeon_ts = _build(DUNGEON_PNG, DUNGEON_TERRAIN_CELLS, true)
 	return _dungeon_ts
 
 
 static func interior() -> TileSet:
+	_ensure_loaded()
 	if _interior_ts == null:
 		_interior_ts = _build(INTERIOR_PNG, INTERIOR_TERRAIN_CELLS)
 	return _interior_ts
@@ -430,6 +503,7 @@ static func _build_runes() -> TileSet:
 ## of the per-terrain `Array[Vector2i]`; tolerates a bare `Vector2i` as a
 ## defensive fallback.
 static func cell_for(view_kind: StringName, terrain: StringName) -> Vector2i:
+	_ensure_loaded()
 	var d: Dictionary
 	match view_kind:
 		&"overworld": d = OVERWORLD_TERRAIN_CELLS
@@ -453,6 +527,7 @@ static func cell_for(view_kind: StringName, terrain: StringName) -> Vector2i:
 ## `hash32` should be a stable per-cell hash (e.g. region.seed XOR cell
 ## coords) so reloads paint identical tiles.
 static func cell_for_variant(view_kind: StringName, terrain: StringName, hash32: int) -> Vector2i:
+	_ensure_loaded()
 	var d: Dictionary
 	match view_kind:
 		&"overworld": d = OVERWORLD_TERRAIN_CELLS
@@ -493,3 +568,11 @@ const TALL_TILE_KINDS: Array = [&"door"]
 ## above). See `TALL_TILE_KINDS`.
 static func is_tall_tile(terrain: StringName) -> bool:
 	return TALL_TILE_KINDS.has(terrain)
+
+
+## Decoration kinds that occupy two vertical cells (trunk + canopy).
+const TALL_DECORATION_KINDS: Array = [&"tree"]
+
+## True if a decoration `kind` should render as a two-cell stack.
+static func is_tall_decoration(kind: StringName) -> bool:
+	return TALL_DECORATION_KINDS.has(kind)
