@@ -53,7 +53,8 @@ var _dialogue_box: DialogueBox = null  ## Per-instance dialogue UI.
 var _active_tree_player: PlayerController = null  ## Player driving branching dialogue.
 
 const MINEABLE_HP: Dictionary = {
-	&"tree": 3, &"bush": 1, &"rock": 5, &"iron_vein": 6, &"copper_vein": 5,
+	&"tree": 3, &"bush": 1, &"rock": 5,
+	&"iron_vein": 6, &"copper_vein": 5, &"gold_vein": 8,
 }
 const MINEABLE_DROPS: Dictionary = {
 	&"tree": [{"id": &"wood", "count": 1}],
@@ -61,6 +62,11 @@ const MINEABLE_DROPS: Dictionary = {
 	&"rock": [{"id": &"stone", "count": 1}],
 	&"iron_vein": [{"id": &"iron_ore", "count": 1}],
 	&"copper_vein": [{"id": &"copper_ore", "count": 1}],
+	&"gold_vein": [{"id": &"gold_ore", "count": 1}],
+}
+## Kinds that benefit from pickaxe bonus damage.
+const PICKAXE_BONUS_KINDS: Dictionary = {
+	&"rock": true, &"iron_vein": true, &"copper_vein": true, &"gold_vein": true,
 }
 
 
@@ -658,8 +664,7 @@ func _clear_layers() -> void:
 			if c.is_in_group(&"scattered_npcs"):
 				c.queue_free()
 	# Hide any open dialogue so it doesn't bleed across view changes.
-	if _dialogue_box != null and is_instance_valid(_dialogue_box):
-		_dialogue_box.hide_line()
+	hide_dialogue()
 
 
 # Stable per-cell 32-bit hash for deterministic variant rolls.
@@ -987,10 +992,16 @@ func _maybe_inject_mara() -> void:
 	# Only inject Mara on the overworld starting region (not interiors).
 	if _interior != null or _region == null:
 		return
+	# Only the starting region (the one _resolve_land_region selected, which
+	# is always region_id (0,0) or a nearby non-ocean neighbour).
+	var rid: Vector2i = _region.region_id
+	if abs(rid.x) > 1 or abs(rid.y) > 1:
+		return
 	# Check if Mara is already in the scatter list.
 	for entry in _region.npcs_scatter:
-		if typeof(entry) == TYPE_DICTIONARY and entry.get("dialogue", "") != "":
-			return  # Already has a dialogue NPC (Mara or another).
+		if typeof(entry) == TYPE_DICTIONARY \
+				and entry.get("dialogue", "") == "res://resources/dialogue/healer_mara.tres":
+			return
 	# Place her near the first spawn point.
 	if _region.spawn_points.is_empty():
 		return
@@ -1028,18 +1039,27 @@ func _spawn_monster(entry: Dictionary) -> void:
 
 # --- Dialogue ------------------------------------------------------
 
-func show_dialogue(_pid: int, speaker: String, line: String) -> void:
-	_ensure_dialogue_box().show_line(speaker, line)
+func show_dialogue(pid: int, speaker: String, line: String) -> void:
+	var box: DialogueBox = _ensure_dialogue_box()
+	box.player_id = pid
+	box.show_line(speaker, line)
 
 
 func hide_dialogue() -> void:
 	if _dialogue_box != null and is_instance_valid(_dialogue_box):
+		if _dialogue_box.choice_selected.is_connected(_on_choice_selected):
+			_dialogue_box.choice_selected.disconnect(_on_choice_selected)
 		_dialogue_box.hide_line()
+	_active_tree_player = null
 
 
 func dialogue_open() -> bool:
 	return _dialogue_box != null and is_instance_valid(_dialogue_box) \
 		and _dialogue_box.is_open()
+
+
+func get_dialogue_box() -> DialogueBox:
+	return _dialogue_box if _dialogue_box != null and is_instance_valid(_dialogue_box) else null
 
 
 func _ensure_dialogue_box() -> DialogueBox:
@@ -1077,9 +1097,9 @@ func _on_choice_selected(choice: DialogueChoice, passed: bool) -> void:
 		return
 	# Condition flag gating on the destination node.
 	if node.condition_flag != "" and not GameState.get_flag(node.condition_flag):
-		if node.condition_flag_false != "":
-			# Try the false-branch redirect (not implemented in current data, placeholder).
-			pass
+		hide_dialogue()
+		return
+	if node.condition_flag_false != "" and GameState.get_flag(node.condition_flag_false):
 		hide_dialogue()
 		return
 	var box: DialogueBox = _ensure_dialogue_box()

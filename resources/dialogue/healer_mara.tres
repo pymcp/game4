@@ -1,0 +1,248 @@
+[gd_resource type="Resource" script_class="DialogueTree" load_steps=32 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dialogue_node.gd" id="1_gqfis"]
+[ext_resource type="Script" path="res://scripts/data/dialogue_choice.gd" id="2_3dink"]
+[ext_resource type="Script" path="res://scripts/data/dialogue_tree.gd" id="3_yfbfl"]
+
+[sub_resource type="Resource" id="Resource_15p1m"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "The sickness started near the old mine in the eastern hills. Something seeped into the groundwater. If you go there, be careful — the animals nearby have gone feral."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_d5eif"]
+script = ExtResource("2_3dink")
+label = "Where exactly is this mine?"
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_15p1m")
+require_flag = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_5eak0"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "Hmm, I'm not sure what you mean. But the mine is east of here, past the birch grove. Start there."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_uoivl"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "I've been studying the well water. There's a strange residue — almost like crushed moonstone. The mine used to produce that before it was abandoned. That's your lead."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_jjr1c"]
+script = ExtResource("2_3dink")
+label = "Could the ore itself be toxic?"
+stat_check = &"wisdom"
+stat_threshold = 4
+next_node = SubResource("Resource_uoivl")
+failure_node = SubResource("Resource_5eak0")
+require_flag = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_il4gr"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "I understand your scepticism. But three villages have lost livestock this moon alone. If you change your mind, you know where to find me."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_iuouk"]
+script = ExtResource("2_3dink")
+label = "I'm not sure I believe that."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_il4gr")
+require_flag = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_bre0o"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "I've traced it to the water. Every sick animal drinks from streams fed by the eastern hills. The old moonstone mine was sealed twenty years ago, but something's broken through."
+choices = Array[Resource]([SubResource("Resource_d5eif"), SubResource("Resource_jjr1c"), SubResource("Resource_iuouk")])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_fd1ix"]
+script = ExtResource("2_3dink")
+label = "What do you know about the cause?"
+stat_check = &"wisdom"
+stat_threshold = 3
+next_node = SubResource("Resource_bre0o")
+require_flag = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_8x1i2"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "Fair enough. Bring me proof from the mine — a water sample or a piece of the contaminated ore — and I'll craft you a tonic that'll make you tougher than boiled leather."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_gu10w"]
+script = ExtResource("2_3dink")
+label = "Sounds fair. What do you need?"
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_8x1i2")
+require_flag = ""
+set_flag = "quest_herbalist_started"
+
+[sub_resource type="Resource" id="Resource_hx31l"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "That's too much to ask. The tonic or nothing, traveller."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_p6jbt"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "You drive a hard bargain, traveller. Fine — bring evidence from the mine and I'll give you my last bottled antidote AND the tonic recipe. But don't dawdle."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_dkpdn"]
+script = ExtResource("2_3dink")
+label = "I want the tonic AND your antidote recipe."
+stat_check = &"charisma"
+stat_threshold = 5
+next_node = SubResource("Resource_p6jbt")
+failure_node = SubResource("Resource_hx31l")
+require_flag = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_kwrdt"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "Then we have nothing more to discuss. The animals keep dying and you want coin. I hope your conscience catches up with you."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_s8226"]
+script = ExtResource("2_3dink")
+label = "Forget it, I'm not doing charity work."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_kwrdt")
+require_flag = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_aqh4m"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "I don't have much gold, but I can offer something better. I brew tonics that'll harden your skin and sharpen your senses. One batch is worth more than a sack of coin."
+choices = Array[Resource]([SubResource("Resource_gu10w"), SubResource("Resource_dkpdn"), SubResource("Resource_s8226")])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_11g8s"]
+script = ExtResource("2_3dink")
+label = "I might help — but what's in it for me?"
+stat_check = &"charisma"
+stat_threshold = 3
+next_node = SubResource("Resource_aqh4m")
+require_flag = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_to4go"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "Bless you. I need fennel root, blue nightcap mushrooms, and clean spring water — not from the village well. Bring them to me and I can brew enough remedy for the whole valley."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_lqdmj"]
+script = ExtResource("2_3dink")
+label = "I'll gather the herbs."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_to4go")
+require_flag = ""
+set_flag = "quest_herbalist_started"
+
+[sub_resource type="Resource" id="Resource_2m4ru"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "That's brave of you. The mine entrance is east past the birch grove. Watch for sick wolves — they don't run from people anymore. Seal whatever is leaking and the water should clear within a fortnight."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_t35ti"]
+script = ExtResource("2_3dink")
+label = "I'll check out the mine."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_2m4ru")
+require_flag = ""
+set_flag = "quest_herbalist_started"
+
+[sub_resource type="Resource" id="Resource_pwcmf"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "I admire the spirit, but you'd need to be stronger for that. Pick one for now — herbs or the mine."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_surtj"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "You'd do both? Stars above, you might just save this valley. Gather the herbs first — I'll need the remedy ready before you stir up whatever's in that mine."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_iuwe8"]
+script = ExtResource("2_3dink")
+label = "I'll do both — herbs and the mine."
+stat_check = &"strength"
+stat_threshold = 4
+next_node = SubResource("Resource_surtj")
+failure_node = SubResource("Resource_pwcmf")
+require_flag = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_d37e7"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "Two things would help most: I need rare herbs for the remedy, and someone brave enough to investigate that mine. The herbs I can point you to. The mine... that's dangerous."
+choices = Array[Resource]([SubResource("Resource_lqdmj"), SubResource("Resource_t35ti"), SubResource("Resource_iuwe8")])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_uuyc4"]
+script = ExtResource("2_3dink")
+label = "Tell me what you need. I'm here to help."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_d37e7")
+require_flag = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_5b1ju"]
+script = ExtResource("1_gqfis")
+speaker = "Mara"
+text = "Traveller! Thank the stars someone's come. The Quiet Sickness is spreading — cattle dropping, dogs going blind, even the wild rabbits are wasting away. I'm running out of remedies and running out of time. Can you help?"
+choices = Array[Resource]([SubResource("Resource_fd1ix"), SubResource("Resource_11g8s"), SubResource("Resource_uuyc4")])
+condition_flag = ""
+condition_flag_false = ""
+
+[resource]
+script = ExtResource("3_yfbfl")
+root = SubResource("Resource_5b1ju")

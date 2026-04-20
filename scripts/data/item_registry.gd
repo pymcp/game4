@@ -49,6 +49,10 @@ static func _init_defaults() -> void:
 		"A lump of unrefined iron.")
 	_define(&"copper_ore", "Copper Ore", 5, ItemDefinition.Slot.NONE, 0, 99,
 		"A lump of unrefined copper.")
+	_define(&"gold_ore", "Gold Ore", 6, ItemDefinition.Slot.NONE, 0, 99,
+		"A gleaming nugget of gold.")
+	_define(&"pickaxe", "Iron Pickaxe", 22, ItemDefinition.Slot.TOOL, 2, 1,
+		"Doubles mining damage against rocks and ore veins.")
 	_define(&"sword", "Iron Sword", 21, ItemDefinition.Slot.WEAPON, 4, 1,
 		"A balanced blade for combat.")
 	_define(&"helmet", "Leather Helmet", 31, ItemDefinition.Slot.HEAD, 2, 1,

@@ -27,6 +27,8 @@ var _sprite_root: Node2D = null
 var _bob_t: float = 0.0
 var _facing_x: int = 1
 var _facing_dir: Vector2i = Vector2i(1, 0)
+var _attack_cooldown: float = 0.0
+const ATTACK_COOLDOWN_SEC: float = 0.35  ## seconds between swings
 var inventory: Inventory = Inventory.new()
 var equipment: Equipment = Equipment.new()
 var max_health: int = 10
@@ -65,11 +67,14 @@ func _physics_process(delta: float) -> void:
 		_bob_t = 0.0
 		_sprite_root.position = Vector2.ZERO
 		return
+	_attack_cooldown = max(0.0, _attack_cooldown - delta)
 	var prefix: String = "p%d_" % (player_id + 1)
 	if Input.is_action_just_pressed(StringName(prefix + "interact")):
 		_try_interact()
 	if Input.is_action_just_pressed(StringName(prefix + "attack")):
-		try_attack()
+		if _attack_cooldown <= 0.0:
+			try_attack()
+			_attack_cooldown = ATTACK_COOLDOWN_SEC
 	var input := Vector2(
 		Input.get_action_strength(StringName(prefix + "right"))
 			- Input.get_action_strength(StringName(prefix + "left")),
@@ -154,9 +159,9 @@ func _try_interact() -> void:
 	# If a dialogue box is open, E either confirms the highlighted choice
 	# (branching mode) or dismisses (leaf / one-liner mode).
 	if _world.dialogue_open():
-		var box: DialogueBox = _world._dialogue_box
-		if box != null and box._visible_choices.size() > 0 and box._selected_idx >= 0:
-			box._pick_choice(box._selected_idx)
+		var box: DialogueBox = _world.get_dialogue_box()
+		if box != null and box.has_selected_choice():
+			box.confirm_selected_choice()
 		else:
 			_world.hide_dialogue()
 		return
@@ -175,10 +180,23 @@ func _try_interact() -> void:
 
 # --- Attack / mining ---------------------------------------------
 
+## Returns the mining damage for a given target cell, factoring in
+## the equipped tool (pickaxe doubles damage vs rock/ore kinds).
+func _compute_mine_damage(target_cell: Vector2i) -> int:
+	var base: int = 1
+	var tool_id: StringName = equipment.get_equipped(ItemDefinition.Slot.TOOL)
+	if tool_id == &"pickaxe":
+		var entry: Variant = _world._mineable.get(target_cell, null)
+		if entry != null and WorldRoot.PICKAXE_BONUS_KINDS.has(entry["kind"]):
+			base = 2
+	return base
+
+
 func try_attack() -> Dictionary:
 	var my_cell: Vector2i = _cell_of(position)
 	var target: Vector2i = my_cell + _facing_dir
-	var res: Dictionary = _world.mine_at(target, 1)
+	var damage: int = _compute_mine_damage(target)
+	var res: Dictionary = _world.mine_at(target, damage)
 	if not res.get("hit", false):
 		return res
 	if res.get("destroyed", false):

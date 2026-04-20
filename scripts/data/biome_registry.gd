@@ -38,10 +38,6 @@ static func _make_default(id: StringName) -> BiomeDefinition:
 			b.primary_terrain = TerrainCodes.GRASS
 			b.secondary_terrain = TerrainCodes.DIRT
 			b.ground_modulate = Color.WHITE
-			# Override the BiomeDefinition default so grass leans toward
-			# trees + flowers (no rock/bush spam) for a meadow feel.
-			b.decoration_weights = {&"tree": 0.05, &"bush": 0.025,
-				&"flower": 0.025, &"rock": 0.008}
 		&"desert":
 			b.primary_terrain = TerrainCodes.SAND
 			b.secondary_terrain = TerrainCodes.DIRT
@@ -62,7 +58,8 @@ static func _make_default(id: StringName) -> BiomeDefinition:
 			b.secondary_terrain = TerrainCodes.DIRT
 			b.ground_modulate = Color(0.95, 0.95, 0.95)
 			b.decoration_weights = {&"rock": 0.06, &"tree": 0.02,
-				&"iron_vein": 0.015, &"copper_vein": 0.01}
+					&"iron_vein": 0.015, &"copper_vein": 0.01,
+					&"gold_vein": 0.005}
 		_:
 			b.primary_terrain = TerrainCodes.GRASS
 	return b

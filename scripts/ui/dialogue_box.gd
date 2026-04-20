@@ -221,14 +221,24 @@ func _highlight(idx: int) -> void:
 		var lbl: Label = _choices_vbox.get_child(i) as Label
 		if lbl == null:
 			continue
+		# Strip existing marker first (exact prefix, not char set).
+		var raw: String = lbl.text.substr(2) if lbl.text.begins_with("▸ ") else lbl.text
 		if i == idx:
 			lbl.add_theme_constant_override("outline_size", 1)
-			lbl.text = lbl.text.substr(0, 0) + "▸ " + lbl.text.lstrip("▸ ")
+			lbl.text = "▸ " + raw
 		else:
 			lbl.add_theme_constant_override("outline_size", 0)
-			# Strip leading marker if present
-			if lbl.text.begins_with("▸ "):
-				lbl.text = lbl.text.substr(2)
+			lbl.text = raw
+
+
+## True when the player has a choice highlighted and can confirm it.
+func has_selected_choice() -> bool:
+	return _visible_choices.size() > 0 and _selected_idx >= 0
+
+
+## Confirm the currently highlighted choice (public entry point for E key).
+func confirm_selected_choice() -> void:
+	_pick_choice(_selected_idx)
 
 
 func _pick_choice(idx: int) -> void:
