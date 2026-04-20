@@ -311,6 +311,14 @@ static func _ensure_loaded() -> void:
 		OVERWORLD_TERRAIN_CELLS = m.overworld_terrain
 	if not m.overworld_decoration.is_empty():
 		OVERWORLD_DECORATION_CELLS = m.overworld_decoration
+	# Merge mineable resource sprites from MineableRegistry on top of
+	# TileMappings decorations. Mineables take priority; non-mineable
+	# decorations (flower, lilypad) stay from TileMappings.
+	var mineable_cells: Dictionary = MineableRegistry.build_decoration_cells()
+	for rid in mineable_cells:
+		var arr: Array = mineable_cells[rid]
+		if not arr.is_empty():
+			OVERWORLD_DECORATION_CELLS[rid] = arr
 	if not m.overworld_terrain_patches_3x3.is_empty():
 		OVERWORLD_TERRAIN_PATCH_3X3 = m.overworld_terrain_patches_3x3
 	if not m.overworld_water_border_grass_3x3.is_empty():
@@ -571,8 +579,12 @@ static func is_tall_tile(terrain: StringName) -> bool:
 
 
 ## Decoration kinds that occupy two vertical cells (trunk + canopy).
-const TALL_DECORATION_KINDS: Array = [&"tree"]
+## Built from MineableRegistry (is_tall flag) + a hardcoded set for
+## non-mineable tall decorations.
+static var _tall_decoration_cache: Dictionary = {}
 
 ## True if a decoration `kind` should render as a two-cell stack.
 static func is_tall_decoration(kind: StringName) -> bool:
-	return TALL_DECORATION_KINDS.has(kind)
+	if _tall_decoration_cache.is_empty():
+		_tall_decoration_cache = MineableRegistry.build_tall_kinds()
+	return _tall_decoration_cache.get(kind, false)

@@ -12,10 +12,37 @@ A 2D fantasy sandbox game with local split-screen co-op for two players. Built i
 ## Mining System
 Mining is **tile-based** — decorations are painted on a `TileMapLayer` (`Decoration`), not placed as individual `Sprite2D` nodes. `WorldRoot` owns all mining state.
 
-### Data constants (in `world_root.gd`)
-- `MINEABLE_HP` — maps decoration `StringName` to base HP: tree(3), bush(1), rock(5), iron_vein(6), copper_vein(5), gold_vein(8).
-- `MINEABLE_DROPS` — maps decoration kind to `Array[{id: StringName, count: int}]`.
-- `PICKAXE_BONUS_KINDS` — rock, iron_vein, copper_vein, gold_vein. The pickaxe doubles mining damage against these kinds.
+### Data-driven mineable resources
+- All mineable resource definitions live in `resources/mineables.json`. The SpritePicker tool's **Mineable Resources** category reads and writes this file.
+- `MineableRegistry` (`scripts/data/mineable_registry.gd`) — static loader/cache for the JSON. Provides `build_hp_table()`, `build_drops_table()`, `build_pickaxe_bonus_set()`, `build_decoration_cells()`, `build_tall_kinds()`, `get_biome_weights(biome_id)`.
+- `WorldRoot.MINEABLE_HP`, `MINEABLE_DROPS`, `PICKAXE_BONUS_KINDS` are now **lazy static vars** that compute from `MineableRegistry` on first access.
+- `WorldRoot.reload_mineable_tables()` clears all caches (call after SpritePicker saves).
+- `TilesetCatalog` merges mineable decoration sprites from `MineableRegistry.build_decoration_cells()` on top of `TileMappings` data. `is_tall_decoration()` reads from `MineableRegistry.build_tall_kinds()`.
+- `WorldGenerator._scatter_decorations()` merges mineable biome weights from `MineableRegistry.get_biome_weights()` with the biome's non-mineable `decoration_weights`.
+
+### JSON schema (`resources/mineables.json`)
+```json
+{
+  "resources": {
+    "<ref_id>": {
+      "display_name": "...",
+      "ref_id": "<ref_id>",
+      "is_tall": bool,
+      "is_pickaxe_bonus": bool,
+      "hp": int,
+      "sprites": [[col, row], ...],
+      "biome_weights": { "<biome_id>": float, ... },
+      "drops": [{ "item_id": "...", "count": int }, ...]
+    }
+  },
+  "items": {}
+}
+```
+
+### SpritePicker "Mineable Resources" editor
+- `MineableEditor` (`scripts/tools/mineable_editor.gd`) — custom panel with resource list, property editor (name, HP, flags, sprites, biome weights, drops), and **Biome Summary** tab.
+- Sprite picking: click atlas cells to toggle them in/out of the selected resource's sprite array.
+- Save writes JSON via `MineableRegistry.save_data()` and reloads runtime caches.
 
 ### Runtime flow
 1. `_build_mineable_index()` scans `_region.decorations` and builds `_mineable: Dictionary` (Vector2i → `{kind, hp}`).

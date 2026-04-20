@@ -74,6 +74,9 @@ const _MAPPINGS: Array = [
 	{"id": &"weapon_sprites",                    "label": "Weapon / tool sprites",
 	 "sheet": "res://assets/characters/roguelike/characters_sheet.png",
 	 "field": &"weapon_sprites",                    "kind": &"list"},
+	{"id": &"mineable_resources",                "label": "Mineable Resources",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_mineable_json",                    "kind": &"mineable"},
 ]
 
 # Tile-sheet geometry. Matches WorldConst.TILE_PX (16) and the 1-px
@@ -91,6 +94,7 @@ const COLOR_HOVER: Color  = Color(0.95, 0.9, 0.2, 0.9)
 
 var _mappings_resource: TileMappings = null
 var _dirty: bool = false
+var _mineable_editor: MineableEditor = null  ## Active only for kind=="mineable".
 
 # Currently focused mapping entry (one of _MAPPINGS) and its expanded
 # slot list. Each slot is a Dictionary:
@@ -447,11 +451,20 @@ func _on_tree_item_selected() -> void:
 
 func _select_mapping(entry: Dictionary) -> void:
 	_current_mapping = entry
+	var kind: StringName = entry["kind"]
 	var tex: Texture2D = load(entry["sheet"]) as Texture2D
 	if tex == null:
 		_status_label.text = "ERROR: sheet not found at %s" % entry["sheet"]
 		return
 	_sheet_view.set_sheet(tex)
+
+	if kind == &"mineable":
+		_show_mineable_editor()
+		_refresh_marks()
+		_status_label.text = "Editing mineables — %s" % entry["sheet"]
+		return
+
+	_hide_mineable_editor()
 	_slots = _build_slots(entry)
 	_active_slot = 0 if _slots.size() > 0 else -1
 	_header_label.text = "Slots — %s (%s)" % [entry["label"], entry["kind"]]
@@ -466,6 +479,8 @@ func _select_mapping(entry: Dictionary) -> void:
 func _build_slots(entry: Dictionary) -> Array:
 	var field: StringName = entry["field"]
 	var kind: StringName = entry["kind"]
+	if kind == &"mineable":
+		return []  # Mineable resources use their own editor.
 	var value: Variant = _mappings_resource.get(field)
 	var out: Array = []
 
@@ -625,6 +640,12 @@ func _on_flip_toggled(pressed: bool, idx: int) -> void:
 # ─── Cell click handler ────────────────────────────────────────────────
 
 func _on_cell_clicked(cell: Vector2i) -> void:
+	# Route to mineable editor if active.
+	if _mineable_editor != null and _mineable_editor.visible:
+		_mineable_editor.on_atlas_cell_clicked(cell)
+		_refresh_marks()
+		_status_label.text = "toggled sprite %s" % _str_cell(cell)
+		return
 	if _active_slot < 0 or _active_slot >= _slots.size():
 		_status_label.text = "no active slot — pick one in the right pane first"
 		return
@@ -661,6 +682,9 @@ func _mark_dirty() -> void:
 
 
 func _save() -> void:
+	# Save mineable data if the mineable editor is active and dirty.
+	if _mineable_editor != null and _mineable_editor.is_dirty():
+		_mineable_editor.save()
 	var err: int = ResourceSaver.save(_mappings_resource, MAPPINGS_PATH)
 	if err != OK:
 		_status_label.text = "SAVE FAILED (err %d)" % err
@@ -672,6 +696,9 @@ func _save() -> void:
 
 
 func _revert() -> void:
+	# Revert mineable data if the mineable editor exists.
+	if _mineable_editor != null:
+		_mineable_editor.revert()
 	# Force a fresh load — drop the cached resource so subsequent loads
 	# pick up the on-disk version (in case it was edited externally).
 	if ResourceLoader.has_cached(MAPPINGS_PATH):
@@ -747,6 +774,10 @@ func _set_at_path(path: Array, value: Variant) -> void:
 # ─── Mark refresh (sheet overlay) ──────────────────────────────────────
 
 func _refresh_marks() -> void:
+	# Use mineable editor marks when in mineable mode.
+	if _mineable_editor != null and _mineable_editor.visible:
+		_sheet_view.set_marks(_mineable_editor.get_marks())
+		return
 	var marks: Array = []
 	for i in _slots.size():
 		var slot: Dictionary = _slots[i]
@@ -832,3 +863,37 @@ func _active_patch3_group_cells() -> Array:
 
 static func _str_cell(c: Vector2i) -> String:
 	return "(%d, %d)" % [c.x, c.y]
+
+
+# ─── Mineable editor integration ──────────────────────────────────────
+
+func _show_mineable_editor() -> void:
+	# Hide normal slot UI.
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _mineable_editor == null:
+		_mineable_editor = MineableEditor.new()
+		_mineable_editor.dirty_changed.connect(_on_mineable_dirty)
+		# Insert into the right pane's parent (the ScrollContainer that
+		# holds _slot_root).
+		_slot_root.get_parent().get_parent().add_child(_mineable_editor)
+	_mineable_editor.visible = true
+
+
+func _hide_mineable_editor() -> void:
+	if _mineable_editor != null:
+		_mineable_editor.visible = false
+	_slot_root.visible = true
+	_header_label.visible = true
+	if _preview != null:
+		_preview.visible = true
+
+
+func _on_mineable_dirty() -> void:
+	_mark_dirty()
+	_refresh_marks()
