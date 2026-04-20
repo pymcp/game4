@@ -1,0 +1,93 @@
+[gd_scene load_steps=3 format=3 uid="uid://c1gametopdown"]
+
+[ext_resource type="Script" path="res://scripts/main/game.gd" id="1_game"]
+[ext_resource type="PackedScene" uid="uid://b2pausemenu1" path="res://scenes/ui/PauseMenu.tscn" id="2_pm"]
+
+[node name="Game" type="Node"]
+script = ExtResource("1_game")
+
+[node name="Split" type="HBoxContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="P1Container" type="Control" parent="Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="P1ViewportContainer" type="SubViewportContainer" parent="Split/P1Container"]
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+stretch = true
+
+[node name="P1Viewport" type="SubViewport" parent="Split/P1Container/P1ViewportContainer"]
+handle_input_locally = false
+size = Vector2i(960, 1080)
+render_target_update_mode = 4
+
+[node name="Overlay" type="ColorRect" parent="Split/P1Container"]
+visible = false
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.7)
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Split/P1Container/Overlay"]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -120.0
+offset_top = -16.0
+offset_right = 120.0
+offset_bottom = 16.0
+text = "Player 1 Disabled"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="P2Container" type="Control" parent="Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="P2ViewportContainer" type="SubViewportContainer" parent="Split/P2Container"]
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+stretch = true
+
+[node name="P2Viewport" type="SubViewport" parent="Split/P2Container/P2ViewportContainer"]
+handle_input_locally = false
+size = Vector2i(960, 1080)
+render_target_update_mode = 4
+
+[node name="Overlay" type="ColorRect" parent="Split/P2Container"]
+visible = false
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.7)
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Split/P2Container/Overlay"]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -120.0
+offset_top = -16.0
+offset_right = 120.0
+offset_bottom = 16.0
+text = "Player 2 Disabled"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PauseMenu" parent="." instance=ExtResource("2_pm")]
