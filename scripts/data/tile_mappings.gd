@@ -93,6 +93,15 @@ extends Resource
 ## `StringName → Array[Vector2i]`.
 @export var weapon_sprites: Dictionary = {}
 
+# ─── Sheet overrides ────────────────────────────────────────────────────
+
+## Optional per-field sheet-path overrides. When a mapping field (e.g.
+## `&"city_terrain"`) needs to pull cells from a different PNG than the
+## historical default, store the mapping here: `StringName → String`.
+## The SpritePicker sheet selector writes this; TilesetCatalog reads it.
+## Missing keys fall back to the built-in default sheet.
+@export var sheet_overrides: Dictionary = {}
+
 
 ## Returns a fresh `TileMappings` populated with the historical default
 ## values that previously lived as `const` tables in [TilesetCatalog].
@@ -238,6 +247,9 @@ static func default_mappings() -> TileMappings:
 		&"pickaxe": [Vector2i(50, 0)],   # hammer col (closest to pickaxe)
 		&"bow":     [Vector2i(52, 0)],   # first bow variant
 	}
+
+	# No sheet overrides by default — everything uses the historical sheets.
+	m.sheet_overrides = {}
 
 	return m
 

@@ -1,0 +1,100 @@
+{
+  "id": "herbalist_remedy",
+  "display_name": "The Quiet Sickness",
+  "giver": "Mara",
+  "description": "Mara the herbalist needs help stopping a sickness spreading through the valley.",
+  "prerequisites": [],
+  "branches": {
+    "herbs": {
+      "display_name": "Gather Herbs",
+      "description": "Gather rare herbs for Mara's remedy.",
+      "trigger_flag": "quest_herbalist_herbs",
+      "objectives": [
+        {"id": "get_fennel",   "type": "collect", "item": "fennel_root",        "count": 1, "description": "Find fennel root"},
+        {"id": "get_mushroom", "type": "collect", "item": "blue_nightcap",      "count": 1, "description": "Find blue nightcap mushrooms"},
+        {"id": "get_water",    "type": "collect", "item": "clean_spring_water", "count": 1, "description": "Collect clean spring water"},
+        {"id": "return_mara",  "type": "talk",    "npc":  "Mara",                            "description": "Return to Mara"}
+      ],
+      "rewards": [
+        {"type": "flag", "flag": "valley_remedy_brewed"}
+      ]
+    },
+    "mine": {
+      "display_name": "Investigate the Mine",
+      "description": "Investigate the old moonstone mine and seal the contamination.",
+      "trigger_flag": "quest_herbalist_mine",
+      "objectives": [
+        {"id": "enter_mine",   "type": "reach",    "location": "moonstone_mine",              "description": "Enter the old moonstone mine"},
+        {"id": "get_evidence", "type": "collect",   "item":     "contaminated_ore", "count": 1, "description": "Collect contaminated ore"},
+        {"id": "seal_leak",    "type": "interact",  "target":   "mine_leak",                   "description": "Seal the mine leak"},
+        {"id": "return_mara",  "type": "talk",      "npc":      "Mara",                        "description": "Return to Mara"}
+      ],
+      "rewards": [
+        {"type": "flag", "flag": "mine_sealed"}
+      ]
+    },
+    "both": {
+      "display_name": "Do Both",
+      "description": "Gather herbs AND investigate the mine.",
+      "trigger_flag": "quest_herbalist_both",
+      "gate": {"stat": "strength", "min": 4},
+      "includes": ["herbs", "mine"],
+      "rewards": [
+        {"type": "flag", "flag": "valley_remedy_brewed"},
+        {"type": "flag", "flag": "mine_sealed"}
+      ]
+    }
+  },
+  "reward_variants": {
+    "deal_basic": {
+      "description": "Mara gives you a tonic for your trouble.",
+      "condition_flag": "quest_herbalist_mine",
+      "rewards": [
+        {"type": "give_item", "item": "tonic", "count": 1}
+      ]
+    },
+    "deal_push": {
+      "description": "Mara gives you the tonic AND her antidote recipe.",
+      "condition_flag": "quest_herbalist_mine",
+      "gate": {"stat": "charisma", "min": 5},
+      "rewards": [
+        {"type": "give_item", "item": "tonic", "count": 1},
+        {"type": "give_item", "item": "antidote_recipe", "count": 1}
+      ]
+    }
+  },
+  "requires": {
+    "npcs": [
+      {"id": "Mara", "role": "quest giver and turn-in", "location_hint": "near village well", "status": "NOT_IMPLEMENTED"}
+    ],
+    "items": [
+      {"id": "fennel_root",        "source": "gatherable plant",                    "status": "NOT_IMPLEMENTED"},
+      {"id": "blue_nightcap",      "source": "gatherable mushroom",                 "status": "NOT_IMPLEMENTED"},
+      {"id": "clean_spring_water", "source": "interact with spring (not village well)", "status": "NOT_IMPLEMENTED"},
+      {"id": "contaminated_ore",   "source": "mine loot or interaction",            "status": "NOT_IMPLEMENTED"},
+      {"id": "tonic",              "source": "reward crafted by Mara",              "status": "NOT_IMPLEMENTED"},
+      {"id": "antidote_recipe",    "source": "reward from Mara (CHA >= 5 path)",    "status": "NOT_IMPLEMENTED"}
+    ],
+    "locations": [
+      {"id": "moonstone_mine", "type": "dungeon",           "description": "abandoned mine east past birch grove", "status": "NOT_IMPLEMENTED"},
+      {"id": "birch_grove",    "type": "terrain_landmark",  "description": "landmark between village and mine",    "status": "NOT_IMPLEMENTED"},
+      {"id": "village_well",   "type": "interaction_point",  "description": "contaminated well in starting area",   "status": "NOT_IMPLEMENTED"},
+      {"id": "spring",         "type": "interaction_point",  "description": "clean water source away from village",  "status": "NOT_IMPLEMENTED"}
+    ],
+    "entities": [
+      {"id": "sick_wolf",    "type": "hostile_mob", "description": "wolves near mine that don't flee", "status": "NOT_IMPLEMENTED"},
+      {"id": "feral_animal", "type": "hostile_mob", "description": "generic sick animals near mine",   "status": "NOT_IMPLEMENTED"}
+    ],
+    "terrain_features": [
+      {"id": "mine_leak", "type": "interactable", "description": "source of contamination inside mine", "status": "NOT_IMPLEMENTED"}
+    ],
+    "dialogue_updates": [
+      {"id": "mara_return_herbs",  "description": "Mara return-visit dialogue when player has herbs",          "status": "NOT_IMPLEMENTED"},
+      {"id": "mara_return_mine",   "description": "Mara return-visit dialogue when player sealed the mine",    "status": "NOT_IMPLEMENTED"},
+      {"id": "mara_return_both",   "description": "Mara return-visit dialogue when player did both",           "status": "NOT_IMPLEMENTED"},
+      {"id": "mara_completion",    "description": "Mara completion/reward dialogue for each branch",           "status": "NOT_IMPLEMENTED"},
+      {"id": "mara_flag_fix",      "description": "Both/Push dialogue paths need to set trigger flags",        "status": "NOT_IMPLEMENTED"}
+    ],
+    "notes": "This quest has 3 mutually exclusive objective branches and 2 reward variants. The 'both' branch is gated by STR >= 4. The 'deal_push' reward variant is gated by CHA >= 5. Mara's seed script needs fixes for missing flags on the Both and Push paths."
+  }
+}

@@ -9,9 +9,12 @@ extends VBoxContainer
 signal dirty_changed  ## Emitted when edits are made.
 signal request_sprite_pick(resource_id: StringName)  ## Ask SpritePicker to activate atlas picking.
 
-const _SHEET_PATH := "res://assets/tiles/roguelike/overworld_sheet.png"
 const TILE_PX := 16
 const TILE_GUTTER := 1
+
+## The sheet path used for sprite thumbnails / biome summary. Set by the
+## parent SpritePicker whenever the sheet selector changes.
+var sheet_path: String = "res://assets/tiles/roguelike/overworld_sheet.png"
 
 var _data: Dictionary = {}  ## Full JSON data (resources + items).
 var _selected_id: StringName = &""
@@ -118,10 +121,10 @@ func _build_prop_panel() -> ScrollContainer:
 	_name_edit.text_changed.connect(_on_name_changed)
 	vb.add_child(_name_edit)
 
-	# Ref ID (read-only after creation)
+	# Ref ID
 	vb.add_child(_make_label("Ref ID"))
 	_id_edit = LineEdit.new()
-	_id_edit.editable = false
+	_id_edit.text_submitted.connect(_on_id_submitted)
 	vb.add_child(_id_edit)
 
 	# HP
@@ -244,7 +247,7 @@ func _refresh_props() -> void:
 func _refresh_sprite_thumbnails(sprites: Array) -> void:
 	for c in _sprites_container.get_children():
 		c.queue_free()
-	var tex: Texture2D = load(_SHEET_PATH) as Texture2D
+	var tex: Texture2D = load(sheet_path) as Texture2D
 	if tex == null:
 		return
 	for s in sprites:
@@ -329,6 +332,28 @@ func _on_name_changed(new_text: String) -> void:
 	for i in _res_list.item_count:
 		if _res_list.get_item_metadata(i) == String(_selected_id):
 			_res_list.set_item_text(i, new_text)
+			break
+
+func _on_id_submitted(new_id: String) -> void:
+	if new_id == "" or new_id == String(_selected_id):
+		return
+	var res: Dictionary = _data.get("resources", {})
+	if res.has(new_id):
+		_id_edit.text = String(_selected_id)  # Revert — ID already taken.
+		return
+	var entry: Dictionary = res.get(String(_selected_id), {})
+	if entry.is_empty():
+		return
+	res.erase(String(_selected_id))
+	entry["ref_id"] = new_id
+	res[new_id] = entry
+	_data["resources"] = res
+	_selected_id = StringName(new_id)
+	_mark_dirty_internal()
+	_populate_list()
+	for i in _res_list.item_count:
+		if _res_list.get_item_metadata(i) == new_id:
+			_res_list.select(i)
 			break
 
 func _on_hp_changed(val: float) -> void:
@@ -478,7 +503,7 @@ func _refresh_biome_summary() -> void:
 
 	var res: Dictionary = _data.get("resources", {})
 	var all_biomes: Array = ["grass", "desert", "snow", "swamp", "rocky"]
-	var tex: Texture2D = load(_SHEET_PATH) as Texture2D
+	var tex: Texture2D = load(sheet_path) as Texture2D
 
 	for biome in all_biomes:
 		var header := Label.new()

@@ -116,6 +116,8 @@ var _status_label: Label = null
 var _save_btn: Button = null
 var _revert_btn: Button = null
 var _preview: PreviewView = null
+var _sheet_selector: OptionButton = null  ## Spritesheet dropdown.
+var _available_sheets: Array[String] = []  ## Discovered PNGs.
 
 
 # ─── Inner class: SheetView ─────────────────────────────────────────────
@@ -290,7 +292,9 @@ class PreviewView extends Control:
 
 func _ready() -> void:
 	_load_mappings_resource()
+	_discover_sheets()
 	_build_ui()
+	_populate_sheet_selector()
 	_populate_tree()
 	_select_mapping(_MAPPINGS[0])
 
@@ -305,6 +309,90 @@ func _load_mappings_resource() -> void:
 			return
 	push_warning("SpritePicker: %s missing or wrong type, using defaults" % MAPPINGS_PATH)
 	_mappings_resource = TileMappings.default_mappings()
+
+
+## Scan known asset directories for spritesheet PNGs. Adds every .png
+## found under `assets/tiles/` and `assets/characters/`.
+func _discover_sheets() -> void:
+	_available_sheets.clear()
+	var dirs: Array[String] = [
+		"res://assets/tiles/roguelike",
+		"res://assets/tiles/runes",
+		"res://assets/characters/roguelike",
+	]
+	for dir_path in dirs:
+		var da := DirAccess.open(dir_path)
+		if da == null:
+			continue
+		da.list_dir_begin()
+		var name := da.get_next()
+		while name != "":
+			if not da.current_is_dir() and name.ends_with(".png"):
+				_available_sheets.append(dir_path.path_join(name))
+			name = da.get_next()
+		da.list_dir_end()
+	_available_sheets.sort()
+
+
+func _populate_sheet_selector() -> void:
+	if _sheet_selector == null:
+		return
+	_sheet_selector.clear()
+	for i in _available_sheets.size():
+		# Show short label: last two path components (e.g. "roguelike/overworld_sheet.png").
+		var path: String = _available_sheets[i]
+		var parts: PackedStringArray = path.split("/")
+		var label: String = path
+		if parts.size() >= 2:
+			label = parts[-2] + "/" + parts[-1]
+		_sheet_selector.add_item(label, i)
+
+
+## Resolve the current sheet path for a mapping entry. Checks
+## sheet_overrides first, falls back to the entry's default "sheet" key.
+func _resolve_sheet(entry: Dictionary) -> String:
+	var field: StringName = entry["field"]
+	var override: Variant = _mappings_resource.sheet_overrides.get(field, null)
+	if override is String and not (override as String).is_empty():
+		return override as String
+	return entry["sheet"]
+
+
+func _sync_sheet_selector(sheet_path: String) -> void:
+	if _sheet_selector == null:
+		return
+	for i in _available_sheets.size():
+		if _available_sheets[i] == sheet_path:
+			_sheet_selector.select(i)
+			return
+	# Sheet not in list — append it.
+	_available_sheets.append(sheet_path)
+	_populate_sheet_selector()
+	_sheet_selector.select(_available_sheets.size() - 1)
+
+
+func _on_sheet_selected(idx: int) -> void:
+	if idx < 0 or idx >= _available_sheets.size():
+		return
+	if _current_mapping.is_empty():
+		return
+	var new_sheet: String = _available_sheets[idx]
+	var field: StringName = _current_mapping["field"]
+	var default_sheet: String = _current_mapping["sheet"]
+	# Store override only if different from the default.
+	if new_sheet == default_sheet:
+		_mappings_resource.sheet_overrides.erase(field)
+	else:
+		_mappings_resource.sheet_overrides[field] = new_sheet
+	_mark_dirty()
+	# Reload the atlas view with the new sheet.
+	var tex: Texture2D = load(new_sheet) as Texture2D
+	if tex != null:
+		_sheet_view.set_sheet(tex)
+		_refresh_marks()
+		if _mineable_editor != null and _mineable_editor.visible:
+			_mineable_editor.sheet_path = new_sheet
+		_status_label.text = "sheet → %s" % new_sheet
 
 
 # ─── UI construction ───────────────────────────────────────────────────
@@ -382,7 +470,15 @@ func _build_middle_pane() -> Control:
 	var vb := VBoxContainer.new()
 	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vb.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vb.add_child(_make_section_label("Sheet (click a cell to bind to the active slot)"))
+	# Sheet selector row.
+	var sheet_row := HBoxContainer.new()
+	sheet_row.add_child(_make_section_label("Sheet"))
+	_sheet_selector = OptionButton.new()
+	_sheet_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sheet_selector.item_selected.connect(_on_sheet_selected)
+	sheet_row.add_child(_sheet_selector)
+	vb.add_child(sheet_row)
+	vb.add_child(_make_section_label("(click a cell to bind to the active slot)"))
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -452,16 +548,18 @@ func _on_tree_item_selected() -> void:
 func _select_mapping(entry: Dictionary) -> void:
 	_current_mapping = entry
 	var kind: StringName = entry["kind"]
-	var tex: Texture2D = load(entry["sheet"]) as Texture2D
+	var sheet_path: String = _resolve_sheet(entry)
+	_sync_sheet_selector(sheet_path)
+	var tex: Texture2D = load(sheet_path) as Texture2D
 	if tex == null:
-		_status_label.text = "ERROR: sheet not found at %s" % entry["sheet"]
+		_status_label.text = "ERROR: sheet not found at %s" % sheet_path
 		return
 	_sheet_view.set_sheet(tex)
 
 	if kind == &"mineable":
 		_show_mineable_editor()
 		_refresh_marks()
-		_status_label.text = "Editing mineables — %s" % entry["sheet"]
+		_status_label.text = "Editing mineables — %s" % sheet_path
 		return
 
 	_hide_mineable_editor()
@@ -470,7 +568,7 @@ func _select_mapping(entry: Dictionary) -> void:
 	_header_label.text = "Slots — %s (%s)" % [entry["label"], entry["kind"]]
 	_rebuild_slot_ui()
 	_refresh_marks()
-	_status_label.text = entry["sheet"]
+	_status_label.text = sheet_path
 
 
 # Build the flat slot list for `entry` from the current resource state.
@@ -811,7 +909,7 @@ func _refresh_marks() -> void:
 func _refresh_preview() -> void:
 	if _preview == null or _current_mapping.is_empty():
 		return
-	var tex: Texture2D = load(_current_mapping["sheet"]) as Texture2D
+	var tex: Texture2D = load(_resolve_sheet(_current_mapping)) as Texture2D
 	if tex == null:
 		_preview.set_data(null, [], &"tile")
 		return
@@ -882,6 +980,7 @@ func _show_mineable_editor() -> void:
 		# Insert into the right pane's parent (the ScrollContainer that
 		# holds _slot_root).
 		_slot_root.get_parent().get_parent().add_child(_mineable_editor)
+	_mineable_editor.sheet_path = _resolve_sheet(_current_mapping)
 	_mineable_editor.visible = true
 
 

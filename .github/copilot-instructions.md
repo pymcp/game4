@@ -96,6 +96,17 @@ Toggle-based automation on `PlayerController`. Input actions `p*_auto_mine` (C /
 - `ControlsHud` uses `RichTextLabel` with BBCode. When `auto_mine` or `auto_attack` is active on the player, the line renders bold green with "(ON)" suffix.
 - `_process()` polls the player booleans for instant UI feedback.
 
+## Spritesheet Selection
+Spritesheets are not locked to a single mapping. Each mapping field (e.g. `city_terrain`, `overworld_decoration`) can use any PNG sheet.
+
+### Architecture
+- `TileMappings.sheet_overrides` (`Dictionary`) — persisted `@export` field mapping a field name (`StringName`) to a sheet path (`String`). Only stores non-default overrides; missing keys fall back to `TilesetCatalog._DEFAULT_SHEETS`.
+- `TilesetCatalog._DEFAULT_SHEETS` — dictionary of historical default sheet per field (overworld→`overworld_sheet.png`, city→`city_sheet.png`, etc.).
+- `TilesetCatalog.get_sheet_path(field)` — resolves the final PNG path for any mapping field, checking overrides first.
+- TileSet builders (`overworld()`, `city()`, `dungeon()`, `interior()`) call `_sheet_for_view()` which delegates to `get_sheet_path()`.
+- `SpritePicker` — has an `OptionButton` sheet selector that scans `assets/tiles/roguelike/`, `assets/tiles/runes/`, `assets/characters/roguelike/` for PNGs. Changing the dropdown updates `sheet_overrides` on the working TileMappings copy; Save persists it.
+- `MineableEditor.sheet_path` — set by SpritePicker from the resolved sheet whenever the mineable mapping is selected or the sheet selector changes.
+
 ## Dialogue System
 - Data layer: `DialogueTree → DialogueNode → DialogueChoice` (Resource subclasses in `scripts/data/`).
 - `GameState` autoload (`scripts/autoload/game_state.gd`): `String → bool` flag dict for quest/world state. No `class_name` (autoload name is the accessor).
@@ -105,3 +116,95 @@ Toggle-based automation on `PlayerController`. Input actions `p*_auto_mine` (C /
 - NPC scatter entries support an optional `"dialogue": "res://path.tres"` key.
 - Mara the Herbalist: auto-injected near spawn via `_maybe_inject_mara()`.
 - Seeder scripts in `tools/` (e.g. `seed_healer_mara.gd`) build `.tres` files via `ResourceSaver`.
+
+## Quest System
+Per-quest JSON files in `resources/quests/<quest_id>.json`. Supports **branching quests** (mutually exclusive objective paths per quest).
+
+### Data Layer
+- `QuestRegistry` (`scripts/data/quest_registry.gd`) — static singleton (`class_name`, extends `RefCounted`). Scans `resources/quests/` directory, loads all `.json` files.
+  - `get_quest(id)`, `all_ids()`, `get_branch(quest_id, branch_id)`, `get_prerequisites(quest_id)`
+  - `get_unimplemented_requirements(quest_id)` — returns entries with `status: "NOT_IMPLEMENTED"` (auditable checklist)
+  - `get_requirement_summary(quest_id)` — `{total, implemented, not_implemented}` counts
+  - `reload()` clears cache (call after editing quest files)
+
+### Runtime Tracker
+- `QuestTracker` (`scripts/autoload/quest_tracker.gd`) — autoload (no `class_name`). Manages active quest state.
+  - `start_quest(id, branch_id)` — selects which branch to track. Sets trigger flag + `quest_<id>_started` in GameState.
+  - `advance_objective(quest_id, obj_id, amount)`, `mark_objective_done(quest_id, obj_id)`
+  - `is_quest_ready_to_complete(quest_id)` — true when all objectives meet their target count
+  - `complete_quest(quest_id)` — applies rewards, sets `quest_<id>_complete` flag
+  - Signals: `quest_started(quest_id, branch_id)`, `objective_updated(quest_id, obj_id, progress)`, `quest_completed(quest_id)`
+  - Reward types: `flag` (set GameState flag), `unlock_passage` (sets `passage_<id>_unlocked` flag), `give_item` (placeholder — sets `reward_<item>_given` flag until item system is wired)
+  - Serializable: `to_dict()` / `from_dict()` for save/load. `reset()` clears all state.
+
+### Quest JSON Schema
+```json
+{
+  "id": "quest_id",
+  "display_name": "Human-readable Name",
+  "giver": "NPC Name",
+  "description": "Quest description text.",
+  "prerequisites": ["other_quest_id"],
+  "branches": {
+    "branch_id": {
+      "display_name": "Branch Name",
+      "description": "What this path involves.",
+      "trigger_flag": "quest_X_branch",
+      "gate": {"stat": "strength", "min": 4},
+      "objectives": [
+        {"id": "obj_id", "type": "collect", "item": "item_id", "count": 1, "description": "..."},
+        {"id": "obj_id", "type": "talk", "npc": "NPC Name", "description": "..."},
+        {"id": "obj_id", "type": "reach", "location": "location_id", "description": "..."},
+        {"id": "obj_id", "type": "interact", "target": "target_id", "description": "..."}
+      ],
+      "includes": ["other_branch_id"],
+      "rewards": [{"type": "flag", "flag": "flag_name"}]
+    }
+  },
+  "reward_variants": {
+    "variant_id": {
+      "description": "...",
+      "condition_flag": "flag_name",
+      "gate": {"stat": "charisma", "min": 5},
+      "rewards": [{"type": "give_item", "item": "item_id", "count": 1}]
+    }
+  },
+  "requires": {
+    "npcs": [{"id": "Name", "role": "...", "location_hint": "...", "status": "NOT_IMPLEMENTED"}],
+    "items": [{"id": "item_id", "source": "...", "status": "NOT_IMPLEMENTED"}],
+    "locations": [{"id": "loc_id", "type": "dungeon|terrain_landmark|interaction_point", "description": "...", "status": "NOT_IMPLEMENTED"}],
+    "entities": [{"id": "entity_id", "type": "hostile_mob", "description": "...", "status": "NOT_IMPLEMENTED"}],
+    "terrain_features": [{"id": "feature_id", "type": "interactable", "description": "...", "status": "NOT_IMPLEMENTED"}],
+    "dialogue_updates": [{"id": "update_id", "description": "...", "status": "NOT_IMPLEMENTED"}],
+    "notes": "Free-text notes about quest dependencies."
+  }
+}
+```
+
+### Requirements Manifest
+Every quest file includes a `requires` block listing all NPCs, items, locations, entities, terrain features, and dialogue updates the quest depends on. Each entry has a `status` field (`NOT_IMPLEMENTED` or `IMPLEMENTED`). Use `QuestRegistry.get_unimplemented_requirements(quest_id)` to audit what's missing before marking a quest as playable.
+
+### Branching
+- `branches` holds mutually exclusive objective paths. `QuestTracker.start_quest(id, branch_id)` picks one.
+- `"includes"` key merges objectives from other branches (e.g. "both" includes "herbs" + "mine").
+- Branch-specific `trigger_flag` values let dialogue and game logic branch on which path the player chose.
+- `reward_variants` are additional rewards gated by flags and/or stat checks, applied on completion alongside branch rewards.
+
+### Dialogue Integration
+- `DialogueChoice.set_flag` sets branch-specific trigger flags (e.g. `quest_herbalist_herbs`) when the player chooses a quest path.
+- `_choice_stat()` helper in seed scripts accepts an optional `flag` parameter for stat-gated choices that also need to set flags.
+- Return-visit dialogue uses `DialogueNode.condition_flag` / `condition_flag_false` to branch on quest state.
+- Future: `DialogueChoice.action` field for direct quest actions (`start_quest:X`, `advance:X:obj_id`).
+
+### Existing Quests
+- **herbalist_remedy** ("The Quiet Sickness") — Mara the Herbalist. 3 branches (herbs, mine, both), 2 reward variants. All requirements currently `NOT_IMPLEMENTED`. Prototype quest for validating the system.
+
+## Gameplay Progression (Planned)
+
+Starting region (0,0) will be subdivided by impassable barriers:
+- **CLIFF** terrain — non-walkable, non-mineable mountain ridges (N-S split)
+- **RIVER** terrain — non-walkable water barriers (E-W in accessible half)
+- Pass points at known positions, initially blocked
+- Quests unlock passages: bridge over river, tunnel through cliffs
+- Starting region always grass biome
+- Beyond barriers: same biome, denser/rarer resources

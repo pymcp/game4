@@ -16,6 +16,24 @@ class_name TilesetCatalog
 extends RefCounted
 
 # ─── Sheet paths ────────────────────────────────────────────────────────
+## Historical defaults — one per view. Used when no sheet_override exists.
+const _DEFAULT_SHEETS: Dictionary = {
+	&"overworld_terrain": "res://assets/tiles/roguelike/overworld_sheet.png",
+	&"overworld_decoration": "res://assets/tiles/roguelike/overworld_sheet.png",
+	&"overworld_terrain_patches_3x3": "res://assets/tiles/roguelike/overworld_sheet.png",
+	&"overworld_water_border_grass_3x3": "res://assets/tiles/roguelike/overworld_sheet.png",
+	&"overworld_water_outer_corners": "res://assets/tiles/roguelike/overworld_sheet.png",
+	&"city_terrain": "res://assets/tiles/roguelike/city_sheet.png",
+	&"dungeon_terrain": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"dungeon_wall_autotile": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"dungeon_floor_decor": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"dungeon_entrance_pair": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"dungeon_doorframe": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"interior_terrain": "res://assets/tiles/roguelike/interior_sheet.png",
+	&"weapon_sprites": "res://assets/characters/roguelike/characters_sheet.png",
+}
+
+## Convenience aliases kept for any code that still references the old consts.
 const OVERWORLD_PNG: String = "res://assets/tiles/roguelike/overworld_sheet.png"
 const CITY_PNG: String      = "res://assets/tiles/roguelike/city_sheet.png"
 const DUNGEON_PNG: String   = "res://assets/tiles/roguelike/dungeon_sheet.png"
@@ -23,6 +41,34 @@ const INTERIOR_PNG: String  = "res://assets/tiles/roguelike/interior_sheet.png"
 const RUNES_BLACK_PNG: String = "res://assets/tiles/runes/runes_black_tile.png"
 const RUNES_GREY_PNG: String  = "res://assets/tiles/runes/runes_grey_tile.png"
 const RUNES_BLUE_PNG: String  = "res://assets/tiles/runes/runes_blue_tile.png"
+
+## Cached sheet overrides from TileMappings. Populated by _ensure_loaded().
+static var _sheet_overrides: Dictionary = {}
+
+## Resolve the PNG path for a given mapping field, respecting user overrides.
+static func get_sheet_path(field: StringName) -> String:
+	_ensure_loaded()
+	var override: Variant = _sheet_overrides.get(field, null)
+	if override is String and not (override as String).is_empty():
+		return override as String
+	var default: Variant = _DEFAULT_SHEETS.get(field, null)
+	if default is String:
+		return default as String
+	return OVERWORLD_PNG
+
+## Resolve the sheet for a whole view (overworld/city/dungeon/interior).
+## Picks from the primary field for that view.
+static func _sheet_for_view(view: StringName) -> String:
+	match view:
+		&"overworld":
+			return get_sheet_path(&"overworld_terrain")
+		&"city":
+			return get_sheet_path(&"city_terrain")
+		&"dungeon":
+			return get_sheet_path(&"dungeon_terrain")
+		&"interior":
+			return get_sheet_path(&"interior_terrain")
+	return OVERWORLD_PNG
 
 # ─── Custom-data layer names (added to every built TileSet) ─────────────
 const CUSTOM_TERRAIN: String  = "terrain"     # StringName, e.g. &"grass"
@@ -343,6 +389,8 @@ static func _ensure_loaded() -> void:
 	# Interior
 	if not m.interior_terrain.is_empty():
 		INTERIOR_TERRAIN_CELLS = m.interior_terrain
+	# Sheet overrides
+	_sheet_overrides = m.sheet_overrides.duplicate()
 
 # ─── Cached TileSets ────────────────────────────────────────────────────
 static var _overworld_ts: TileSet = null
@@ -355,28 +403,28 @@ static var _runes_ts: TileSet = null
 static func overworld() -> TileSet:
 	_ensure_loaded()
 	if _overworld_ts == null:
-		_overworld_ts = _build(OVERWORLD_PNG, OVERWORLD_TERRAIN_CELLS)
+		_overworld_ts = _build(_sheet_for_view(&"overworld"), OVERWORLD_TERRAIN_CELLS)
 	return _overworld_ts
 
 
 static func city() -> TileSet:
 	_ensure_loaded()
 	if _city_ts == null:
-		_city_ts = _build(CITY_PNG, CITY_TERRAIN_CELLS)
+		_city_ts = _build(_sheet_for_view(&"city"), CITY_TERRAIN_CELLS)
 	return _city_ts
 
 
 static func dungeon() -> TileSet:
 	_ensure_loaded()
 	if _dungeon_ts == null:
-		_dungeon_ts = _build(DUNGEON_PNG, DUNGEON_TERRAIN_CELLS, true)
+		_dungeon_ts = _build(_sheet_for_view(&"dungeon"), DUNGEON_TERRAIN_CELLS, true)
 	return _dungeon_ts
 
 
 static func interior() -> TileSet:
 	_ensure_loaded()
 	if _interior_ts == null:
-		_interior_ts = _build(INTERIOR_PNG, INTERIOR_TERRAIN_CELLS)
+		_interior_ts = _build(_sheet_for_view(&"interior"), INTERIOR_TERRAIN_CELLS)
 	return _interior_ts
 
 

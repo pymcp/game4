@@ -1,97 +1,244 @@
 {
-  "resources": {
-    "tree": {
-      "display_name": "Tree",
-      "ref_id": "tree",
-      "is_tall": true,
-      "is_pickaxe_bonus": false,
-      "hp": 3,
-      "sprites": [[13, 9], [14, 9], [15, 9], [16, 9]],
-      "biome_weights": {
-        "grass": 0.06,
-        "snow": 0.04,
-        "swamp": 0.05,
-        "rocky": 0.02
-      },
-      "drops": [
-        {"item_id": "wood", "count": 1}
-      ]
-    },
-    "bush": {
-      "display_name": "Bush",
-      "ref_id": "bush",
-      "is_tall": false,
-      "is_pickaxe_bonus": false,
-      "hp": 1,
-      "sprites": [[20, 9], [21, 9]],
-      "biome_weights": {
-        "grass": 0.04,
-        "desert": 0.01,
-        "swamp": 0.06
-      },
-      "drops": [
-        {"item_id": "fiber", "count": 1}
-      ]
-    },
-    "rock": {
-      "display_name": "Rock",
-      "ref_id": "rock",
-      "is_tall": false,
-      "is_pickaxe_bonus": true,
-      "hp": 5,
-      "sprites": [[7, 13], [8, 13], [9, 13]],
-      "biome_weights": {
-        "grass": 0.015,
-        "desert": 0.03,
-        "snow": 0.02,
-        "rocky": 0.06
-      },
-      "drops": [
-        {"item_id": "stone", "count": 1}
-      ]
-    },
-    "iron_vein": {
-      "display_name": "Iron Vein",
-      "ref_id": "iron_vein",
-      "is_tall": false,
-      "is_pickaxe_bonus": true,
-      "hp": 6,
-      "sprites": [[10, 13], [11, 13]],
-      "biome_weights": {
-        "rocky": 0.015
-      },
-      "drops": [
-        {"item_id": "iron_ore", "count": 1}
-      ]
-    },
-    "copper_vein": {
-      "display_name": "Copper Vein",
-      "ref_id": "copper_vein",
-      "is_tall": false,
-      "is_pickaxe_bonus": true,
-      "hp": 5,
-      "sprites": [[12, 13]],
-      "biome_weights": {
-        "rocky": 0.01
-      },
-      "drops": [
-        {"item_id": "copper_ore", "count": 1}
-      ]
-    },
-    "gold_vein": {
-      "display_name": "Gold Vein",
-      "ref_id": "gold_vein",
-      "is_tall": false,
-      "is_pickaxe_bonus": true,
-      "hp": 8,
-      "sprites": [],
-      "biome_weights": {
-        "rocky": 0.005
-      },
-      "drops": [
-        {"item_id": "gold_ore", "count": 1}
-      ]
-    }
-  },
-  "items": {}
+	"items": {
+
+	},
+	"resources": {
+		"bush": {
+			"biome_weights": {
+				"desert": 0.01,
+				"grass": 0.04,
+				"swamp": 0.06
+			},
+			"display_name": "Bush",
+			"drops": [
+				{
+					"count": 1,
+					"item_id": "fiber"
+				}
+			],
+			"hp": 1,
+			"is_pickaxe_bonus": false,
+			"is_tall": false,
+			"ref_id": "bush",
+			"sprites": [
+				[
+					20,
+					9
+				],
+				[
+					21,
+					9
+				],
+				[
+					19,
+					9
+				],
+				[
+					24,
+					9
+				],
+				[
+					24,
+					10
+				],
+				[
+					24,
+					11
+				],
+				[
+					25,
+					9
+				],
+				[
+					25,
+					10
+				],
+				[
+					26,
+					10
+				],
+				[
+					26,
+					9
+				]
+			]
+		},
+		"copper_vein": {
+			"biome_weights": {
+				"rocky": 0.01
+			},
+			"display_name": "Copper Vein",
+			"drops": [
+				{
+					"count": 1,
+					"item_id": "copper_ore"
+				}
+			],
+			"hp": 5,
+			"is_pickaxe_bonus": true,
+			"is_tall": false,
+			"ref_id": "copper_vein",
+			"sprites": [
+				[
+					12,
+					13
+				]
+			]
+		},
+		"gold_vein": {
+			"biome_weights": {
+				"rocky": 0.005
+			},
+			"display_name": "Gold Vein",
+			"drops": [
+				{
+					"count": 1,
+					"item_id": "gold_ore"
+				}
+			],
+			"hp": 8,
+			"is_pickaxe_bonus": true,
+			"is_tall": false,
+			"ref_id": "gold_vein",
+			"sprites": []
+		},
+		"iron_vein": {
+			"biome_weights": {
+				"rocky": 0.015
+			},
+			"display_name": "Iron Vein",
+			"drops": [
+				{
+					"count": 1,
+					"item_id": "iron_ore"
+				}
+			],
+			"hp": 6,
+			"is_pickaxe_bonus": true,
+			"is_tall": false,
+			"ref_id": "iron_vein",
+			"sprites": [
+				[
+					10,
+					13
+				],
+				[
+					11,
+					13
+				]
+			]
+		},
+		"new_resource": {
+			"biome_weights": {
+				"grass": 0.01,
+				"rocky": 0.005
+			},
+			"display_name": "Short Tree",
+			"drops": [],
+			"hp": 2,
+			"is_pickaxe_bonus": false,
+			"is_tall": false,
+			"ref_id": "new_resource",
+			"sprites": [
+				[
+					13,
+					9
+				],
+				[
+					14,
+					9
+				],
+				[
+					15,
+					9
+				],
+				[
+					16,
+					9
+				],
+				[
+					17,
+					9
+				],
+				[
+					18,
+					9
+				],
+				[
+					23,
+					9
+				]
+			]
+		},
+		"rock": {
+			"biome_weights": {
+				"desert": 0.03,
+				"grass": 0.015,
+				"rocky": 0.06,
+				"snow": 0.02
+			},
+			"display_name": "Rock",
+			"drops": [
+				{
+					"count": 1,
+					"item_id": "stone"
+				}
+			],
+			"hp": 5,
+			"is_pickaxe_bonus": true,
+			"is_tall": false,
+			"ref_id": "rock",
+			"sprites": [
+				[
+					7,
+					13
+				],
+				[
+					8,
+					13
+				],
+				[
+					9,
+					13
+				]
+			]
+		},
+		"tree": {
+			"biome_weights": {
+				"grass": 0.06,
+				"rocky": 0.02,
+				"snow": 0.04,
+				"swamp": 0.05
+			},
+			"display_name": "Tall Tree",
+			"drops": [
+				{
+					"count": 1,
+					"item_id": "wood"
+				}
+			],
+			"hp": 2,
+			"is_pickaxe_bonus": false,
+			"is_tall": true,
+			"ref_id": "tree",
+			"sprites": [
+				[
+					13,
+					9
+				],
+				[
+					14,
+					9
+				],
+				[
+					15,
+					9
+				],
+				[
+					16,
+					9
+				]
+			]
+		}
+	}
 }

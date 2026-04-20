@@ -66,10 +66,11 @@ func _init() -> void:
 	deal_d2.speaker = "Mara"
 	deal_d2.text = "I don't have much gold, but I can offer something better. I brew tonics that'll harden your skin and sharpen your senses. One batch is worth more than a sack of coin."
 	deal_d2.choices = [
-		_choice_flag("Sounds fair. What do you need?", leaf_reward_deal, "quest_herbalist_started"),
+		_choice_flag("Sounds fair. What do you need?", leaf_reward_deal, "quest_herbalist_mine"),
 		_choice_stat(&"charisma", 5, "I want the tonic AND your antidote recipe.",
 			leaf_reward_push,
-			_leaf("Mara", "That's too much to ask. The tonic or nothing, traveller.")),
+			_leaf("Mara", "That's too much to ask. The tonic or nothing, traveller."),
+			"quest_herbalist_mine"),
 		_choice("Forget it, I'm not doing charity work.", leaf_reward_walk),
 	]
 
@@ -78,11 +79,12 @@ func _init() -> void:
 	help_d2.speaker = "Mara"
 	help_d2.text = "Two things would help most: I need rare herbs for the remedy, and someone brave enough to investigate that mine. The herbs I can point you to. The mine... that's dangerous."
 	help_d2.choices = [
-		_choice_flag("I'll gather the herbs.", leaf_help_gather, "quest_herbalist_started"),
-		_choice_flag("I'll check out the mine.", leaf_help_mine, "quest_herbalist_started"),
+		_choice_flag("I'll gather the herbs.", leaf_help_gather, "quest_herbalist_herbs"),
+		_choice_flag("I'll check out the mine.", leaf_help_mine, "quest_herbalist_mine"),
 		_choice_stat(&"strength", 4, "I'll do both — herbs and the mine.",
 			leaf_help_both,
-			_leaf("Mara", "I admire the spirit, but you'd need to be stronger for that. Pick one for now — herbs or the mine.")),
+			_leaf("Mara", "I admire the spirit, but you'd need to be stronger for that. Pick one for now — herbs or the mine."),
+			"quest_herbalist_both"),
 	]
 
 	# ── Depth-1 node (root response after intro) ─────────────────────
@@ -130,7 +132,8 @@ func _choice(label: String, next: DialogueNode, set_flag: String = "") -> Dialog
 
 
 func _choice_stat(stat: StringName, threshold: int, label: String,
-		success: DialogueNode, failure: DialogueNode = null) -> DialogueChoice:
+		success: DialogueNode, failure: DialogueNode = null,
+		flag: String = "") -> DialogueChoice:
 	var c := DialogueChoice.new()
 	c.label = label
 	c.stat_check = stat
@@ -138,6 +141,8 @@ func _choice_stat(stat: StringName, threshold: int, label: String,
 	c.next_node = success
 	if failure != null:
 		c.failure_node = failure
+	if flag != "":
+		c.set_flag = flag
 	return c
 
 

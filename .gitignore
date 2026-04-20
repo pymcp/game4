@@ -2,6 +2,7 @@ kenney_raw
 screenshot.png
 screenshot.png*
 tmp/
+*.code-workspace
 
 
 # Godot 4+ specific ignores

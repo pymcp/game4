@@ -15,14 +15,14 @@ overworld_terrain = {
 "water": [Vector2i(0, 0), Vector2i(3, 1), Vector2i(1, 0), Vector2i(3, 4)]
 }
 overworld_decoration = {
-"bush": [Vector2i(13, 9), Vector2i(14, 9), Vector2i(15, 9), Vector2i(16, 9), Vector2i(17, 9), Vector2i(18, 9), Vector2i(19, 9), Vector2i(20, 9), Vector2i(21, 9), Vector2i(23, 9), Vector2i(24, 9), Vector2i(25, 9), Vector2i(22, 9), Vector2i(22, 10), Vector2i(22, 11), Vector2i(25, 10), Vector2i(24, 10), Vector2i(24, 11), Vector2i(26, 10), Vector2i(26, 9), Vector2i(27, 11)],
-"copper_vein": [Vector2i(54, 19), Vector2i(55, 19), Vector2i(56, 19)],
+"bush": [Vector2i(22, 9), Vector2i(22, 10), Vector2i(22, 11), Vector2i(27, 11)],
+"copper_vein": [],
 "flower": [Vector2i(28, 9), Vector2i(29, 9), Vector2i(30, 9), Vector2i(31, 9)],
-"gold_vein": [Vector2i(41, 11), Vector2i(42, 11), Vector2i(43, 11)],
-"iron_vein": [Vector2i(54, 21), Vector2i(55, 21), Vector2i(56, 21)],
-"lilypad": [Vector2i(28, 10), Vector2i(28, 11), Vector2i(26, 11), Vector2i(25, 11)],
-"rock": [Vector2i(54, 22), Vector2i(55, 22), Vector2i(56, 22), Vector2i(56, 20), Vector2i(55, 20), Vector2i(54, 20)],
-"tree": [Vector2i(13, 11), Vector2i(14, 11), Vector2i(15, 11), Vector2i(16, 11), Vector2i(17, 11), Vector2i(18, 11), Vector2i(23, 11), Vector2i(27, 10)]
+"gold_vein": [],
+"iron_vein": [],
+"lilypad": [Vector2i(28, 10), Vector2i(28, 11), Vector2i(26, 11), Vector2i(25, 11), Vector2i(28, 9), Vector2i(29, 9), Vector2i(30, 9), Vector2i(31, 9)],
+"rock": [],
+"tree": [Vector2i(27, 10)]
 }
 overworld_terrain_patches_3x3 = {
 "clay": [Vector2i(12, 25), Vector2i(13, 25), Vector2i(14, 25), Vector2i(12, 26), Vector2i(13, 26), Vector2i(14, 26), Vector2i(12, 27), Vector2i(13, 27), Vector2i(14, 27)],
@@ -132,3 +132,4 @@ weapon_sprites = {
 "pickaxe": [Vector2i(50, 0)],
 "sword": [Vector2i(42, 5)]
 }
+sheet_overrides = {}
