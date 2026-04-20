@@ -8,13 +8,16 @@
 - Private members: prefix with `_underscore`.
 
 ## Architecture
-- **Autoloads** for cross-cutting state: `InputContext`, `PauseManager`, `WorldManager`, `GameSession`.
+- **Autoloads** for cross-cutting state: `InputContext`, `PauseManager`, `WorldManager`, `GameSession`, `Sfx`, `GameState`.
 - Prefer **signals over polling**. Connect via code in `_ready`, not via the editor signals tab.
 - Avoid static methods on `class_name` scripts that extend `Node` — known Godot 4.3 quirk where `ClassName.static_method(...)` fails from cross-script calls. Put pure helpers on `RefCounted`-derived scripts or autoload singletons.
+- **Autoload scripts must NOT declare `class_name`** — the autoload name serves as the global accessor, and `class_name` creates a conflicting symbol.
 - Use **typed GDScript** everywhere: `var foo: int = 0`, `func bar(x: float) -> Vector2:`. Untyped variables only when necessary.
 
 ## Resources & Data
 - Game data (items, biomes, recipes) lives as `.tres` Resource files in `resources/`.
+- Dialogue trees: `resources/dialogue/` — `DialogueTree → DialogueNode → DialogueChoice` (all `Resource` subclasses).
+- Dialogue seeder scripts: `tools/seed_*.gd` — build trees in code and call `ResourceSaver.save()`.
 - Save games at `user://saves/<slot>.tres`.
 
 ## Scenes

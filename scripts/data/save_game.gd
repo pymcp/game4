@@ -29,6 +29,7 @@ const _SAVE_DIR: String = "user://saves/"
 @export var interiors: Array = []
 ## StringName id of the active interior, or &"" if on the overworld.
 @export var active_interior_id: StringName = &""
+@export var game_state_flags: Dictionary = {}
 
 
 static func slot_path(slot: String) -> String:
@@ -73,13 +74,16 @@ static func snapshot(world: WorldRoot) -> SaveGame:
 				psd.inventory_data = p.inventory.to_dict()
 			if p.equipment != null:
 				psd.equipment_data = p.equipment.to_dict()
+			psd.stats = p.stats.duplicate()
 			save.players.append(psd)
+	save.game_state_flags = GameState.to_dict()
 	return save
 
 
 ## Apply this save to WorldManager + (optionally) `world`. Resets caches.
 func apply(world: WorldRoot = null) -> void:
 	WorldManager.reset(world_seed)
+	GameState.from_dict(game_state_flags)
 	for plan in plans:
 		WorldManager.plans[plan.region_id] = plan
 	for region in regions:
@@ -110,6 +114,8 @@ func apply(world: WorldRoot = null) -> void:
 			p.inventory.from_dict(psd.inventory_data)
 		if p.equipment != null and not psd.equipment_data.is_empty():
 			p.equipment.from_dict(psd.equipment_data)
+		if not psd.stats.is_empty():
+			p.stats = psd.stats.duplicate()
 	# Phase 9a: enter active interior in the live world (Game.gd's signal
 	# handler will repaint the WorldRoot).
 	if active_interior_id != &"" and MapManager.interiors.has(active_interior_id) \

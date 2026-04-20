@@ -32,6 +32,11 @@ var equipment: Equipment = Equipment.new()
 var max_health: int = 10
 var health: int = 10
 var is_sailing: bool = false
+var stats: Dictionary = { &"charisma": 3, &"wisdom": 3, &"strength": 3 }
+
+
+func get_stat(stat: StringName) -> int:
+	return int(stats.get(stat, 0))
 var _boat: Boat = null
 
 const _INTERACT_RADIUS_PX: float = 24.0  ## native pixels
@@ -146,11 +151,14 @@ func stop_sailing(_boat: Boat) -> void:
 
 
 func _try_interact() -> void:
-	# If a dialogue is open, the interact key acts as a dismiss instead of
-	# rolling a new conversation (otherwise pressing E would immediately
-	# re-open the same villager's box).
+	# If a dialogue box is open, E either confirms the highlighted choice
+	# (branching mode) or dismisses (leaf / one-liner mode).
 	if _world.dialogue_open():
-		_world.hide_dialogue()
+		var box: DialogueBox = _world._dialogue_box
+		if box != null and box._visible_choices.size() > 0 and box._selected_idx >= 0:
+			box._pick_choice(box._selected_idx)
+		else:
+			_world.hide_dialogue()
 		return
 	var best: Node = null
 	var best_d2: float = INF

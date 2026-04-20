@@ -14,3 +14,4 @@ extends Resource
 @export var max_health: int = 10
 @export var inventory_data: Dictionary = {}
 @export var equipment_data: Dictionary = {}
+@export var stats: Dictionary = {}

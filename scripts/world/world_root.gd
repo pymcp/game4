@@ -50,6 +50,7 @@ var _mineable: Dictionary = {}  ## Vector2i -> {kind: StringName, hp: int}
 ## with the touching player's id baked in.
 var last_rune_message: String = ""
 var _dialogue_box: DialogueBox = null  ## Per-instance dialogue UI.
+var _active_tree_player: PlayerController = null  ## Player driving branching dialogue.
 
 const MINEABLE_HP: Dictionary = {
 	&"tree": 3, &"bush": 1, &"rock": 5, &"iron_vein": 6, &"copper_vein": 5,
@@ -963,6 +964,7 @@ const _VillagerScene: PackedScene = preload("res://scenes/entities/Villager.tscn
 const _MonsterScene: PackedScene = preload("res://scenes/entities/Monster.tscn")
 
 func _spawn_scattered_npcs() -> void:
+	_maybe_inject_mara()
 	var entries: Array = []
 	if _interior != null:
 		entries = _interior.npcs_scatter
@@ -981,12 +983,38 @@ func _spawn_scattered_npcs() -> void:
 				pass
 
 
+func _maybe_inject_mara() -> void:
+	# Only inject Mara on the overworld starting region (not interiors).
+	if _interior != null or _region == null:
+		return
+	# Check if Mara is already in the scatter list.
+	for entry in _region.npcs_scatter:
+		if typeof(entry) == TYPE_DICTIONARY and entry.get("dialogue", "") != "":
+			return  # Already has a dialogue NPC (Mara or another).
+	# Place her near the first spawn point.
+	if _region.spawn_points.is_empty():
+		return
+	var centre: Vector2i = _region.spawn_points[0]
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(3, 2), 4, true)
+	_region.npcs_scatter.append({
+		"kind": &"villager",
+		"cell": cell,
+		"seed": 0xA4A7A,  # Deterministic seed for "Mara" appearance.
+		"dialogue": "res://resources/dialogue/healer_mara.tres",
+	})
+
+
 func _spawn_villager(entry: Dictionary) -> void:
 	var cell: Vector2i = entry.get("cell", Vector2i.ZERO)
 	var v: Villager = _VillagerScene.instantiate() as Villager
 	v.npc_seed = int(entry.get("seed", 0))
 	v.home_cell = cell
 	v.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+	var dlg_path: String = entry.get("dialogue", "")
+	if dlg_path != "":
+		var tree: DialogueTree = load(dlg_path) as DialogueTree
+		if tree != null:
+			v.dialogue_tree = tree
 	v.add_to_group(&"scattered_npcs")
 	entities.add_child(v)
 
@@ -1021,6 +1049,42 @@ func _ensure_dialogue_box() -> DialogueBox:
 	_dialogue_box.name = "DialogueBox"
 	add_child(_dialogue_box)
 	return _dialogue_box
+
+
+func show_dialogue_tree(player: PlayerController, tree: DialogueTree) -> void:
+	if tree == null or tree.root == null:
+		return
+	_active_tree_player = player
+	var box: DialogueBox = _ensure_dialogue_box()
+	box.player_id = player.player_id
+	# Disconnect any prior connection so we don't double-fire.
+	if box.choice_selected.is_connected(_on_choice_selected):
+		box.choice_selected.disconnect(_on_choice_selected)
+	box.choice_selected.connect(_on_choice_selected)
+	box.show_node(tree.root as DialogueNode, player.stats)
+
+
+func _on_choice_selected(choice: DialogueChoice, passed: bool) -> void:
+	var next: Resource = choice.next_node if passed else choice.failure_node
+	if next == null:
+		next = choice.next_node  # fallback on missing failure branch
+	if next == null:
+		hide_dialogue()
+		return
+	var node: DialogueNode = next as DialogueNode
+	if node == null:
+		hide_dialogue()
+		return
+	# Condition flag gating on the destination node.
+	if node.condition_flag != "" and not GameState.get_flag(node.condition_flag):
+		if node.condition_flag_false != "":
+			# Try the false-branch redirect (not implemented in current data, placeholder).
+			pass
+		hide_dialogue()
+		return
+	var box: DialogueBox = _ensure_dialogue_box()
+	var stats: Dictionary = _active_tree_player.stats if _active_tree_player != null else {}
+	box.show_node(node, stats)
 
 
 # --- Debug spawn helpers -------------------------------------------

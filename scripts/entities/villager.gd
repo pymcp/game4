@@ -28,6 +28,8 @@ const STUCK_TIMEOUT_SEC: float = 0.8
 @export var npc_seed: int = 0
 @export var home_cell: Vector2i = Vector2i.ZERO
 @export var wander_radius: int = 6
+## Optional branching dialogue tree. If null, falls back to one-liner.
+@export var dialogue_tree: DialogueTree = null
 
 var state: State = State.IDLE
 var _world: WorldRoot = null
@@ -223,6 +225,10 @@ func _current_cell() -> Vector2i:
 func interact(player: PlayerController) -> bool:
 	if _world == null or player == null:
 		return false
+	if dialogue_tree != null:
+		_world.show_dialogue_tree(player, dialogue_tree)
+		return true
+	# Fallback: one-liner dialogue.
 	var speaker: String = VillagerDialogue.pick_name(npc_seed)
 	var line: String = VillagerDialogue.pick_line(npc_seed)
 	_world.show_dialogue(player.player_id, speaker, line)

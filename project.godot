@@ -27,6 +27,7 @@ SaveManager="*res://scripts/autoload/save_manager.gd"
 MapManager="*res://scripts/autoload/map_manager.gd"
 ViewManager="*res://scripts/autoload/view_manager.gd"
 Sfx="*res://scripts/autoload/sfx.gd"
+GameState="*res://scripts/autoload/game_state.gd"
 
 [display]
 
