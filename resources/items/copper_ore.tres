@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/icons/generic_items/genericItem_color_005.png" id="1_8txgi"]
+[ext_resource type="Script" path="res://scripts/data/item_definition.gd" id="2_s1v5b"]
+
+[resource]
+script = ExtResource("2_s1v5b")
+id = &"copper_ore"
+display_name = "Copper Ore"
+icon = ExtResource("1_8txgi")
+stack_size = 99
+slot = 0
+power = 0
+description = "A lump of unrefined copper."

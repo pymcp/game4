@@ -77,6 +77,9 @@ const _MAPPINGS: Array = [
 	{"id": &"mineable_resources",                "label": "Mineable Resources",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_mineable_json",                    "kind": &"mineable"},
+	{"id": &"item_editor",                        "label": "Items / Drops",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_item_editor",                      "kind": &"item_editor"},
 ]
 
 # Tile-sheet geometry. Matches WorldConst.TILE_PX (16) and the 1-px
@@ -95,6 +98,7 @@ const COLOR_HOVER: Color  = Color(0.95, 0.9, 0.2, 0.9)
 var _mappings_resource: TileMappings = null
 var _dirty: bool = false
 var _mineable_editor: MineableEditor = null  ## Active only for kind=="mineable".
+var _item_editor: ItemEditor = null          ## Active only for kind=="item_editor".
 
 # Quest TODO panel state.
 var _quest_panel: ScrollContainer = null
@@ -399,6 +403,8 @@ func _on_sheet_selected(idx: int) -> void:
 		_refresh_marks()
 		if _mineable_editor != null and _mineable_editor.visible:
 			_mineable_editor.sheet_path = new_sheet
+		if _item_editor != null and _item_editor.visible:
+			_item_editor.sheet_path = new_sheet
 		_status_label.text = "sheet → %s" % new_sheet
 
 
@@ -593,11 +599,24 @@ func _select_mapping(entry: Dictionary) -> void:
 
 	if kind == &"mineable":
 		_show_mineable_editor()
+		_hide_item_editor()
 		_refresh_marks()
 		_status_label.text = "Editing mineables — %s" % sheet_path
 		return
 
+	if kind == &"item_editor":
+		_show_item_editor()
+		_hide_mineable_editor()
+		_refresh_marks()
+		_status_label.text = "Editing items — %s" % sheet_path
+		return
+
 	_hide_mineable_editor()
+	_hide_item_editor()
+	_slot_root.visible = true
+	_header_label.visible = true
+	if _preview != null:
+		_preview.visible = true
 	_slots = _build_slots(entry)
 	_active_slot = 0 if _slots.size() > 0 else -1
 	_header_label.text = "Slots — %s (%s)" % [entry["label"], entry["kind"]]
@@ -612,8 +631,8 @@ func _select_mapping(entry: Dictionary) -> void:
 func _build_slots(entry: Dictionary) -> Array:
 	var field: StringName = entry["field"]
 	var kind: StringName = entry["kind"]
-	if kind == &"mineable":
-		return []  # Mineable resources use their own editor.
+	if kind == &"mineable" or kind == &"item_editor":
+		return []  # These use their own editors.
 	var value: Variant = _mappings_resource.get(field)
 	var out: Array = []
 
@@ -779,6 +798,12 @@ func _on_cell_clicked(cell: Vector2i) -> void:
 		_refresh_marks()
 		_status_label.text = "toggled sprite %s" % _str_cell(cell)
 		return
+	# Route to item editor if active.
+	if _item_editor != null and _item_editor.visible:
+		_item_editor.on_atlas_cell_clicked(cell)
+		_refresh_marks()
+		_status_label.text = "set item icon to %s" % _str_cell(cell)
+		return
 	if _active_slot < 0 or _active_slot >= _slots.size():
 		_status_label.text = "no active slot — pick one in the right pane first"
 		return
@@ -818,6 +843,8 @@ func _save() -> void:
 	# Save mineable data if the mineable editor is active and dirty.
 	if _mineable_editor != null and _mineable_editor.is_dirty():
 		_mineable_editor.save()
+	if _item_editor != null and _item_editor.is_dirty():
+		_item_editor.save()
 	var err: int = ResourceSaver.save(_mappings_resource, MAPPINGS_PATH)
 	if err != OK:
 		_status_label.text = "SAVE FAILED (err %d)" % err
@@ -832,6 +859,8 @@ func _revert() -> void:
 	# Revert mineable data if the mineable editor exists.
 	if _mineable_editor != null:
 		_mineable_editor.revert()
+	if _item_editor != null:
+		_item_editor.revert()
 	# Force a fresh load — drop the cached resource so subsequent loads
 	# pick up the on-disk version (in case it was edited externally).
 	if ResourceLoader.has_cached(MAPPINGS_PATH):
@@ -910,6 +939,9 @@ func _refresh_marks() -> void:
 	# Use mineable editor marks when in mineable mode.
 	if _mineable_editor != null and _mineable_editor.visible:
 		_sheet_view.set_marks(_mineable_editor.get_marks())
+		return
+	if _item_editor != null and _item_editor.visible:
+		_sheet_view.set_marks(_item_editor.get_marks())
 		return
 	var marks: Array = []
 	for i in _slots.size():
@@ -1007,6 +1039,7 @@ const _ICON_SIZE := 36
 
 func _select_quest_todo(quest_id: String) -> void:
 	_hide_mineable_editor()
+	_hide_item_editor()
 	_current_mapping = {}
 	_slots = []
 	_active_slot = -1
@@ -1226,6 +1259,7 @@ func _on_quest_create_feature(req: Dictionary, btn: Button) -> void:
 	if _mineable_editor == null:
 		_mineable_editor = MineableEditor.new()
 		_mineable_editor.dirty_changed.connect(_on_mineable_dirty)
+		_mineable_editor.navigate_to_item.connect(_on_navigate_to_item)
 		_slot_root.get_parent().get_parent().add_child(_mineable_editor)
 		_mineable_editor.visible = false
 
@@ -1364,6 +1398,7 @@ func _show_mineable_editor() -> void:
 	if _mineable_editor == null:
 		_mineable_editor = MineableEditor.new()
 		_mineable_editor.dirty_changed.connect(_on_mineable_dirty)
+		_mineable_editor.navigate_to_item.connect(_on_navigate_to_item)
 		# Insert into the right pane's parent (the ScrollContainer that
 		# holds _slot_root).
 		_slot_root.get_parent().get_parent().add_child(_mineable_editor)
@@ -1374,12 +1409,96 @@ func _show_mineable_editor() -> void:
 func _hide_mineable_editor() -> void:
 	if _mineable_editor != null:
 		_mineable_editor.visible = false
-	_slot_root.visible = true
-	_header_label.visible = true
-	if _preview != null:
-		_preview.visible = true
 
 
 func _on_mineable_dirty() -> void:
 	_mark_dirty()
 	_refresh_marks()
+
+
+# ─── Item editor integration ──────────────────────────────────────────
+
+func _show_item_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _item_editor == null:
+		_item_editor = ItemEditor.new()
+		_item_editor.dirty_changed.connect(_on_item_dirty)
+		_item_editor.navigate_to_mineable.connect(_on_navigate_to_mineable)
+		_item_editor.sheet_requested.connect(_on_item_sheet_requested)
+		_slot_root.get_parent().get_parent().add_child(_item_editor)
+	_item_editor.sheet_path = _resolve_sheet(_current_mapping)
+	_item_editor.visible = true
+
+
+func _hide_item_editor() -> void:
+	if _item_editor != null:
+		_item_editor.visible = false
+
+
+func _on_item_dirty() -> void:
+	_mark_dirty()
+	_refresh_marks()
+
+
+func _on_item_sheet_requested(path: String) -> void:
+	## Switch the atlas view to the requested sheet when the user selects
+	## an item whose icon lives on a different sheet.
+	if path.is_empty():
+		return
+	var tex: Texture2D = load(path) as Texture2D
+	if tex == null:
+		return
+	_item_editor.sheet_path = path
+	_sheet_view.set_sheet(tex)
+	# Update the sheet dropdown to reflect the new sheet.
+	for i in _available_sheets.size():
+		if _available_sheets[i] == path:
+			_sheet_selector.select(i)
+			break
+	_refresh_marks()
+
+
+func _on_navigate_to_mineable(resource_id: StringName) -> void:
+	# Switch to Mineable Resources mapping and select the target resource.
+	for i in _MAPPINGS.size():
+		if _MAPPINGS[i]["id"] == &"mineable_resources":
+			_select_mapping(_MAPPINGS[i])
+			# Select the entry in the tree.
+			_select_tree_item_by_id(&"mineable_resources")
+			# Select the resource in the mineable editor.
+			if _mineable_editor != null:
+				_mineable_editor.select_resource(resource_id)
+			break
+
+
+func _on_navigate_to_item(item_id: StringName) -> void:
+	# Switch to Items / Drops mapping and select the target item.
+	for i in _MAPPINGS.size():
+		if _MAPPINGS[i]["id"] == &"item_editor":
+			_select_mapping(_MAPPINGS[i])
+			_select_tree_item_by_id(&"item_editor")
+			if _item_editor != null:
+				_item_editor.select_item(item_id)
+			break
+
+
+func _select_tree_item_by_id(mapping_id: StringName) -> void:
+	var root: TreeItem = _tree.get_root()
+	if root == null:
+		return
+	var item: TreeItem = root.get_first_child()
+	while item != null:
+		var child: TreeItem = item.get_first_child()
+		while child != null:
+			if child.get_metadata(0) is StringName and child.get_metadata(0) == mapping_id:
+				child.select(0)
+				return
+			child = child.get_next()
+		item = item.get_next()

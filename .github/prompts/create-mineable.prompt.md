@@ -90,7 +90,38 @@ Create `resources/items/<item_id>.tres` following the **import-sprite** skill. T
 | stone | Stone |
 | wood | Wood |
 
-## Step 4: Assign Sprites via SpritePicker
+## Step 4: Assign Sprites
+
+There are two approaches depending on whether you're using an existing Kenney sprite or a custom imported sprite.
+
+### Option A: Custom Imported Sprite (e.g. from Gemini)
+
+If the sprite exists as a standalone 16×16 PNG (e.g. in `assets/icons/items/`), use the atlas tool to place it on the overworld sheet:
+
+```bash
+python3 tools/add_sprite_to_sheet.py <source_png> <sprite_name>
+```
+
+Example:
+```bash
+python3 tools/add_sprite_to_sheet.py assets/icons/items/fennel_root.png fennel_root
+# prints: [36, 29]
+```
+
+This will:
+1. Find an empty cell on `overworld_sheet.png`
+2. Paste the 16×16 sprite into that cell
+3. Record the mapping in `resources/custom_sprite_cells.json`
+4. Print `[col, row]` — use this in the `sprites` array
+
+The tool is idempotent — re-running with the same name re-pastes into the same cell.
+
+Write the returned coordinates into the resource's `sprites` array:
+```json
+"sprites": [[36, 29]]
+```
+
+### Option B: Existing Kenney Atlas Sprite
 
 Tell the user to open the SpritePicker tool in-game and:
 
@@ -101,7 +132,9 @@ Tell the user to open the SpritePicker tool in-game and:
 
 If the user provides sprite coordinates directly (e.g. "use cells [20,9] and [21,9]"), write them into the `sprites` array as `[[20, 9], [21, 9]]`.
 
-**Atlas geometry:** 16×16 pixel tiles with 1px gutter → 17px stride. Cell `[col, row]` maps to pixel position `(col * 17, row * 17)`.
+### Atlas Geometry
+
+16×16 pixel tiles with 1px gutter → 17px stride. Cell `[col, row]` maps to pixel position `(col * 17, row * 17)`.
 
 ## Step 5: Verify Runtime Integration
 

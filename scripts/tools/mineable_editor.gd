@@ -8,6 +8,7 @@ extends VBoxContainer
 
 signal dirty_changed  ## Emitted when edits are made.
 signal request_sprite_pick(resource_id: StringName)  ## Ask SpritePicker to activate atlas picking.
+signal navigate_to_item(item_id: StringName)  ## Ask SpritePicker to switch to ItemEditor.
 
 const TILE_PX := 16
 const TILE_GUTTER := 1
@@ -291,21 +292,42 @@ func _refresh_biome_weights(weights: Dictionary) -> void:
 func _refresh_drops(drops: Array) -> void:
 	for c in _drops_container.get_children():
 		c.queue_free()
+	var item_ids: Array = ItemRegistry.all_ids()
+	item_ids.sort()
 	for i in drops.size():
 		var d: Dictionary = drops[i]
 		var row := HBoxContainer.new()
-		var id_edit := LineEdit.new()
-		id_edit.text = d.get("item_id", "")
-		id_edit.placeholder_text = "item_id"
-		id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		id_edit.text_changed.connect(_on_drop_id_changed.bind(i))
-		row.add_child(id_edit)
+		var opt := OptionButton.new()
+		opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# First entry is blank (no item selected)
+		opt.add_item("(none)")
+		opt.set_item_metadata(0, "")
+		var current_id: String = d.get("item_id", "")
+		var sel_idx: int = 0
+		for j in item_ids.size():
+			var iid: String = String(item_ids[j])
+			var def: ItemDefinition = ItemRegistry.get_item(StringName(iid))
+			var label: String = "%s (%s)" % [def.display_name, iid] if def else iid
+			opt.add_item(label)
+			opt.set_item_metadata(j + 1, iid)
+			if iid == current_id:
+				sel_idx = j + 1
+		opt.selected = sel_idx
+		opt.item_selected.connect(_on_drop_id_selected.bind(i))
+		row.add_child(opt)
 		var count_spin := SpinBox.new()
 		count_spin.min_value = 1
 		count_spin.max_value = 99
 		count_spin.value = float(d.get("count", 1))
 		count_spin.value_changed.connect(_on_drop_count_changed.bind(i))
 		row.add_child(count_spin)
+		# Navigate to item button
+		if current_id != "":
+			var go_btn := Button.new()
+			go_btn.text = "→"
+			go_btn.tooltip_text = "Go to item: %s" % current_id
+			go_btn.pressed.connect(_on_navigate_item.bind(StringName(current_id)))
+			row.add_child(go_btn)
 		var del := Button.new()
 		del.text = "×"
 		del.pressed.connect(_on_delete_drop.bind(i))
@@ -397,12 +419,15 @@ func _on_biome_weight_changed(val: float, biome: String) -> void:
 	e["biome_weights"] = bw
 	_mark_dirty_internal()
 
-func _on_drop_id_changed(new_text: String, idx: int) -> void:
+func _on_drop_id_selected(opt_idx: int, drop_idx: int) -> void:
 	var e := _get_entry()
 	if e.is_empty(): return
 	var drops: Array = e.get("drops", [])
-	if idx >= 0 and idx < drops.size():
-		drops[idx]["item_id"] = new_text
+	if drop_idx >= 0 and drop_idx < drops.size():
+		# Find the OptionButton to read metadata
+		var row: HBoxContainer = _drops_container.get_child(drop_idx)
+		var opt: OptionButton = row.get_child(0)
+		drops[drop_idx]["item_id"] = opt.get_item_metadata(opt_idx)
 		_mark_dirty_internal()
 
 func _on_drop_count_changed(val: float, idx: int) -> void:
@@ -620,3 +645,16 @@ func revert() -> void:
 
 func is_dirty() -> bool:
 	return _dirty
+
+
+## Select a resource by ID (used by cross-reference navigation).
+func select_resource(resource_id: StringName) -> void:
+	for i in _res_list.item_count:
+		if _res_list.get_item_metadata(i) == String(resource_id):
+			_res_list.select(i)
+			_on_resource_selected(i)
+			return
+
+
+func _on_navigate_item(item_id: StringName) -> void:
+	navigate_to_item.emit(item_id)

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemDefinition" load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/icons/generic_items/genericItem_color_024.png" id="1_7wd7o"]
+[ext_resource type="Script" path="res://scripts/data/item_definition.gd" id="2_r7hje"]
+
+[resource]
+script = ExtResource("2_r7hje")
+id = &"bow"
+display_name = "Wooden Bow"
+icon = ExtResource("1_7wd7o")
+stack_size = 1
+slot = 1
+power = 3
+description = "Fires arrows at distant targets."

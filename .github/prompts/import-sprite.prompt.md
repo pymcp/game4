@@ -43,6 +43,18 @@ python3 -c "from PIL import Image; img=Image.open('assets/icons/items/<item_id>.
 
 Expected: `(16, 16) RGBA`
 
+After processing, trigger Godot's import scan so the new PNG gets a `.import` file:
+
+```bash
+timeout 15 godot --headless --editor 2>&1 | tail -3
+```
+
+Verify the import file was created:
+
+```bash
+ls assets/icons/items/<item_id>.png.import
+```
+
 ## Step 3: Create the ItemDefinition .tres Override
 
 Create the file `resources/items/<item_id>.tres` with this exact format:
@@ -78,7 +90,19 @@ description = "<description>"
 - `load_steps` is always 3 (script + texture + resource)
 - The file MUST be saved to `resources/items/` — this is where `ItemRegistry` scans for overrides
 
-## Step 4: Update Quest JSON Status (if applicable)
+## Step 4: Place on Atlas (if item will be a mineable drop)
+
+If this item will also be dropped by a mineable resource (e.g. a plant or ore vein), place the sprite on the overworld atlas so it can be used as a terrain decoration:
+
+```bash
+python3 tools/add_sprite_to_sheet.py assets/icons/items/<item_id>.png <item_id>
+```
+
+This prints `[col, row]` — the atlas cell coordinates to use in the mineable's `sprites` array in `resources/mineables.json`. The tool records the mapping in `resources/custom_sprite_cells.json` and is idempotent.
+
+Skip this step if the item is equipment, a quest reward, or otherwise won't appear as a world decoration.
+
+## Step 5: Update Quest JSON Status (if applicable)
 
 Search all quest JSON files for this item_id in the `requires.items` array:
 
@@ -92,7 +116,7 @@ For each matching quest file, update the item's status from `"NOT_IMPLEMENTED"` 
 {"id": "<item_id>", "source": "...", "status": "IMPLEMENTED"}
 ```
 
-## Step 5: Verify
+## Step 6: Verify
 
 1. Confirm the PNG exists and is correct size:
    ```bash
@@ -115,5 +139,6 @@ For each matching quest file, update the item's status from `"NOT_IMPLEMENTED"` 
 - [ ] `process_sprite.py` ran successfully — output is 16×16 RGBA
 - [ ] `assets/icons/items/<item_id>.png` exists
 - [ ] `resources/items/<item_id>.tres` created with correct icon path
+- [ ] Atlas placement done via `add_sprite_to_sheet.py` (if mineable drop)
 - [ ] Quest JSON status updated (if applicable)
 - [ ] Unit tests still pass

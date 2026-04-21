@@ -105,6 +105,29 @@
 				]
 			]
 		},
+		"fennel_plant": {
+			"biome_weights": {
+				"grass": 0.005,
+				"swamp": 0.008
+			},
+			"display_name": "Fennel Plant",
+			"drops": [
+				{
+					"count": 1,
+					"item_id": "fennel_root"
+				}
+			],
+			"hp": 1,
+			"is_pickaxe_bonus": false,
+			"is_tall": false,
+			"ref_id": "fennel_plant",
+			"sprites": [
+				[
+					36,
+					29
+				]
+			]
+		},
 		"gold_vein": {
 			"biome_weights": {
 				"rocky": 0.005
