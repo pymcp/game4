@@ -104,17 +104,36 @@ def main() -> None:
 
     manifest = load_manifest()
 
-    # Check if already placed (idempotent update)
+    # Helper: extract (col, row) from manifest entry (legacy or new format).
+    def _cell_from_entry(entry):
+        if isinstance(entry, dict):
+            return tuple(entry["cell"])
+        return tuple(entry)
+
+    overworld_res = "res://assets/tiles/roguelike/overworld_sheet.png"
+
+    # Check if already placed on THIS sheet (idempotent update)
     if sprite_name in manifest["cells"]:
-        col, row = manifest["cells"][sprite_name]
-        px, py = col * STRIDE, row * STRIDE
-        # Clear the cell first (paste transparent), then paste new sprite
-        clear = Image.new("RGBA", (TILE_SIZE, TILE_SIZE), (0, 0, 0, 0))
-        sheet.paste(clear, (px, py))
-        sheet.paste(sprite, (px, py))
-        sheet.save(SHEET_PATH)
-        print(f"[{col}, {row}]")
-        return
+        existing = manifest["cells"][sprite_name]
+        existing_sheet = ""
+        existing_cell = None
+        if isinstance(existing, dict):
+            existing_sheet = existing.get("sheet", "")
+            existing_cell = existing.get("cell")
+        elif isinstance(existing, list):
+            existing_cell = existing
+        # Re-paste into the same cell only if it was on the overworld sheet.
+        if existing_cell and (existing_sheet == overworld_res or existing_sheet == ""):
+            col, row = int(existing_cell[0]), int(existing_cell[1])
+            px, py = col * STRIDE, row * STRIDE
+            clear = Image.new("RGBA", (TILE_SIZE, TILE_SIZE), (0, 0, 0, 0))
+            sheet.paste(clear, (px, py))
+            sheet.paste(sprite, (px, py))
+            sheet.save(SHEET_PATH)
+            manifest["cells"][sprite_name] = {"cell": [col, row], "sheet": overworld_res}
+            save_manifest(manifest)
+            print(f"[{col}, {row}]")
+            return
 
     # Find an empty cell
     cell = find_empty_cell(sheet, cols, rows)
@@ -127,8 +146,11 @@ def main() -> None:
     sheet.paste(sprite, (px, py))
     sheet.save(SHEET_PATH)
 
-    # Update manifest
-    manifest["cells"][sprite_name] = [col, row]
+    # Update manifest (new format)
+    manifest["cells"][sprite_name] = {
+        "cell": [col, row],
+        "sheet": f"res://assets/tiles/roguelike/overworld_sheet.png",
+    }
     save_manifest(manifest)
 
     print(f"[{col}, {row}]")

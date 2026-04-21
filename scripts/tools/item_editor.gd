@@ -514,6 +514,8 @@ func _refresh_add_mineable_dropdown() -> void:
 				already.append(String(rid))
 				break
 	# Populate dropdown with mineables that DON'T already drop this item.
+	_add_mineable_opt.add_item("(select a mineable)")
+	_add_mineable_opt.set_item_metadata(0, "")
 	var rids: Array = resources.keys()
 	rids.sort()
 	for rid in rids:
@@ -523,16 +525,18 @@ func _refresh_add_mineable_dropdown() -> void:
 		var label: String = "%s (%s)" % [entry.get("display_name", rid), rid]
 		_add_mineable_opt.add_item(label)
 		_add_mineable_opt.set_item_metadata(_add_mineable_opt.item_count - 1, String(rid))
-	_add_mineable_btn.disabled = (_add_mineable_opt.item_count == 0)
+	_add_mineable_btn.disabled = (_add_mineable_opt.item_count <= 1)
 
 
 func _on_add_drop_source() -> void:
-	if _selected_id == &"" or _add_mineable_opt.item_count == 0:
+	if _selected_id == &"" or _add_mineable_opt.item_count <= 1:
 		return
 	var sel_idx: int = _add_mineable_opt.selected
 	if sel_idx < 0:
 		return
 	var rid: String = _add_mineable_opt.get_item_metadata(sel_idx)
+	if rid == "":
+		return
 	var item_id: String = String(_selected_id)
 	# Add this item to the mineable's drops in the registry data.
 	var data: Dictionary = MineableRegistry.get_raw_data()

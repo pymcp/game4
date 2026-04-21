@@ -1,13 +1,13 @@
 [gd_resource type="Resource" script_class="ItemDefinition" load_steps=3 format=3]
 
-[ext_resource type="Texture2D" path="res://assets/icons/generic_items/genericItem_color_031.png" id="1_bjv6m"]
+[ext_resource type="Texture2D" path="res://assets/icons/items/helmet.png" id="1_1wqrq"]
 [ext_resource type="Script" path="res://scripts/data/item_definition.gd" id="2_d1x2s"]
 
 [resource]
 script = ExtResource("2_d1x2s")
 id = &"helmet"
 display_name = "Leather Helmet"
-icon = ExtResource("1_bjv6m")
+icon = ExtResource("1_1wqrq")
 stack_size = 1
 slot = 3
 power = 2

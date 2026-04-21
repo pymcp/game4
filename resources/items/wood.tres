@@ -1,13 +1,13 @@
 [gd_resource type="Resource" script_class="ItemDefinition" load_steps=3 format=3]
 
-[ext_resource type="Texture2D" path="res://assets/icons/generic_items/genericItem_color_001.png" id="1_ajblp"]
+[ext_resource type="Texture2D" path="res://assets/icons/items/wood.png" id="1_0wy5k"]
 [ext_resource type="Script" path="res://scripts/data/item_definition.gd" id="2_t5iv8"]
 
 [resource]
 script = ExtResource("2_t5iv8")
 id = &"wood"
 display_name = "Wood"
-icon = ExtResource("1_ajblp")
+icon = ExtResource("1_0wy5k")
 stack_size = 99
 slot = 0
 power = 0

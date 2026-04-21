@@ -129,7 +129,9 @@ interior_terrain = {
 }
 weapon_sprites = {
 "bow": [Vector2i(52, 0)],
-"pickaxe": [Vector2i(50, 3)],
+"pickaxe": [Vector2i(38, 29)],
 "sword": [Vector2i(44, 6)]
 }
-sheet_overrides = {}
+sheet_overrides = {
+"_item_editor": "res://assets/characters/roguelike/characters_sheet.png"
+}

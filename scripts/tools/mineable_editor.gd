@@ -126,6 +126,7 @@ func _build_prop_panel() -> ScrollContainer:
 	vb.add_child(_make_label("Ref ID"))
 	_id_edit = LineEdit.new()
 	_id_edit.text_submitted.connect(_on_id_submitted)
+	_id_edit.focus_exited.connect(_on_id_focus_lost)
 	vb.add_child(_id_edit)
 
 	# HP
@@ -356,20 +357,29 @@ func _on_name_changed(new_text: String) -> void:
 			_res_list.set_item_text(i, new_text)
 			break
 
+func _on_id_focus_lost() -> void:
+	_on_id_submitted(_id_edit.text)
+
+
 func _on_id_submitted(new_id: String) -> void:
 	if new_id == "" or new_id == String(_selected_id):
 		return
+	var old_id: String = String(_selected_id)
 	var res: Dictionary = _data.get("resources", {})
 	if res.has(new_id):
-		_id_edit.text = String(_selected_id)  # Revert — ID already taken.
+		_id_edit.text = old_id  # Revert — ID already taken.
 		return
-	var entry: Dictionary = res.get(String(_selected_id), {})
+	var entry: Dictionary = res.get(old_id, {})
 	if entry.is_empty():
 		return
-	res.erase(String(_selected_id))
+	# Rename the key in the resources dict.
+	res.erase(old_id)
 	entry["ref_id"] = new_id
 	res[new_id] = entry
 	_data["resources"] = res
+	# Update any drops in OTHER resources that reference this resource.
+	# (Drops use item_ids, but biome_weights / decoration_weights in
+	#  other systems use the resource key — nothing else in _data to fix.)
 	_selected_id = StringName(new_id)
 	_mark_dirty_internal()
 	_populate_list()

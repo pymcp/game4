@@ -1,24 +1,95 @@
 {
   "cells": {
-    "armor": [
-      6,
-      0
-    ],
-    "boots": [
-      4,
-      5
-    ],
-    "bow": [
-      52,
-      0
-    ],
-    "copper_ore": [
-      41,
-      10
-    ],
-    "fennel_root": [
-      36,
-      29
-    ]
+    "armor": {
+      "cell": [
+        6,
+        0
+      ],
+      "sheet": "res://assets/characters/roguelike/characters_sheet.png"
+    },
+    "boots": {
+      "cell": [
+        4,
+        5
+      ],
+      "sheet": "res://assets/characters/roguelike/characters_sheet.png"
+    },
+    "bow": {
+      "cell": [
+        52,
+        0
+      ],
+      "sheet": "res://assets/characters/roguelike/characters_sheet.png"
+    },
+    "copper_ore": {
+      "cell": [
+        41,
+        10
+      ],
+      "sheet": "res://assets/tiles/roguelike/overworld_sheet.png"
+    },
+    "fennel_root": {
+      "cell": [
+        36,
+        29
+      ],
+      "sheet": "res://assets/tiles/roguelike/overworld_sheet.png"
+    },
+    "fiber": {
+      "cell": [
+        20,
+        13
+      ],
+      "sheet": "res://assets/tiles/roguelike/city_sheet.png"
+    },
+    "gold_ore": {
+      "cell": [
+        43,
+        10
+      ],
+      "sheet": "res://assets/tiles/roguelike/overworld_sheet.png"
+    },
+    "helmet": {
+      "cell": [
+        28,
+        8
+      ],
+      "sheet": "res://assets/characters/roguelike/characters_sheet.png"
+    },
+    "iron_ore": {
+      "cell": [
+        42,
+        10
+      ],
+      "sheet": "res://assets/tiles/roguelike/overworld_sheet.png"
+    },
+    "pickaxe": {
+      "cell": [
+        38,
+        29
+      ],
+      "sheet": "res://assets/tiles/roguelike/overworld_sheet.png"
+    },
+    "stone": {
+      "cell": [
+        50,
+        16
+      ],
+      "sheet": "res://assets/tiles/roguelike/overworld_sheet.png"
+    },
+    "sword": {
+      "cell": [
+        44,
+        6
+      ],
+      "sheet": "res://assets/characters/roguelike/characters_sheet.png"
+    },
+    "wood": {
+      "cell": [
+        53,
+        22
+      ],
+      "sheet": "res://assets/tiles/roguelike/overworld_sheet.png"
+    }
   }
 }
