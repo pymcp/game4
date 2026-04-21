@@ -129,7 +129,7 @@ interior_terrain = {
 }
 weapon_sprites = {
 "bow": [Vector2i(52, 0)],
-"pickaxe": [Vector2i(50, 0)],
-"sword": [Vector2i(42, 5)]
+"pickaxe": [Vector2i(50, 3)],
+"sword": [Vector2i(44, 6)]
 }
 sheet_overrides = {}

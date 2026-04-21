@@ -96,6 +96,13 @@ var _mappings_resource: TileMappings = null
 var _dirty: bool = false
 var _mineable_editor: MineableEditor = null  ## Active only for kind=="mineable".
 
+# Quest TODO panel state.
+var _quest_panel: ScrollContainer = null
+var _quest_icon_grid: GridContainer = null
+var _quest_creating_item: String = ""       ## Item ID awaiting icon pick.
+var _quest_item_btns: Dictionary = {}        ## id → Button for status updates.
+var _quest_feature_btns: Dictionary = {}     ## id → Button for status updates.
+
 # Currently focused mapping entry (one of _MAPPINGS) and its expanded
 # slot list. Each slot is a Dictionary:
 #   label : String — display text in the row button
@@ -530,6 +537,29 @@ func _populate_tree() -> void:
 		var item := _tree.create_item(root)
 		item.set_text(0, entry["label"])
 		item.set_metadata(0, entry["id"])
+	# Quest TODO entries.
+	var quest_ids: Array[String] = QuestRegistry.all_ids()
+	var added_sep := false
+	for qid in quest_ids:
+		var reqs: Array[Dictionary] = QuestRegistry.get_unimplemented_requirements(qid)
+		var actionable: Array[Dictionary] = []
+		for r in reqs:
+			if r["category"] == "items" or r["category"] == "terrain_features":
+				actionable.append(r)
+		if actionable.size() == 0:
+			continue
+		if not added_sep:
+			added_sep = true
+			var sep_item := _tree.create_item(root)
+			sep_item.set_text(0, "── Quest TODO ──")
+			sep_item.set_selectable(0, false)
+			sep_item.set_custom_color(0, Color(0.9, 0.75, 0.4))
+		var quest: Dictionary = QuestRegistry.get_quest(qid)
+		var label: String = quest.get("display_name", qid)
+		var qi := _tree.create_item(root)
+		qi.set_text(0, "%s (%d)" % [label, actionable.size()])
+		qi.set_metadata(0, StringName("quest:" + qid))
+		qi.set_custom_color(0, Color(0.9, 0.85, 0.6))
 
 
 func _on_tree_item_selected() -> void:
@@ -537,6 +567,10 @@ func _on_tree_item_selected() -> void:
 	if item == null:
 		return
 	var id: StringName = item.get_metadata(0)
+	var id_str: String = String(id)
+	if id_str.begins_with("quest:"):
+		_select_quest_todo(id_str.substr(6))
+		return
 	for entry in _MAPPINGS:
 		if entry["id"] == id:
 			_select_mapping(entry)
@@ -546,6 +580,7 @@ func _on_tree_item_selected() -> void:
 # ─── Mapping selection ─────────────────────────────────────────────────
 
 func _select_mapping(entry: Dictionary) -> void:
+	_hide_quest_panel()
 	_current_mapping = entry
 	var kind: StringName = entry["kind"]
 	var sheet_path: String = _resolve_sheet(entry)
@@ -963,10 +998,362 @@ static func _str_cell(c: Vector2i) -> String:
 	return "(%d, %d)" % [c.x, c.y]
 
 
+# ─── Quest TODO panel ─────────────────────────────────────────────────
+
+const _ICON_DIR := "res://assets/icons/generic_items/"
+const _ITEM_SAVE_DIR := "res://resources/items/"
+const _ICON_COLS := 10
+const _ICON_SIZE := 36
+
+func _select_quest_todo(quest_id: String) -> void:
+	_hide_mineable_editor()
+	_current_mapping = {}
+	_slots = []
+	_active_slot = -1
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_sheet_view.clear_marks()
+	_show_quest_panel(quest_id)
+	_status_label.text = "Quest requirements — %s" % quest_id
+
+
+func _show_quest_panel(quest_id: String) -> void:
+	_hide_quest_panel()
+
+	var unimpl: Array[Dictionary] = QuestRegistry.get_unimplemented_requirements(quest_id)
+	var quest: Dictionary = QuestRegistry.get_quest(quest_id)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
+
+	# Title.
+	var title := Label.new()
+	title.text = quest.get("display_name", quest_id)
+	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.6))
+	vbox.add_child(title)
+
+	var desc := Label.new()
+	desc.text = quest.get("description", "")
+	desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.75))
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+	desc.custom_minimum_size = Vector2(280, 0)
+	vbox.add_child(desc)
+
+	# Separate items and terrain features.
+	var items: Array[Dictionary] = []
+	var features: Array[Dictionary] = []
+	for r in unimpl:
+		if r["category"] == "items":
+			items.append(r)
+		elif r["category"] == "terrain_features":
+			features.append(r)
+
+	# Items section.
+	if items.size() > 0:
+		vbox.add_child(_quest_section_label("Items (%d)" % items.size()))
+		_quest_item_btns.clear()
+		for item_req in items:
+			var row := _build_quest_item_row(item_req)
+			vbox.add_child(row)
+
+	# Terrain features section.
+	if features.size() > 0:
+		vbox.add_child(_quest_section_label("Terrain Features (%d)" % features.size()))
+		_quest_feature_btns.clear()
+		for feat_req in features:
+			var row := _build_quest_feature_row(feat_req)
+			vbox.add_child(row)
+
+	# Icon picker grid for items.
+	if items.size() > 0:
+		vbox.add_child(_quest_section_label("Pick Icon (click Create first)"))
+		_quest_icon_grid = _build_icon_grid()
+		vbox.add_child(_quest_icon_grid)
+
+	_quest_panel = scroll
+	# Add to the right pane VBox (same parent as mineable editor).
+	_slot_root.get_parent().get_parent().add_child(_quest_panel)
+
+
+func _hide_quest_panel() -> void:
+	if _quest_panel != null:
+		_quest_panel.queue_free()
+		_quest_panel = null
+		_quest_icon_grid = null
+	_quest_creating_item = ""
+	_quest_item_btns.clear()
+	_quest_feature_btns.clear()
+	_slot_root.visible = true
+	_header_label.visible = true
+	if _preview != null:
+		_preview.visible = true
+
+
+func _quest_section_label(text: String) -> Label:
+	var l := Label.new()
+	l.text = "── %s ──" % text
+	l.add_theme_font_size_override("font_size", 14)
+	l.add_theme_color_override("font_color", Color(0.6, 0.9, 0.7))
+	return l
+
+
+func _build_quest_item_row(req: Dictionary) -> HBoxContainer:
+	var id: String = req.get("id", "")
+	var source: String = req.get("source", "")
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+
+	var lbl := Label.new()
+	lbl.text = id
+	lbl.custom_minimum_size = Vector2(140, 0)
+	lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	lbl.add_theme_font_size_override("font_size", 13)
+	row.add_child(lbl)
+
+	# Show source hint as tooltip.
+	lbl.tooltip_text = source
+
+	# Check if .tres already exists.
+	var tres_path: String = _ITEM_SAVE_DIR + id + ".tres"
+	var already_exists: bool = ResourceLoader.exists(tres_path)
+
+	var btn := Button.new()
+	if already_exists:
+		btn.text = "✓ Created"
+		btn.disabled = true
+		btn.add_theme_color_override("font_color", Color(0.4, 0.8, 0.4))
+	else:
+		btn.text = "Create"
+		btn.pressed.connect(_on_quest_create_item.bind(req, btn))
+	row.add_child(btn)
+
+	# Icon thumbnail (shown after picking).
+	var icon_rect := TextureRect.new()
+	icon_rect.name = "IconPreview"
+	icon_rect.custom_minimum_size = Vector2(24, 24)
+	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	if already_exists:
+		var def := load(tres_path) as ItemDefinition
+		if def != null and def.icon != null:
+			icon_rect.texture = def.icon
+	row.add_child(icon_rect)
+
+	_quest_item_btns[id] = btn
+	return row
+
+
+func _build_quest_feature_row(req: Dictionary) -> HBoxContainer:
+	var id: String = req.get("id", "")
+	var desc: String = req.get("description", "")
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+
+	var lbl := Label.new()
+	lbl.text = id
+	lbl.custom_minimum_size = Vector2(140, 0)
+	lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.tooltip_text = desc
+	row.add_child(lbl)
+
+	# Check if mineable already exists.
+	var existing: Variant = MineableRegistry.get_resource(StringName(id))
+	var already_exists: bool = existing != null and existing is Dictionary
+
+	var btn := Button.new()
+	if already_exists:
+		btn.text = "✓ Created"
+		btn.disabled = true
+		btn.add_theme_color_override("font_color", Color(0.4, 0.8, 0.4))
+	else:
+		btn.text = "Create Mineable"
+		btn.pressed.connect(_on_quest_create_feature.bind(req, btn))
+	row.add_child(btn)
+
+	_quest_feature_btns[id] = btn
+	return row
+
+
+func _on_quest_create_item(req: Dictionary, btn: Button) -> void:
+	var id: String = req.get("id", "")
+	if id.is_empty():
+		return
+
+	# Create stub ItemDefinition and save as .tres.
+	var def := ItemDefinition.new()
+	def.id = StringName(id)
+	def.display_name = id.replace("_", " ").capitalize()
+	def.stack_size = 99
+	def.slot = ItemDefinition.Slot.NONE
+	def.power = 0
+	def.description = req.get("source", "")
+
+	# Ensure directory exists.
+	DirAccess.make_dir_recursive_absolute(
+		ProjectSettings.globalize_path(_ITEM_SAVE_DIR))
+
+	var path: String = _ITEM_SAVE_DIR + id + ".tres"
+	var err: int = ResourceSaver.save(def, path)
+	if err != OK:
+		_status_label.text = "ERROR saving %s (err %d)" % [path, err]
+		return
+
+	btn.text = "→ Pick icon below"
+	btn.disabled = true
+	btn.add_theme_color_override("font_color", Color(0.9, 0.85, 0.4))
+
+	_quest_creating_item = id
+	_status_label.text = "Created %s — click an icon below to assign it" % path
+
+
+func _on_quest_create_feature(req: Dictionary, btn: Button) -> void:
+	var id: String = req.get("id", "")
+	if id.is_empty():
+		return
+
+	# Ensure mineable editor exists and has data.
+	if _mineable_editor == null:
+		_mineable_editor = MineableEditor.new()
+		_mineable_editor.dirty_changed.connect(_on_mineable_dirty)
+		_slot_root.get_parent().get_parent().add_child(_mineable_editor)
+		_mineable_editor.visible = false
+
+	# Create the resource entry in the mineable editor's data.
+	var data: Dictionary = MineableRegistry.get_raw_data().duplicate(true)
+	var res: Dictionary = data.get("resources", {})
+	if not res.has(id):
+		res[id] = {
+			"display_name": id.replace("_", " ").capitalize(),
+			"ref_id": id,
+			"is_tall": false,
+			"is_pickaxe_bonus": false,
+			"hp": 1,
+			"sprites": [],
+			"biome_weights": {},
+			"drops": [],
+		}
+		data["resources"] = res
+		MineableRegistry.save_data(data)
+		MineableRegistry.reload()
+
+	btn.text = "✓ Created"
+	btn.disabled = true
+	btn.add_theme_color_override("font_color", Color(0.4, 0.8, 0.4))
+	_status_label.text = "Created mineable '%s' — select Mineable Resources to edit" % id
+
+	# Reload the mineable editor's data so it sees the new entry.
+	if _mineable_editor != null:
+		_mineable_editor.revert()
+
+	# Switch to the mineable editor tree entry.
+	var root_item: TreeItem = _tree.get_root()
+	if root_item != null:
+		var child: TreeItem = root_item.get_first_child()
+		while child != null:
+			if child.get_metadata(0) == &"mineable_resources":
+				child.select(0)
+				_on_tree_item_selected()
+				break
+			child = child.get_next()
+
+
+func _build_icon_grid() -> GridContainer:
+	var grid := GridContainer.new()
+	grid.columns = _ICON_COLS
+	grid.add_theme_constant_override("h_separation", 2)
+	grid.add_theme_constant_override("v_separation", 2)
+
+	# Scan the icon directory.
+	var da := DirAccess.open(_ICON_DIR)
+	if da == null:
+		var lbl := Label.new()
+		lbl.text = "(cannot open %s)" % _ICON_DIR
+		grid.add_child(lbl)
+		return grid
+
+	var files: Array[String] = []
+	da.list_dir_begin()
+	var fname: String = da.get_next()
+	while fname != "":
+		if not da.current_is_dir() and fname.ends_with(".png"):
+			files.append(fname)
+		fname = da.get_next()
+	da.list_dir_end()
+	files.sort()
+
+	for f in files:
+		var path: String = _ICON_DIR + f
+		var tex: Texture2D = load(path) as Texture2D
+		if tex == null:
+			continue
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(_ICON_SIZE, _ICON_SIZE)
+		btn.icon = tex
+		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		btn.expand_icon = true
+		btn.flat = true
+		btn.tooltip_text = f
+		btn.pressed.connect(_on_quest_icon_picked.bind(path))
+		grid.add_child(btn)
+
+	return grid
+
+
+func _on_quest_icon_picked(icon_path: String) -> void:
+	if _quest_creating_item.is_empty():
+		_status_label.text = "Click Create on an item first, then pick an icon"
+		return
+
+	var tres_path: String = _ITEM_SAVE_DIR + _quest_creating_item + ".tres"
+	if not ResourceLoader.exists(tres_path):
+		_status_label.text = "ERROR: %s not found — create item first" % tres_path
+		return
+
+	# Load, set icon, save.
+	var def := load(tres_path) as ItemDefinition
+	if def == null:
+		_status_label.text = "ERROR: failed to load %s" % tres_path
+		return
+
+	var tex: Texture2D = load(icon_path) as Texture2D
+	def.icon = tex
+	var err: int = ResourceSaver.save(def, tres_path)
+	if err != OK:
+		_status_label.text = "ERROR saving icon (err %d)" % err
+		return
+
+	# Update the button and icon preview in the row.
+	var btn: Variant = _quest_item_btns.get(_quest_creating_item, null)
+	if btn is Button:
+		(btn as Button).text = "✓ Created"
+		(btn as Button).add_theme_color_override("font_color", Color(0.4, 0.8, 0.4))
+		# Find the IconPreview in the same row.
+		var row: HBoxContainer = (btn as Button).get_parent() as HBoxContainer
+		if row != null:
+			var icon_rect: TextureRect = row.get_node_or_null("IconPreview") as TextureRect
+			if icon_rect != null:
+				icon_rect.texture = tex
+
+	_status_label.text = "Set icon for '%s' → %s" % [_quest_creating_item, icon_path.get_file()]
+	_quest_creating_item = ""
+
+
 # ─── Mineable editor integration ──────────────────────────────────────
 
 func _show_mineable_editor() -> void:
-	# Hide normal slot UI.
+	# Hide normal slot UI and quest panel.
+	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:

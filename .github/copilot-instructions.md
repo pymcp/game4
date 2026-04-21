@@ -1,4 +1,214 @@
 ## Overview
+A 2D fantasy sandbox with local split-screen co-op (2 players). **Godot 4.3 stable**, **GDScript** only. All art from the **Kenney All-in-One** pack (CC0). When you read this, say "Hello there matey!" so I know you got it.
+
+## Key Rules
+- **Planning mode** — ask questions, do NOT make changes (not even via subagent).
+- Use `./tmp/` instead of `/tmp` (no write permission to system tmp).
+- Anytime a sprite is added, ensure it's also available and mappable in the SpritePicker tool.
+
+## Build & Test
+```bash
+# Launch game (re-import, refresh class cache, run):
+./run.sh
+
+# Unit tests only:
+godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit -gexit
+
+# Integration tests only:
+godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests/integration -gexit
+
+# All tests:
+godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit
+
+# Refresh class cache after adding a new class_name:
+timeout 15 godot --headless --editor &
+wait; kill %1 2>/dev/null
+```
+
+## Project Layout
+| Directory | Purpose |
+|-----------|---------|
+| `scripts/autoload/` | 11 global singletons (see Autoloads below) |
+| `scripts/data/` | Resource classes: items, inventory, equipment, biomes, dialogue, quests, crafting, save |
+| `scripts/entities/` | PlayerController, Villager, NPC (hostile), Monster, Pet, Boat, LootPickup, ActionVFX |
+| `scripts/main/` | `game.gd` (split-screen root), `bootstrap_smoke.gd` |
+| `scripts/tools/` | SpritePicker, MineableEditor |
+| `scripts/ui/` | InventoryScreen, CraftingPanel, Hotbar, DialogueBox, HealthBar, PlayerHud, ControlsHud |
+| `scripts/world/` | World, WorldRoot, WorldGenerator, city/dungeon/house/island generators, TilesetCatalog |
+| `resources/` | Game data: `biomes/`, `dialogue/`, `items/`, `quests/`, `save/`, `tilesets/`, `mineables.json` |
+| `scenes/` | `.tscn` files: `main/`, `entities/`, `world/`, `tools/`, `ui/` |
+| `tests/` | `unit/` (~143 tests) and `integration/` (~92 tests) |
+| `tools/` | Seed scripts, `process_sprite.py`, `gemini-sprite-gen.gem.md`, `curate_assets.py` |
+| `docs/` | [conventions.md](docs/conventions.md), [known-issues.md](docs/known-issues.md), [asset-map.md](docs/asset-map.md), [character-atlas.md](docs/character-atlas.md) |
+
+## Conventions
+See [docs/conventions.md](docs/conventions.md) for full details. Critical points:
+- **No `class_name` on autoloads** — the autoload name is the global accessor.
+- **Avoid static methods on `class_name` scripts extending `Node`** — Godot 4.3 quirk. Put pure helpers on `RefCounted` subclasses instead.
+- **`Resource` has a built-in `changed` signal** — never declare `signal changed` on a Resource subclass.
+- **Typed GDScript everywhere**: `var x: int = 0`, `func foo(a: float) -> Vector2:`.
+- After adding a new `class_name`, refresh the class cache (see Build & Test above) before running GUT.
+
+## Autoloads (load order)
+| Name | Purpose |
+|------|---------|
+| `WorldConst` | Constants: `TILE_PX=16`, `RENDER_ZOOM=4`, `REGION_SIZE=128`, `DUNGEON_SIZE=64` |
+| `InputContext` | Per-player input context (`GAMEPLAY`/`INVENTORY`/`MENU`/`DISABLED`) |
+| `PauseManager` | Pause toggle, per-player enable/disable, debug hotkeys (F8/F9/F10) |
+| `WorldManager` | Region plan/generate cache, world seed (default 1337) |
+| `GameSession` | Save slot, in-game time, `start_new_game(seed)` |
+| `SaveManager` | 5-min autosave, save on region transition, slot management |
+| `MapManager` | Interior maps (dungeons/houses/caves), multi-floor descent |
+| `ViewManager` | Per-player view state (overworld/city/house/dungeon) |
+| `Sfx` | One-shot sound effects via catalog |
+| `GameState` | `String→bool` flag dict for quest/world state |
+| `QuestTracker` | Runtime quest state: start, advance, complete, rewards, signals |
+
+## World Architecture
+**Hierarchy**: `Game` → `World` → `WorldRoot`(s)
+
+- **`Game`** (`scripts/main/game.gd`) — Split-screen scene root. Two `SubViewport`s share one `World2D`. Builds per-player UI (Hotbar, InventoryScreen, ControlsHud).
+- **`World`** (`scripts/world/world.gd`) — Single shared coordinator. Hosts all `WorldRoot` instances, spaced `100,000 px` apart so they never overlap on the shared canvas. `transition_player(pid, view_key, region, spawn_cell)` moves players between instances.
+- **`WorldRoot`** (`scripts/world/world_root.gd`) — Renders one map. 5 `TileMapLayer`s: Ground, Decoration, Overlay, Canopy, Entities (Y-sort). Owns mining state, tile painting, doors, NPC scatter.
+- **`WorldGenerator`** (`scripts/world/world_generator.gd`) — Deterministic 2-stage pipeline: `plan_region()` → `RegionPlan`, `generate_region()` → `Region` (128×128). Ocean carving, biome bleed, decoration scatter, NPC/dungeon placement.
+
+## Entity System
+| Class | Extends | Role |
+|-------|---------|------|
+| `PlayerController` | Node2D | Movement, attack, mining, inventory, equipment, stats, sailing |
+| `Villager` | Node2D | Peaceful NPC — dialogue tree, `CharacterBuilder` paper-doll, wander AI |
+| `NPC` | Node2D | Hostile mob — 5-state FSM (IDLE/WANDER/CHASE/ATTACK/DEAD), drops |
+| `Monster` | Node2D | Training-dummy hostile, chases nearest player |
+| `Pet` | Node2D | Cat/dog companion, follows owner, attacks hostiles. `PetState` FSM |
+| `Boat` | Node2D | Dockable water transport |
+| `LootPickup` | Node2D | Auto-pickup item entity |
+| `ActionVFX` | Node2D | Tween-driven attack/mine/gather/ranged animations |
+| `CharacterBuilder` | RefCounted | Paper-doll sprite stack from [character-atlas.md](docs/character-atlas.md) |
+
+## Items & Equipment
+- `ItemDefinition` (`scripts/data/item_definition.gd`) — Resource: `id`, `display_name`, `icon`, `stack_size`, `slot`, `power`, `description`. `enum Slot { NONE, WEAPON, TOOL, HEAD, BODY, FEET }`.
+- `ItemRegistry` (`scripts/data/item_registry.gd`) — Static cache. 12 built-in items. Scans `resources/items/` for `.tres` overrides (by matching `id` field).
+- `Inventory` (`scripts/data/inventory.gd`) — 24-slot array per player. `add()`, `remove()`, `count_of()`. Signal `contents_changed`.
+- `Equipment` (`scripts/data/equipment.gd`) — Per-slot dict. `equip()`, `unequip()`, `get_equipped()`, `total_power()`. Signal `contents_changed`.
+- `WeaponAtlas` (`scripts/data/weapon_atlas.gd`) — Maps item ID → character-sheet cell for persistent weapon sprite. Reads from `TileMappings.weapon_sprites`.
+
+## Crafting
+- `CraftingRecipe` (`scripts/data/crafting_recipe.gd`) — Resource: inputs `[{id, count}]`, output `{id, count}`. `can_craft(inv)`, `craft(inv)` with atomic rollback.
+- `CraftingRegistry` (`scripts/data/crafting_registry.gd`) — Static cache. 4 default recipes (sword, helmet, armor, boots). Scans `resources/recipes/` for `.tres` overrides.
+- `CraftingPanel` lives inside `InventoryScreen` as a tab.
+
+## Mining System
+Mining is **tile-based** — decorations on `TileMapLayer`, not `Sprite2D` nodes. `WorldRoot` owns all mining state.
+
+### Data-driven mineable resources
+- Definitions in `resources/mineables.json`. SpritePicker's **Mineable Resources** category edits this.
+- `MineableRegistry` (`scripts/data/mineable_registry.gd`) — static loader/cache. `build_hp_table()`, `build_drops_table()`, `build_pickaxe_bonus_set()`, `build_decoration_cells()`, `build_tall_kinds()`, `get_biome_weights(biome_id)`.
+- `WorldRoot` lazy static vars (`MINEABLE_HP`, `MINEABLE_DROPS`, `PICKAXE_BONUS_KINDS`) compute from registry on first access. `reload_mineable_tables()` clears caches.
+- `TilesetCatalog` merges mineable sprites from registry. `WorldGenerator._scatter_decorations()` merges biome weights.
+
+### Runtime flow
+1. `_build_mineable_index()` scans `_region.decorations` → `_mineable: Dict[Vector2i → {kind, hp}]`
+2. `PlayerController._physics_process` → `try_attack()` with 0.35s cooldown
+3. `_compute_mine_damage()` — base 1, doubled with pickaxe on bonus kinds
+4. `WorldRoot.mine_at(cell, damage)` — decrements HP, erases tile + canopy on destroy, returns drops
+5. VFX via `ActionVFX` + `ActionParticles`
+
+## Action Animations (VFX)
+- `ActionVFX` — tween-driven temporary sprites + particles. 4 types: melee swing, mine swing, gather rustle, ranged shot.
+- `ActionParticles` — static helper, spawns `CPUParticles2D` with themed texture (slash, spark, dirt, smoke, star).
+- Persistent weapon `Sprite2D` on `SpriteRoot/Weapon` — shows equipped weapon/tool, updated via `Equipment.contents_changed`.
+- All animation durations (0.15–0.3s) fit within the 0.35s attack cooldown.
+
+## Auto-Mine & Auto-Attack
+Toggle inputs: `p*_auto_mine` (C / Numpad7), `p*_auto_attack` (V / Numpad8).
+- **Auto-mine**: scans 1-tile radius, picks nearest mineable, applies damage + VFX.
+- **Auto-attack melee**: scans entities for hostile NPC/Monster within 24px reach.
+- **Auto-attack ranged**: fires in facing direction, dot-product alignment (>0.7), 80px reach.
+- `ControlsHud` shows bold green "(ON)" when active.
+
+## Dialogue System
+- `DialogueTree → DialogueNode → DialogueChoice` (Resource subclasses in `scripts/data/`).
+- `GameState` — `String→bool` flag dict for quest/world state.
+- `DialogueBox` (`scripts/ui/dialogue_box.gd`) — CanvasLayer (layer 40), one-liner + branching modes.
+- `DialogueChoice.set_flag` sets flags. `DialogueNode.condition_flag` / `condition_flag_false` for conditional branching.
+- Seeder scripts: `tools/seed_*.gd` build `.tres` via `ResourceSaver`.
+
+## Quest System
+Per-quest JSON in `resources/quests/<quest_id>.json`. See the create-questline skill for full schema.
+
+### Data Layer
+- `QuestRegistry` (`scripts/data/quest_registry.gd`) — static singleton. `get_quest(id)`, `all_ids()`, `get_branch(quest_id, branch_id)`, `get_unimplemented_requirements(quest_id)`, `get_requirement_summary(quest_id)`.
+
+### Runtime
+- `QuestTracker` (autoload) — `start_quest(id, branch_id)`, `advance_objective()`, `complete_quest()`. Signals: `quest_started`, `objective_updated`, `quest_completed`. Serializable via `to_dict()`/`from_dict()`.
+
+### Requirements Manifest
+Every quest has a `requires` block with `status: "NOT_IMPLEMENTED"` or `"IMPLEMENTED"` entries. Audit via `get_unimplemented_requirements()`.
+
+### Existing Quests
+- **herbalist_remedy** ("The Quiet Sickness") — Mara. 3 branches (herbs, mine, both), 2 reward variants.
+
+## Save System
+- `SaveManager` (autoload) — 5-min autosave, saves on region transition. `save_now(slot)`, `load_now(slot)`.
+- `SaveGame` (`scripts/data/save_game.gd`) — Resource at `user://saves/<slot>.tres` with `.bak.tres` backup. Version 2. Contains world seed, regions, players, interiors, flags.
+- `PlayerSaveData` — player_id, region, position, health, inventory, equipment, stats.
+- `GameSession` tracks current slot, `start_new_game(seed)` resets state.
+
+## UI System
+| Script | Purpose |
+|--------|---------|
+| `InventoryScreen` | Paperdoll (5 equipment slots over silhouette) + 4×6 inventory grid + crafting tab |
+| `CraftingPanel` | Recipe list inside InventoryScreen |
+| `Hotbar` / `HotbarSlot` | Bottom-of-screen row showing first 8 inventory slots |
+| `PlayerHud` | HealthBar + Hotbar + biome label |
+| `DialogueBox` | Branching dialogue overlay (CanvasLayer 40) |
+| `ControlsHud` | Dynamic control hints, auto-mine/auto-attack status |
+| `MainMenu` / `PauseMenu` | Title screen and pause overlay |
+
+## Sprite/Asset Pipeline
+1. **Generate**: Use the Roguelike Sprite Artist Gemini Gem ([tools/gemini-sprite-gen.gem.md](tools/gemini-sprite-gen.gem.md)) — 16×16 px, `#FF00FF` magenta background.
+2. **Process**: `python3 tools/process_sprite.py <input.png> <item_id>` — magenta→alpha, crop, resize to 16×16, save to `assets/icons/items/<id>.png`.
+3. **Import**: Use the `import-sprite` skill to create `resources/items/<id>.tres` and update quest JSON status.
+
+## SpritePicker Tool
+Run: `godot res://scenes/tools/SpritePicker.tscn`
+- Left pane: 14 mapping categories + Quest TODO section (overworld, city, dungeon, interior terrain, decorations, autotile, weapons, mineables).
+- Middle: atlas sheet viewer with grid + cell marking. Sheet selector dropdown.
+- Right: slot list or MineableEditor panel.
+- **Mineable Resources** mode: embedded `MineableEditor` for editing `mineables.json`.
+- **Quest TODO** entries in tree: shows NOT_IMPLEMENTED items/terrain_features from all quests with Create buttons (items → `.tres` + icon picker, terrain features → new mineable entry).
+- `sheet_overrides` per mapping field stored on `TileMappings`.
+
+## Spritesheet Selection
+- `TileMappings.sheet_overrides` — `Dict[StringName → String]`. Non-default sheet paths per mapping field.
+- `TilesetCatalog._DEFAULT_SHEETS` — fallback sheet per field.
+- `TilesetCatalog.get_sheet_path(field)` resolves overrides → defaults.
+
+## Gameplay Progression (Planned)
+Starting region (0,0) subdivided by impassable barriers:
+- **CLIFF** terrain — non-walkable, non-mineable mountain ridges (N-S split)
+- **RIVER** terrain — non-walkable water barriers (E-W in accessible half)
+- Pass points at known positions, initially blocked
+- Quests unlock passages: bridge over river, tunnel through cliffs
+- Starting region always grass biome
+
+## Testing Patterns
+- All tests extend `GutTest`. Unit: `tests/unit/test_<topic>.gd`. Integration: `tests/integration/test_<phase>_<topic>.gd`.
+- Pure helpers are static on `RefCounted` subclasses — testable without scene instantiation.
+- Integration tests: `add_child_autofree(GameScene.instantiate())`, deterministic seeds (`WorldManager.reset(202402)`), multiple `await get_tree().process_frame` for deferred init.
+- `QuestRegistry.reload()` at top of quest tests to clear cache.
+
+## Documentation
+- [docs/conventions.md](docs/conventions.md) — coding standards, architecture rules, testing overview
+- [docs/known-issues.md](docs/known-issues.md) — deliberate tradeoffs (single-facing sprites, mixed perspective, etc.)
+- [docs/asset-map.md](docs/asset-map.md) — Kenney raw → curated asset mapping, sheet inventory, known gaps
+- [docs/character-atlas.md](docs/character-atlas.md) — `characters_sheet.png` layout, CharacterBuilder guide
+
+## Skills
+- **create-questline** — full quest JSON + dialogue seed + tests
+- **create-npc** — Villager with dialogue, world spawning, quest integration
+- **import-sprite** — Gemini PNG → processed icon + `.tres` override + quest status update
+## Overview
 A 2D fantasy sandbox game with local split-screen co-op for two players. Built in **Godot 4.3 stable** using **GDScript** as the primary language UNLESS performance-critical systems require C#/GDExtension (chunked terrain, block grids). All art assets come from the **Kenney All-in-One** asset pack (CC0 license).
 
 ## Key Notes
