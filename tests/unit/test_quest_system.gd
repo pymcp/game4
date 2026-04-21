@@ -88,8 +88,8 @@ func test_registry_requirement_summary() -> void:
 	QuestRegistry.reload()
 	var summary: Dictionary = QuestRegistry.get_requirement_summary("herbalist_remedy")
 	assert_true(summary["total"] > 0, "should have requirements")
-	assert_eq(summary["implemented"], 0, "nothing implemented yet")
-	assert_eq(summary["not_implemented"], summary["total"])
+	assert_eq(summary["implemented"], 1, "fennel_root is implemented")
+	assert_eq(summary["not_implemented"], summary["total"] - 1)
 
 
 func test_registry_requirements_cover_all_categories() -> void:

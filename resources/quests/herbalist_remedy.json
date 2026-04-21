@@ -68,7 +68,7 @@
       {"id": "Mara", "role": "quest giver and turn-in", "location_hint": "near village well", "status": "NOT_IMPLEMENTED"}
     ],
     "items": [
-      {"id": "fennel_root",        "source": "gatherable plant",                    "status": "NOT_IMPLEMENTED"},
+      {"id": "fennel_root",        "source": "gatherable plant",                    "status": "IMPLEMENTED"},
       {"id": "blue_nightcap",      "source": "gatherable mushroom",                 "status": "NOT_IMPLEMENTED"},
       {"id": "clean_spring_water", "source": "interact with spring (not village well)", "status": "NOT_IMPLEMENTED"},
       {"id": "contaminated_ore",   "source": "mine loot or interaction",            "status": "NOT_IMPLEMENTED"},
