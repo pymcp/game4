@@ -27,6 +27,7 @@ var _sprite_root: Node2D = null
 var _weapon_sprite: Sprite2D = null
 var _torso_sprite: Sprite2D = null
 var _hair_sprite: Sprite2D = null
+var _face_sprite: Sprite2D = null
 var _boots_sprite: Sprite2D = null
 var _shield_sprite: Sprite2D = null
 var _action_vfx: ActionVFX = null
@@ -84,6 +85,7 @@ func _ready() -> void:
 	_weapon_sprite = $SpriteRoot/Weapon
 	_torso_sprite = $SpriteRoot/Torso
 	_hair_sprite = $SpriteRoot/Hair
+	_face_sprite = $SpriteRoot/Face
 	_boots_sprite = $SpriteRoot/Boots
 	_shield_sprite = $SpriteRoot/Shield
 	_default_torso_region = _torso_sprite.region_rect
@@ -160,6 +162,50 @@ func _update_shield_sprite() -> void:
 		CharacterAtlas.TILE,
 	)
 	_shield_sprite.visible = true
+
+
+## Apply a CharacterBuilder-compatible appearance dict to this player's
+## paper-doll sprites. Updates the default regions so armor equip/unequip
+## restores the chosen base look.
+func apply_appearance(opts: Dictionary) -> void:
+	if opts.is_empty():
+		return
+	# Body (skin tone).
+	var body_sprite: Sprite2D = _sprite_root.get_node_or_null("Body") as Sprite2D
+	if body_sprite != null:
+		var body_cell: Vector2i = CharacterAtlas.body_cell(opts.get("skin", &"light"))
+		body_sprite.region_rect = Rect2(CharacterAtlas.tile_rect(body_cell))
+	# Torso.
+	var torso_cell: Vector2i = CharacterAtlas.torso_cell(
+		opts.get("torso_color", &"orange"),
+		int(opts.get("torso_style", 0)),
+		int(opts.get("torso_row", 0)))
+	if torso_cell.x >= 0 and _torso_sprite != null:
+		var torso_rect := Rect2(CharacterAtlas.tile_rect(torso_cell))
+		_torso_sprite.region_rect = torso_rect
+		_default_torso_region = torso_rect
+	# Hair.
+	if opts.has("hair_color"):
+		var h_style: int = int(opts.get("hair_style", CharacterAtlas.HairStyle.SHORT))
+		var h_variant: int = int(opts.get("hair_variant", 0))
+		var hair_cell: Vector2i = CharacterAtlas.hair_cell(opts["hair_color"], h_style, h_variant)
+		if hair_cell.x >= 0 and _hair_sprite != null:
+			var hair_rect := Rect2(CharacterAtlas.tile_rect(hair_cell))
+			_hair_sprite.region_rect = hair_rect
+			_default_hair_region = hair_rect
+	# Face (facial hair).
+	if _face_sprite != null:
+		if opts.has("face_color"):
+			var face_cell: Vector2i = CharacterAtlas.hair_cell(
+				opts["face_color"], CharacterAtlas.HairStyle.FACIAL,
+				int(opts.get("face_variant", 0)))
+			if face_cell.x >= 0:
+				_face_sprite.region_rect = Rect2(CharacterAtlas.tile_rect(face_cell))
+				_face_sprite.visible = true
+			else:
+				_face_sprite.visible = false
+		else:
+			_face_sprite.visible = false
 
 
 ## Shared helper: swap a sprite's region to the armor cell, or restore its

@@ -101,6 +101,7 @@ func _wire_hud_and_cameras() -> void:
 	var p1: PlayerController = _world.get_player(0)
 	var p2: PlayerController = _world.get_player(1)
 	if p1 != null:
+		p1.apply_appearance(GameSession.get_appearance(0))
 		if _hotbar_p1 != null:
 			_hotbar_p1.set_inventory(p1.inventory)
 		if _inv_p1 != null:
@@ -109,6 +110,7 @@ func _wire_hud_and_cameras() -> void:
 			_controls_p1.set_player(0, p1)
 		_camera_p1 = _make_camera(p1, _vp_p1)
 	if p2 != null:
+		p2.apply_appearance(GameSession.get_appearance(1))
 		if _hotbar_p2 != null:
 			_hotbar_p2.set_inventory(p2.inventory)
 		if _inv_p2 != null:

@@ -31,6 +31,14 @@ region_rect = Rect2(323, 0, 16, 16)
 centered = true
 offset = Vector2(0, -8)
 
+[node name="Face" type="Sprite2D" parent="SpriteRoot"]
+visible = false
+texture = ExtResource("2_sheet")
+region_enabled = true
+region_rect = Rect2(0, 0, 16, 16)
+centered = true
+offset = Vector2(0, -8)
+
 [node name="Boots" type="Sprite2D" parent="SpriteRoot"]
 visible = false
 texture = ExtResource("2_sheet")

@@ -35,7 +35,7 @@ const EQUIPMENT_SLOT_ORDER: Array = [
 	ItemDefinition.Slot.TOOL,
 ]
 
-enum Tab { EQUIPMENT, ALL, WEAPONS, ARMOR, TOOLS, MATERIALS, CRAFTING }
+enum Tab { EQUIPMENT, ALL, WEAPONS, ARMOR, TOOLS, MATERIALS, CRAFTING, CHARACTER }
 
 const TAB_LABELS: Array = [
 	"Equipment",
@@ -45,6 +45,7 @@ const TAB_LABELS: Array = [
 	"Tools",
 	"Materials",
 	"Crafting",
+	"Character",
 ]
 
 # Slot filter: which ItemDefinition.Slot values are shown per tab.
@@ -87,6 +88,14 @@ var _eq_labels: Array[Label] = []
 var _grid: GridContainer = null
 var _paperdoll: Control = null
 var _crafting: CraftingPanel = null
+var _char_page: VBoxContainer = null
+var _char_preview_root: Node2D = null
+var _char_preview_viewport: SubViewport = null
+var _char_preview_rect: TextureRect = null
+var _char_row_labels: Array[Label] = []
+var _char_value_labels: Array[Label] = []
+var _char_cursor: int = 0
+var _char_opts: Dictionary = {}
 var _detail_label: Label = null
 var _detail_name_label: Label = null
 var _detail_desc_label: Label = null
@@ -241,6 +250,8 @@ func open() -> void:
 
 
 func close() -> void:
+	if _current_tab == Tab.CHARACTER:
+		_apply_char_opts_to_player()
 	visible = false
 	if _player != null:
 		InputContext.set_context(_player.player_id, InputContext.Context.GAMEPLAY)
@@ -315,6 +326,10 @@ func _build() -> void:
 	_craft_page = _build_crafting_page()
 	_craft_page.visible = false
 	_content_stack.add_child(_craft_page)
+
+	_char_page = _build_character_page()
+	_char_page.visible = false
+	_content_stack.add_child(_char_page)
 
 	# Bottom: controls hint bar.
 	_controls_bar = _build_controls_bar()
@@ -584,6 +599,9 @@ func _on_tab_button(tab_idx: int) -> void:
 
 
 func _select_tab(tab_idx: int) -> void:
+	# Apply character changes when leaving the CHARACTER tab.
+	if _current_tab == Tab.CHARACTER and tab_idx != Tab.CHARACTER:
+		_apply_char_opts_to_player()
 	_current_tab = tab_idx
 	# Update button styles and text color.
 	for i in _tab_buttons.size():
@@ -595,8 +613,13 @@ func _select_tab(tab_idx: int) -> void:
 
 	# Show the appropriate content page.
 	_eq_page.visible = (tab_idx == Tab.EQUIPMENT)
-	_grid_page.visible = (tab_idx != Tab.EQUIPMENT and tab_idx != Tab.CRAFTING)
+	_grid_page.visible = (tab_idx not in [Tab.EQUIPMENT, Tab.CRAFTING, Tab.CHARACTER])
 	_craft_page.visible = (tab_idx == Tab.CRAFTING)
+	_char_page.visible = (tab_idx == Tab.CHARACTER)
+	if tab_idx == Tab.CHARACTER:
+		_load_char_opts_from_session()
+		_refresh_char_preview()
+		_refresh_char_labels()
 
 	_cursor = 0
 	_refresh()
@@ -616,6 +639,9 @@ func _move_cursor(dx: int, dy: int) -> void:
 		_refresh_cursor()
 		return
 	if _current_tab == Tab.CRAFTING:
+		return
+	if _current_tab == Tab.CHARACTER:
+		_move_char_cursor(dx, dy)
 		return
 
 	# Grid navigation.
@@ -643,6 +669,11 @@ func _refresh_cursor() -> void:
 		return
 
 	if _current_tab == Tab.CRAFTING:
+		_cursor_panel.visible = false
+		_clear_detail("")
+		return
+
+	if _current_tab == Tab.CHARACTER:
 		_cursor_panel.visible = false
 		_clear_detail("")
 		return
@@ -733,6 +764,9 @@ func _interact_cursor() -> void:
 	if _current_tab == Tab.CRAFTING:
 		return
 
+	if _current_tab == Tab.CHARACTER:
+		return
+
 	# Equip the item under cursor.
 	if _cursor < 0 or _cursor >= _filtered_view.size():
 		return
@@ -769,6 +803,9 @@ func _drop_cursor() -> void:
 		return
 
 	if _current_tab == Tab.CRAFTING:
+		return
+
+	if _current_tab == Tab.CHARACTER:
 		return
 
 	# Drop one from the inventory slot under cursor.
@@ -855,6 +892,262 @@ func _build_filtered_view() -> void:
 		var slot_val: int = int(def.slot)
 		if slot_val in filter:
 			_filtered_view.append({"id": item_id, "count": cnt, "inv_index": i})
+
+
+# --- Character builder option definitions ---
+const _CHAR_SKIN_OPTIONS: Array[StringName] = [&"light", &"tan", &"dark", &"goblin"]
+const _CHAR_TORSO_COLORS: Array[StringName] = [
+	&"orange", &"teal", &"purple", &"green", &"tan", &"black",
+]
+const _CHAR_HAIR_COLORS: Array[StringName] = [
+	&"brown", &"blonde", &"white", &"ginger", &"gray",
+]
+const _CHAR_HAIR_STYLES: Array[int] = [
+	CharacterAtlas.HairStyle.SHORT,
+	CharacterAtlas.HairStyle.LONG,
+	CharacterAtlas.HairStyle.ACCESSORY,
+]
+const _CHAR_HAIR_STYLE_NAMES: Array[String] = ["Short", "Long", "Accessory"]
+const _CHAR_FACE_OPTIONS: Array[String] = [
+	"None", "Brown", "Blonde", "White", "Ginger", "Gray",
+]
+
+const _CHAR_ROWS: Array = [
+	["skin", "Skin Tone"],
+	["torso_color", "Outfit Color"],
+	["torso_style", "Outfit Style"],
+	["hair_color", "Hair Color"],
+	["hair_style", "Hair Style"],
+	["hair_variant", "Hair Shape"],
+	["face", "Facial Hair"],
+	["face_variant", "Beard Shape"],
+]
+
+const _CHAR_VIEWPORT_SIZE: int = 32
+
+
+func _build_character_page() -> VBoxContainer:
+	var page := VBoxContainer.new()
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	var content := HBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 20)
+	page.add_child(content)
+
+	# --- Left: preview panel ---
+	var preview_panel := PanelContainer.new()
+	preview_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	preview_panel.custom_minimum_size = Vector2(120, 0)
+	preview_panel.add_theme_stylebox_override("panel", _make_paperdoll_bg_style())
+	content.add_child(preview_panel)
+
+	_char_preview_viewport = SubViewport.new()
+	_char_preview_viewport.size = Vector2i(_CHAR_VIEWPORT_SIZE, _CHAR_VIEWPORT_SIZE)
+	_char_preview_viewport.transparent_bg = true
+	_char_preview_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_char_preview_viewport.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
+	preview_panel.add_child(_char_preview_viewport)
+
+	_char_preview_rect = TextureRect.new()
+	_char_preview_rect.texture = _char_preview_viewport.get_texture()
+	_char_preview_rect.expand_mode = TextureRect.EXPAND_FIT_HEIGHT_PROPORTIONAL
+	_char_preview_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_char_preview_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_char_preview_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_char_preview_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	preview_panel.add_child(_char_preview_rect)
+
+	# --- Right: arrow selector rows ---
+	var rows_vbox := VBoxContainer.new()
+	rows_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows_vbox.add_theme_constant_override("separation", 4)
+	content.add_child(rows_vbox)
+
+	_char_row_labels.clear()
+	_char_value_labels.clear()
+	for i in _CHAR_ROWS.size():
+		var row_data: Array = _CHAR_ROWS[i]
+		var row_hbox := HBoxContainer.new()
+		row_hbox.add_theme_constant_override("separation", 6)
+		rows_vbox.add_child(row_hbox)
+
+		var name_label := Label.new()
+		name_label.text = row_data[1]
+		name_label.custom_minimum_size.x = 100
+		name_label.add_theme_color_override("font_color", COL_LABEL_DIM)
+		name_label.add_theme_font_size_override("font_size", 13)
+		row_hbox.add_child(name_label)
+		_char_row_labels.append(name_label)
+
+		var left_btn := Button.new()
+		left_btn.text = "<"
+		left_btn.custom_minimum_size = Vector2(24, 24)
+		left_btn.pressed.connect(_char_adjust.bind(i, -1))
+		row_hbox.add_child(left_btn)
+
+		var value_label := Label.new()
+		value_label.custom_minimum_size.x = 80
+		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		value_label.add_theme_color_override("font_color", COL_LABEL)
+		value_label.add_theme_font_size_override("font_size", 13)
+		row_hbox.add_child(value_label)
+		_char_value_labels.append(value_label)
+
+		var right_btn := Button.new()
+		right_btn.text = ">"
+		right_btn.custom_minimum_size = Vector2(24, 24)
+		right_btn.pressed.connect(_char_adjust.bind(i, 1))
+		row_hbox.add_child(right_btn)
+
+	return page
+
+
+func _load_char_opts_from_session() -> void:
+	if _player == null:
+		_char_opts = {}
+		return
+	_char_opts = GameSession.get_appearance(_player.player_id).duplicate()
+	if _char_opts.is_empty():
+		_char_opts = {
+			"skin": &"light",
+			"torso_color": &"orange",
+			"torso_style": 0,
+			"torso_row": 0,
+			"hair_color": &"brown",
+			"hair_style": CharacterAtlas.HairStyle.SHORT,
+			"hair_variant": 0,
+		}
+
+
+func _char_adjust(row_idx: int, dir: int) -> void:
+	var row_data: Array = _CHAR_ROWS[row_idx]
+	var key: String = row_data[0]
+	match key:
+		"skin":
+			var idx: int = maxi(_CHAR_SKIN_OPTIONS.find(_char_opts.get("skin", &"light")), 0)
+			idx = posmod(idx + dir, _CHAR_SKIN_OPTIONS.size())
+			_char_opts["skin"] = _CHAR_SKIN_OPTIONS[idx]
+		"torso_color":
+			var idx: int = maxi(_CHAR_TORSO_COLORS.find(_char_opts.get("torso_color", &"orange")), 0)
+			idx = posmod(idx + dir, _CHAR_TORSO_COLORS.size())
+			_char_opts["torso_color"] = _CHAR_TORSO_COLORS[idx]
+		"torso_style":
+			_char_opts["torso_style"] = posmod(int(_char_opts.get("torso_style", 0)) + dir, 4)
+		"hair_color":
+			var idx: int = maxi(_CHAR_HAIR_COLORS.find(_char_opts.get("hair_color", &"brown")), 0)
+			idx = posmod(idx + dir, _CHAR_HAIR_COLORS.size())
+			_char_opts["hair_color"] = _CHAR_HAIR_COLORS[idx]
+		"hair_style":
+			var styles := _CHAR_HAIR_STYLES
+			var cur: int = maxi(styles.find(int(_char_opts.get("hair_style", 0))), 0)
+			cur = posmod(cur + dir, styles.size())
+			_char_opts["hair_style"] = styles[cur]
+		"hair_variant":
+			_char_opts["hair_variant"] = posmod(int(_char_opts.get("hair_variant", 0)) + dir, 4)
+		"face":
+			var cur_color: Variant = _char_opts.get("face_color", null)
+			var idx: int = 0
+			if cur_color != null:
+				idx = maxi(_CHAR_HAIR_COLORS.find(cur_color), 0) + 1
+			idx = posmod(idx + dir, _CHAR_FACE_OPTIONS.size())
+			if idx == 0:
+				_char_opts.erase("face_color")
+				_char_opts.erase("face_variant")
+			else:
+				_char_opts["face_color"] = _CHAR_HAIR_COLORS[idx - 1]
+				if not _char_opts.has("face_variant"):
+					_char_opts["face_variant"] = 0
+		"face_variant":
+			if _char_opts.has("face_color"):
+				_char_opts["face_variant"] = posmod(
+					int(_char_opts.get("face_variant", 0)) + dir, 4)
+	_refresh_char_preview()
+	_refresh_char_labels()
+
+
+func _move_char_cursor(dx: int, dy: int) -> void:
+	if dy != 0:
+		_char_cursor = clampi(_char_cursor + dy, 0, _CHAR_ROWS.size() - 1)
+		# Skip beard shape row if no facial hair selected.
+		if _char_cursor == _CHAR_ROWS.size() - 1 and not _char_opts.has("face_color"):
+			_char_cursor = clampi(_char_cursor + dy, 0, _CHAR_ROWS.size() - 2)
+	if dx != 0:
+		_char_adjust(_char_cursor, dx)
+	_refresh_char_labels()
+
+
+func _refresh_char_labels() -> void:
+	for i in _CHAR_ROWS.size():
+		var row_data: Array = _CHAR_ROWS[i]
+		var key: String = row_data[0]
+		var val_text: String = ""
+		match key:
+			"skin":
+				val_text = String(_char_opts.get("skin", &"light")).capitalize()
+			"torso_color":
+				val_text = String(_char_opts.get("torso_color", &"orange")).capitalize()
+			"torso_style":
+				var names: Array = ["Plain", "Sash", "Apron", "Armored"]
+				val_text = names[clampi(int(_char_opts.get("torso_style", 0)), 0, 3)]
+			"hair_color":
+				val_text = String(_char_opts.get("hair_color", &"brown")).capitalize()
+			"hair_style":
+				var si: int = maxi(_CHAR_HAIR_STYLES.find(
+					int(_char_opts.get("hair_style", 0))), 0)
+				val_text = _CHAR_HAIR_STYLE_NAMES[si]
+			"hair_variant":
+				val_text = str(int(_char_opts.get("hair_variant", 0)) + 1)
+			"face":
+				var fc: Variant = _char_opts.get("face_color", null)
+				if fc == null:
+					val_text = "None"
+				else:
+					val_text = String(fc).capitalize()
+			"face_variant":
+				if _char_opts.has("face_color"):
+					val_text = str(int(_char_opts.get("face_variant", 0)) + 1)
+				else:
+					val_text = "-"
+		if i < _char_value_labels.size():
+			_char_value_labels[i].text = val_text
+		# Highlight active row.
+		if i < _char_row_labels.size():
+			_char_row_labels[i].add_theme_color_override("font_color",
+				COL_LABEL if i == _char_cursor else COL_LABEL_DIM)
+	# Dim beard shape when no facial hair.
+	var face_row: int = _CHAR_ROWS.size() - 1
+	if face_row < _char_row_labels.size():
+		var has_face: bool = _char_opts.has("face_color")
+		_char_row_labels[face_row].modulate.a = 1.0 if has_face else 0.3
+		_char_value_labels[face_row].modulate.a = 1.0 if has_face else 0.3
+
+
+func _refresh_char_preview() -> void:
+	if _char_preview_viewport == null:
+		return
+	# Remove old preview.
+	if _char_preview_root != null and is_instance_valid(_char_preview_root):
+		_char_preview_root.queue_free()
+		_char_preview_root = null
+	# Build fresh character preview (body features only, no weapon/shield).
+	var preview_opts: Dictionary = _char_opts.duplicate()
+	preview_opts.erase("weapon")
+	preview_opts.erase("shield_material")
+	_char_preview_root = CharacterBuilder.build(preview_opts)
+	# Center the sprite stack in the viewport.
+	_char_preview_root.position = Vector2(
+		_CHAR_VIEWPORT_SIZE * 0.5, _CHAR_VIEWPORT_SIZE * 0.5 + 4)
+	_char_preview_viewport.add_child(_char_preview_root)
+
+
+func _apply_char_opts_to_player() -> void:
+	if _player == null:
+		return
+	GameSession.set_appearance(_player.player_id, _char_opts.duplicate())
+	_player.apply_appearance(_char_opts)
 
 
 # ---------- Style helpers ----------
