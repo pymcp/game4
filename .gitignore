@@ -3,6 +3,7 @@ screenshot.png
 screenshot.png*
 tmp/
 *.code-workspace
+*.pyc
 
 
 # Godot 4+ specific ignores
