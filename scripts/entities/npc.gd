@@ -136,12 +136,17 @@ func _ready() -> void:
 		n = n.get_parent()
 	_world = n as WorldRoot
 	home_cell = IsoUtils.world_to_iso(position)
-	# Default sprite (visible placeholder; spawner may swap textures).
+	# Default sprite from creature sprite registry; fallback to tinted placeholder.
 	if get_node_or_null("Sprite") == null:
-		var s := Sprite2D.new()
-		s.name = "Sprite"
-		s.modulate = Color(0.85, 0.4, 0.4)
-		add_child(s)
+		var built: Sprite2D = CreatureSpriteRegistry.build_sprite(kind)
+		if built != null:
+			built.name = "Sprite"
+			add_child(built)
+		else:
+			var s := Sprite2D.new()
+			s.name = "Sprite"
+			s.modulate = Color(0.85, 0.4, 0.4)
+			add_child(s)
 
 
 func _physics_process(delta: float) -> void:

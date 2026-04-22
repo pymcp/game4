@@ -15,7 +15,6 @@ class_name Monster
 
 signal died(world_position: Vector2, drops: Array)
 
-const _SLIME_TEX: Texture2D = preload("res://assets/characters/monsters/slime.png")
 const SIGHT_RADIUS_TILES: float = 8.0
 const _MOVE_SPEED_PX_PER_S: float = 32.0  ## native pixels (pre-zoom)
 
@@ -31,14 +30,11 @@ var _sprite: Sprite2D = null
 
 func _ready() -> void:
 	_world = WorldRoot.find_from(self)
-	_sprite = Sprite2D.new()
-	_sprite.texture = _SLIME_TEX
-	_sprite.centered = true
-	# Tiny Dungeon tiles ship with a heavy 1-px black outline. At the
-	# global 4x render zoom that reads as a chunky 4-px border around a
-	# small creature. Render the slime at half size so the outline
-	# settles to ~2 screen px and the body feels appropriately small.
-	_sprite.scale = Vector2(0.75, 0.75)
+	_sprite = CreatureSpriteRegistry.build_sprite(monster_kind)
+	if _sprite == null:
+		# Fallback: coloured square so the monster is still visible.
+		_sprite = Sprite2D.new()
+		_sprite.centered = true
 	add_child(_sprite)
 	add_to_group(&"monsters")
 	add_to_group(&"scattered_npcs")
