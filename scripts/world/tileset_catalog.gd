@@ -599,7 +599,7 @@ static func cell_for(view_kind: StringName, terrain: StringName) -> Vector2i:
 		&"overworld": d = OVERWORLD_TERRAIN_CELLS
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
-		&"interior": d = INTERIOR_TERRAIN_CELLS
+		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
 	if v is Vector2i:
@@ -623,7 +623,7 @@ static func cell_for_variant(view_kind: StringName, terrain: StringName, hash32:
 		&"overworld": d = OVERWORLD_TERRAIN_CELLS
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
-		&"interior": d = INTERIOR_TERRAIN_CELLS
+		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
 	if v is Array and (v as Array).size() > 1:
