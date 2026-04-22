@@ -32,7 +32,9 @@ var _stack: Control = null  ## Holds prop_panel and biome_tab, only one visible.
 var _name_edit: LineEdit = null
 var _id_edit: LineEdit = null
 var _hp_spin: SpinBox = null
-var _tall_check: CheckBox = null
+var _width_spin: SpinBox = null
+var _height_spin: SpinBox = null
+var _mask_grid: GridContainer = null
 var _pick_check: CheckBox = null
 var _sprites_label: Label = null
 var _sprites_container: HBoxContainer = null
@@ -139,12 +141,31 @@ func _build_prop_panel() -> ScrollContainer:
 	hp_row.add_child(_hp_spin)
 	vb.add_child(hp_row)
 
+	# Tile Size
+	vb.add_child(_make_label("Tile Size (W × H)"))
+	var size_row := HBoxContainer.new()
+	_width_spin = SpinBox.new()
+	_width_spin.min_value = 1
+	_width_spin.max_value = 8
+	_width_spin.prefix = "W:"
+	_width_spin.value_changed.connect(_on_tile_size_changed)
+	size_row.add_child(_width_spin)
+	_height_spin = SpinBox.new()
+	_height_spin.min_value = 1
+	_height_spin.max_value = 8
+	_height_spin.prefix = "H:"
+	_height_spin.value_changed.connect(_on_tile_size_changed)
+	size_row.add_child(_height_spin)
+	vb.add_child(size_row)
+
+	# Walkable Mask grid (rebuilt dynamically when size changes)
+	vb.add_child(_make_label("Walkable Mask (checked = blocks)"))
+	_mask_grid = GridContainer.new()
+	_mask_grid.columns = 1
+	vb.add_child(_mask_grid)
+
 	# Flags
 	var flag_row := HBoxContainer.new()
-	_tall_check = CheckBox.new()
-	_tall_check.text = "Tall (2-cell)"
-	_tall_check.toggled.connect(_on_tall_toggled)
-	flag_row.add_child(_tall_check)
 	_pick_check = CheckBox.new()
 	_pick_check.text = "Pickaxe Bonus"
 	_pick_check.toggled.connect(_on_pick_toggled)
@@ -231,8 +252,10 @@ func _refresh_props() -> void:
 	_name_edit.text = e.get("display_name", "")
 	_id_edit.text = e.get("ref_id", String(_selected_id))
 	_hp_spin.value = float(e.get("hp", 1))
-	_tall_check.button_pressed = bool(e.get("is_tall", false))
+	_width_spin.value = float(e.get("width_tiles", 1))
+	_height_spin.value = float(e.get("height_tiles", 1))
 	_pick_check.button_pressed = bool(e.get("is_pickaxe_bonus", false))
+	_rebuild_mask_grid(e)
 
 	# Sprites preview
 	var sprites: Array = e.get("sprites", [])
@@ -252,19 +275,22 @@ func _refresh_sprite_thumbnails(sprites: Array) -> void:
 	var tex: Texture2D = load(sheet_path) as Texture2D
 	if tex == null:
 		return
+	var e := _get_entry()
+	var w: int = int(e.get("width_tiles", 1))
+	var h: int = int(e.get("height_tiles", 1))
+	var step := TILE_PX + TILE_GUTTER
 	for s in sprites:
 		if not (s is Array) or s.size() < 2:
 			continue
 		var cell := Vector2i(int(s[0]), int(s[1]))
 		var atlas := AtlasTexture.new()
 		atlas.atlas = tex
-		var step := TILE_PX + TILE_GUTTER
 		atlas.region = Rect2(float(cell.x * step), float(cell.y * step),
-				float(TILE_PX), float(TILE_PX))
+				float(w * step - TILE_GUTTER), float(h * step - TILE_GUTTER))
 		var rect := TextureRect.new()
 		rect.texture = atlas
 		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		rect.custom_minimum_size = Vector2(32, 32)
+		rect.custom_minimum_size = Vector2(32 * w, 32 * h)
 		_sprites_container.add_child(rect)
 
 
@@ -394,11 +420,45 @@ func _on_hp_changed(val: float) -> void:
 	e["hp"] = int(val)
 	_mark_dirty_internal()
 
-func _on_tall_toggled(pressed: bool) -> void:
+func _on_tile_size_changed(_val: float) -> void:
 	var e := _get_entry()
 	if e.is_empty(): return
-	e["is_tall"] = pressed
+	var w := int(_width_spin.value)
+	var h := int(_height_spin.value)
+	e["width_tiles"] = w
+	e["height_tiles"] = h
+	# Resize walkable_mask, preserving existing values where possible.
+	var old_mask: Array = e.get("walkable_mask", [true])
+	var new_mask: Array = []
+	for i in w * h:
+		new_mask.append(old_mask[i] if i < old_mask.size() else (i == w * h - 1))
+	e["walkable_mask"] = new_mask
+	e.erase("is_tall")  # remove legacy field
 	_mark_dirty_internal()
+	_rebuild_mask_grid(e)
+
+func _rebuild_mask_grid(e: Dictionary) -> void:
+	for c in _mask_grid.get_children():
+		c.queue_free()
+	var w := int(e.get("width_tiles", 1))
+	var h := int(e.get("height_tiles", 1))
+	_mask_grid.columns = w
+	var mask: Array = e.get("walkable_mask", [true])
+	for i in w * h:
+		var cb := CheckBox.new()
+		cb.button_pressed = bool(mask[i]) if i < mask.size() else (i == w * h - 1)
+		cb.tooltip_text = "row %d, col %d" % [i / w, i % w]
+		cb.toggled.connect(_on_mask_cell_toggled.bind(i))
+		_mask_grid.add_child(cb)
+
+func _on_mask_cell_toggled(pressed: bool, idx: int) -> void:
+	var e := _get_entry()
+	if e.is_empty(): return
+	var mask: Array = e.get("walkable_mask", [true])
+	if idx >= 0 and idx < mask.size():
+		mask[idx] = pressed
+		e["walkable_mask"] = mask
+		_mark_dirty_internal()
 
 func _on_pick_toggled(pressed: bool) -> void:
 	var e := _get_entry()
@@ -479,7 +539,9 @@ func _on_add_resource() -> void:
 	res[new_id] = {
 		"display_name": "New Resource",
 		"ref_id": new_id,
-		"is_tall": false,
+		"width_tiles": 1,
+		"height_tiles": 1,
+		"walkable_mask": [true],
 		"is_pickaxe_bonus": false,
 		"hp": 1,
 		"sprites": [],
@@ -616,6 +678,7 @@ func on_atlas_cell_clicked(cell: Vector2i) -> void:
 	_refresh_sprite_thumbnails(sprites)
 
 ## Return marks (bound cells) for the sheet overlay.
+## Each sprite anchor expands to a W×H rectangle of marks.
 func get_marks() -> Array:
 	if _selected_id == &"":
 		return []
@@ -623,14 +686,22 @@ func get_marks() -> Array:
 	if e.is_empty():
 		return []
 	var sprites: Array = e.get("sprites", [])
+	var w: int = int(e.get("width_tiles", 1))
+	var h: int = int(e.get("height_tiles", 1))
+	var mask: Array = e.get("walkable_mask", [true])
 	var marks: Array = []
 	for s in sprites:
 		if s is Array and s.size() >= 2:
-			marks.append({
-				"cell": Vector2i(int(s[0]), int(s[1])),
-				"color": Color(0.3, 1.0, 0.4, 1.0),
-				"width": 3.0,
-			})
+			var anchor := Vector2i(int(s[0]), int(s[1]))
+			for dy in h:
+				for dx in w:
+					var mi: int = dy * w + dx
+					var blocks: bool = bool(mask[mi]) if mi < mask.size() else (mi == w * h - 1)
+					marks.append({
+						"cell": anchor + Vector2i(dx, dy),
+						"color": Color(1.0, 0.3, 0.3, 1.0) if blocks else Color(0.3, 1.0, 0.4, 1.0),
+						"width": 3.0,
+					})
 	return marks
 
 
@@ -640,7 +711,7 @@ func save() -> void:
 	MineableRegistry.save_data(_data)
 	# Reload the runtime caches so changes take effect immediately.
 	MineableRegistry.reload()
-	TilesetCatalog._tall_decoration_cache.clear()
+	TilesetCatalog.invalidate_deco_cache()
 	TilesetCatalog._loaded = false
 	_dirty = false
 

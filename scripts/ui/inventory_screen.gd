@@ -729,7 +729,7 @@ func _drop_cursor() -> void:
 			var eq_id: StringName = _player.equipment.get_equipped(slot_type)
 			if eq_id != &"":
 				_player.equipment.unequip(slot_type)
-				# TODO: spawn dropped item entity in world
+				_spawn_loot_pickup(eq_id, 1)
 		return
 
 	if _current_tab == Tab.CRAFTING:
@@ -744,7 +744,20 @@ func _drop_cursor() -> void:
 	var inv_idx: int = entry.get("inv_index", -1)
 	if inv_idx >= 0:
 		_player.inventory.remove(entry["id"], 1)
-		# TODO: spawn dropped item entity in world
+		_spawn_loot_pickup(entry["id"], 1)
+
+
+## Place a LootPickup entity near the player in the world.
+func _spawn_loot_pickup(id: StringName, amount: int) -> void:
+	if _player == null or _player._world == null:
+		return
+	var pickup := LootPickup.new()
+	pickup.item_id = id
+	pickup.count = amount
+	# Offset slightly in front of the player so it doesn't auto-pickup instantly.
+	var offset := Vector2(_player._facing_x * 18, 0)
+	pickup.position = _player.position + offset
+	_player._world.entities.add_child(pickup)
 
 
 # ---------- Refresh ----------

@@ -58,7 +58,7 @@ var _attack_target: NPC = null
 
 
 func _ready() -> void:
-	_world = _find_world_root()
+	_world = WorldRoot.find_from(self)
 	_sprite = Sprite2D.new()
 	_sprite.texture = _DOG_TEX if species == PET_SPECIES_DOG else _CAT_TEX
 	_sprite.centered = true
@@ -73,12 +73,6 @@ func _ready() -> void:
 	add_to_group(&"scattered_npcs")
 	add_to_group(&"pets")
 
-
-func _find_world_root() -> WorldRoot:
-	var n: Node = get_parent()
-	while n != null and not (n is WorldRoot):
-		n = n.get_parent()
-	return n as WorldRoot
 
 
 # ─── Pure helpers ──────────────────────────────────────────────────────

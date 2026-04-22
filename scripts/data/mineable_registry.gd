@@ -136,14 +136,63 @@ static func build_decoration_cells() -> Dictionary:
 
 
 ## Build the set of tall decoration kind ids (those with is_tall == true).
+## DEPRECATED — use get_tile_size() instead. Kept for backward compat.
 static func build_tall_kinds() -> Dictionary:
 	_ensure_loaded()
 	var out: Dictionary = {}
 	var res: Dictionary = _data.get("resources", {})
 	for rid in res:
-		if res[rid].get("is_tall", false):
+		if _is_multi_tile(res[rid]):
 			out[StringName(rid)] = true
 	return out
+
+
+## Return the tile footprint for a resource (default Vector2i(1, 1)).
+## Uses width_tiles / height_tiles fields; falls back to is_tall for compat.
+static func get_tile_size(id: StringName) -> Vector2i:
+	_ensure_loaded()
+	var res: Dictionary = _data.get("resources", {})
+	var entry: Variant = res.get(String(id), null)
+	if entry == null:
+		return Vector2i(1, 1)
+	var w: int = int(entry.get("width_tiles", 1))
+	var h: int = int(entry.get("height_tiles", 1))
+	# Backward compat: if only is_tall exists, treat as 1×2.
+	if w == 1 and h == 1 and entry.get("is_tall", false):
+		h = 2
+	return Vector2i(max(1, w), max(1, h))
+
+
+## Return the walkability bitmask for a resource (row-major, true = blocks).
+## Length should equal width_tiles × height_tiles.
+static func get_walkable_mask(id: StringName) -> Array:
+	_ensure_loaded()
+	var res: Dictionary = _data.get("resources", {})
+	var entry: Variant = res.get(String(id), null)
+	if entry == null:
+		return [true]
+	var mask: Variant = entry.get("walkable_mask", null)
+	if mask is Array and not mask.is_empty():
+		return mask
+	# Backward compat: is_tall → [false, true] (top walkable, bottom blocks).
+	if entry.get("is_tall", false):
+		return [false, true]
+	return [true]
+
+
+## True if a resource occupies more than one tile.
+static func is_multi_tile(id: StringName) -> bool:
+	var sz: Vector2i = get_tile_size(id)
+	return sz.x > 1 or sz.y > 1
+
+
+## Internal helper — checks if an entry dict is multi-tile.
+static func _is_multi_tile(entry: Dictionary) -> bool:
+	var w: int = int(entry.get("width_tiles", 1))
+	var h: int = int(entry.get("height_tiles", 1))
+	if w > 1 or h > 1:
+		return true
+	return entry.get("is_tall", false)
 
 
 # ─── Item queries ─────────────────────────────────────────────────────

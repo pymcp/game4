@@ -19,22 +19,10 @@ except ImportError:
     print("ERROR: Pillow is required.  pip install Pillow", file=sys.stderr)
     sys.exit(1)
 
-MAGENTA = (255, 0, 255)
+from sprite_utils import magenta_to_alpha
+
 TARGET_SIZE = 16
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "icons", "items")
-
-
-def magenta_to_alpha(img: Image.Image) -> Image.Image:
-    """Replace all #FF00FF pixels with full transparency."""
-    img = img.convert("RGBA")
-    pixels = img.load()
-    w, h = img.size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, _a = pixels[x, y]
-            if (r, g, b) == MAGENTA:
-                pixels[x, y] = (0, 0, 0, 0)
-    return img
 
 
 def crop_to_content(img: Image.Image) -> Image.Image:

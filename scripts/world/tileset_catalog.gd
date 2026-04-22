@@ -516,6 +516,27 @@ static func _build(png_path: String, terrain_cells: Dictionary,
 			data.set_custom_data(CUSTOM_TERRAIN, terrain_name)
 			data.set_custom_data(CUSTOM_WALKABLE, WALKABLE.get(terrain_name, true))
 
+	# Mark decoration atlas cells used by mineables as non-walkable so
+	# is_walkable() correctly blocks on tree trunks, rocks, etc.
+	if not is_dungeon:
+		var obstacle_cells: Dictionary = {}  # Vector2i → true
+		for rid in MineableRegistry.all_ids():
+			var sprites: Array = _get_mineable_sprites(rid)
+			var sz: Vector2i = MineableRegistry.get_tile_size(rid)
+			var mask: Array = MineableRegistry.get_walkable_mask(rid)
+			for s in sprites:
+				# s is the top-left anchor of the NxM block.
+				for dy in sz.y:
+					for dx in sz.x:
+						var mi: int = dy * sz.x + dx
+						var blocks: bool = mask[mi] if mi < mask.size() else (dy == sz.y - 1)
+						if blocks:
+							obstacle_cells[s + Vector2i(dx, dy)] = true
+		for cell in obstacle_cells:
+			var data: TileData = src.get_tile_data(cell, 0)
+			if data != null:
+				data.set_custom_data(CUSTOM_WALKABLE, false)
+
 	# Dungeon-only: pre-create vertically flipped alternatives for the
 	# bottom-row wall tiles so the autotile painter can stamp top-of-wall
 	# pieces by passing the FLIP_V alternative ID to `set_cell()`.
@@ -530,6 +551,19 @@ static func _build(png_path: String, terrain_cells: Dictionary,
 				alt_data.set_custom_data(CUSTOM_WALKABLE, false)
 
 	return ts
+
+
+## Helper: get the sprite anchor cells for a mineable as Vector2i array.
+static func _get_mineable_sprites(rid: StringName) -> Array[Vector2i]:
+	var entry: Variant = MineableRegistry.get_resource(rid)
+	if entry == null:
+		return []
+	var sprites: Array = entry.get("sprites", [])
+	var out: Array[Vector2i] = []
+	for s in sprites:
+		if s is Array and s.size() >= 2:
+			out.append(Vector2i(int(s[0]), int(s[1])))
+	return out
 
 
 static func _build_runes() -> TileSet:
@@ -611,7 +645,7 @@ static func cell_for_variant(view_kind: StringName, terrain: StringName, hash32:
 	return Vector2i(-1, -1)
 
 
-# ─── Tall tiles (two-cell-stack rendering) ──────────────────────────────
+# ─── Multi-tile rendering helpers ───────────────────────────────────────
 
 # Terrain kinds whose canonical tile occupies TWO vertical cells: a trunk
 # (the painted cell, blocking + collidable) and a canopy (one cell above
@@ -626,12 +660,43 @@ static func is_tall_tile(terrain: StringName) -> bool:
 	return TALL_TILE_KINDS.has(terrain)
 
 
-## Decoration kinds that occupy two vertical cells (trunk + canopy).
-## Built from MineableRegistry (is_tall flag) + a hardcoded set for
-## non-mineable tall decorations.
+## Cached decoration size / walkable data from MineableRegistry.
+static var _deco_size_cache: Dictionary = {}    ## StringName → Vector2i
+static var _deco_mask_cache: Dictionary = {}    ## StringName → Array[bool]
+
+static func _ensure_deco_cache() -> void:
+	if not _deco_size_cache.is_empty():
+		return
+	for rid in MineableRegistry.all_ids():
+		_deco_size_cache[rid] = MineableRegistry.get_tile_size(rid)
+		_deco_mask_cache[rid] = MineableRegistry.get_walkable_mask(rid)
+
+## Invalidate the decoration size/mask caches (call after editing mineables).
+static func invalidate_deco_cache() -> void:
+	_deco_size_cache.clear()
+	_deco_mask_cache.clear()
+	_tall_decoration_cache.clear()
+
+
+## Return the tile footprint of a decoration kind (default 1×1).
+static func get_decoration_size(kind: StringName) -> Vector2i:
+	_ensure_deco_cache()
+	return _deco_size_cache.get(kind, Vector2i(1, 1))
+
+
+## Return the walkability bitmask for a decoration kind (row-major,
+## true = blocks). Length = width × height.
+static func get_decoration_walkable_mask(kind: StringName) -> Array:
+	_ensure_deco_cache()
+	return _deco_mask_cache.get(kind, [true])
+
+
+## Decoration kinds that occupy more than one tile.
+## Built from MineableRegistry + a hardcoded set for non-mineable tall
+## decorations.
 static var _tall_decoration_cache: Dictionary = {}
 
-## True if a decoration `kind` should render as a two-cell stack.
+## True if a decoration `kind` should render as a multi-cell footprint.
 static func is_tall_decoration(kind: StringName) -> bool:
 	if _tall_decoration_cache.is_empty():
 		_tall_decoration_cache = MineableRegistry.build_tall_kinds()

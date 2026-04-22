@@ -25,26 +25,14 @@ except ImportError:
     print("ERROR: Pillow is required.  pip install Pillow", file=sys.stderr)
     sys.exit(1)
 
+from sprite_utils import magenta_to_alpha
+
 REPO = Path(__file__).resolve().parent.parent
 SHEET_PATH = REPO / "assets" / "tiles" / "roguelike" / "overworld_sheet.png"
 MANIFEST_PATH = REPO / "resources" / "custom_sprite_cells.json"
 TILE_SIZE = 16
 GUTTER = 1
 STRIDE = TILE_SIZE + GUTTER  # 17
-MAGENTA = (255, 0, 255)
-
-
-def magenta_to_alpha(img: Image.Image) -> Image.Image:
-    """Replace all #FF00FF pixels with full transparency."""
-    img = img.convert("RGBA")
-    pixels = img.load()
-    w, h = img.size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, _a = pixels[x, y]
-            if (r, g, b) == MAGENTA:
-                pixels[x, y] = (0, 0, 0, 0)
-    return img
 
 
 def load_manifest() -> dict:

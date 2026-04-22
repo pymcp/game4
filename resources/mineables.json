@@ -1,7 +1,5 @@
 {
-	"items": {
-
-	},
+	"items": {},
 	"resources": {
 		"bush": {
 			"biome_weights": {
@@ -18,7 +16,6 @@
 			],
 			"hp": 1,
 			"is_pickaxe_bonus": false,
-			"is_tall": false,
 			"ref_id": "bush",
 			"sprites": [
 				[
@@ -61,6 +58,11 @@
 					26,
 					9
 				]
+			],
+			"width_tiles": 1,
+			"height_tiles": 1,
+			"walkable_mask": [
+				true
 			]
 		},
 		"copper_vein": {
@@ -76,7 +78,6 @@
 			],
 			"hp": 5,
 			"is_pickaxe_bonus": true,
-			"is_tall": false,
 			"ref_id": "copper_vein",
 			"sprites": [
 				[
@@ -103,6 +104,11 @@
 					56,
 					20
 				]
+			],
+			"width_tiles": 1,
+			"height_tiles": 1,
+			"walkable_mask": [
+				true
 			]
 		},
 		"fennel_plant": {
@@ -119,13 +125,17 @@
 			],
 			"hp": 1,
 			"is_pickaxe_bonus": false,
-			"is_tall": false,
 			"ref_id": "fennel_plant",
 			"sprites": [
 				[
 					36,
 					29
 				]
+			],
+			"width_tiles": 1,
+			"height_tiles": 1,
+			"walkable_mask": [
+				true
 			]
 		},
 		"gold_vein": {
@@ -141,7 +151,6 @@
 			],
 			"hp": 8,
 			"is_pickaxe_bonus": true,
-			"is_tall": false,
 			"ref_id": "gold_vein",
 			"sprites": [
 				[
@@ -156,6 +165,11 @@
 					41,
 					11
 				]
+			],
+			"width_tiles": 1,
+			"height_tiles": 1,
+			"walkable_mask": [
+				true
 			]
 		},
 		"iron_vein": {
@@ -171,7 +185,6 @@
 			],
 			"hp": 6,
 			"is_pickaxe_bonus": true,
-			"is_tall": false,
 			"ref_id": "iron_vein",
 			"sprites": [
 				[
@@ -198,6 +211,11 @@
 					54,
 					21
 				]
+			],
+			"width_tiles": 1,
+			"height_tiles": 1,
+			"walkable_mask": [
+				true
 			]
 		},
 		"new_resource": {
@@ -209,7 +227,6 @@
 			"drops": [],
 			"hp": 2,
 			"is_pickaxe_bonus": false,
-			"is_tall": false,
 			"ref_id": "new_resource",
 			"sprites": [
 				[
@@ -240,6 +257,11 @@
 					23,
 					9
 				]
+			],
+			"width_tiles": 1,
+			"height_tiles": 1,
+			"walkable_mask": [
+				true
 			]
 		},
 		"rock": {
@@ -258,13 +280,17 @@
 			],
 			"hp": 5,
 			"is_pickaxe_bonus": true,
-			"is_tall": false,
 			"ref_id": "rock",
 			"sprites": [
 				[
 					44,
 					10
 				]
+			],
+			"width_tiles": 1,
+			"height_tiles": 1,
+			"walkable_mask": [
+				true
 			]
 		},
 		"tree": {
@@ -283,25 +309,30 @@
 			],
 			"hp": 2,
 			"is_pickaxe_bonus": false,
-			"is_tall": true,
 			"ref_id": "tree",
 			"sprites": [
 				[
 					13,
-					9
+					8
 				],
 				[
 					14,
-					9
+					8
 				],
 				[
 					15,
-					9
+					8
 				],
 				[
 					16,
-					9
+					8
 				]
+			],
+			"width_tiles": 1,
+			"height_tiles": 2,
+			"walkable_mask": [
+				false,
+				true
 			]
 		}
 	}

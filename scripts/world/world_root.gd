@@ -29,6 +29,16 @@ class_name WorldRoot
 const _MAX_LAND_SEARCH_RADIUS: int = 8
 const _BoatScene: PackedScene = preload("res://scenes/entities/Boat.tscn")
 
+
+## Walk up the scene tree from [param node] and return the nearest WorldRoot,
+## or null if none is found.
+static func find_from(node: Node) -> WorldRoot:
+	var n: Node = node.get_parent()
+	while n != null and not (n is WorldRoot):
+		n = n.get_parent()
+	return n as WorldRoot
+
+
 ## When non-zero, reseeds WorldManager before generation.
 @export var override_seed: int = 0
 

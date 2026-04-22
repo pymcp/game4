@@ -24,18 +24,23 @@ func _ready() -> void:
 	while n != null and not (n is WorldRoot):
 		n = n.get_parent()
 	_world = n as WorldRoot
-	# Build a tiny visual: a coloured square sized to a tile fragment.
+	# Show the item's icon if available, else fall back to a coloured square.
 	var sprite := Sprite2D.new()
 	sprite.name = "Visual"
-	var img := Image.create(48, 48, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0.95, 0.85, 0.25, 1.0))
-	sprite.texture = ImageTexture.create_from_image(img)
+	var def: ItemDefinition = ItemRegistry.get_item(item_id) if item_id != &"" else null
+	if def != null and def.icon != null:
+		sprite.texture = def.icon
+	else:
+		var img := Image.create(48, 48, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0.95, 0.85, 0.25, 1.0))
+		sprite.texture = ImageTexture.create_from_image(img)
 	sprite.modulate = Color(1, 1, 1, 0.95)
 	add_child(sprite)
 	# Small floating label so players know what they're picking up.
+	var display_name: String = def.display_name if def != null else String(item_id)
 	var label := Label.new()
 	label.name = "Label"
-	label.text = "%s x%d" % [String(item_id), count]
+	label.text = "%s x%d" % [display_name, count]
 	label.position = Vector2(-30, -38)
 	label.add_theme_font_size_override("font_size", 10)
 	add_child(label)

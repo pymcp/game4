@@ -25,7 +25,12 @@ const _BOB_HZ: float = 6.0
 var _world: WorldRoot = null
 var _sprite_root: Node2D = null
 var _weapon_sprite: Sprite2D = null
+var _torso_sprite: Sprite2D = null
+var _hair_sprite: Sprite2D = null
+var _boots_sprite: Sprite2D = null
 var _action_vfx: ActionVFX = null
+var _default_torso_region: Rect2
+var _default_hair_region: Rect2
 var _bob_t: float = 0.0
 var _facing_x: int = 1
 var _facing_dir: Vector2i = Vector2i(1, 0)
@@ -58,10 +63,16 @@ func _ready() -> void:
 	_world = n as WorldRoot
 	_sprite_root = $SpriteRoot
 	_weapon_sprite = $SpriteRoot/Weapon
+	_torso_sprite = $SpriteRoot/Torso
+	_hair_sprite = $SpriteRoot/Hair
+	_boots_sprite = $SpriteRoot/Boots
+	_default_torso_region = _torso_sprite.region_rect
+	_default_hair_region = _hair_sprite.region_rect
 	_action_vfx = $ActionVFX as ActionVFX
 	if _action_vfx != null:
 		_action_vfx.setup(self, _weapon_sprite, _world)
 	equipment.contents_changed.connect(_update_weapon_sprite)
+	equipment.contents_changed.connect(_update_armor_sprites)
 
 
 ## Update the WorldRoot reference. Called by [World] after re-parenting
@@ -88,6 +99,41 @@ func _update_weapon_sprite() -> void:
 		return
 	_weapon_sprite.region_rect = region
 	_weapon_sprite.visible = true
+
+
+func _update_armor_sprites() -> void:
+	# --- BODY slot → Torso sprite ---
+	_apply_armor_layer(
+		_torso_sprite, _default_torso_region,
+		equipment.get_equipped(ItemDefinition.Slot.BODY))
+	# --- HEAD slot → Hair sprite ---
+	_apply_armor_layer(
+		_hair_sprite, _default_hair_region,
+		equipment.get_equipped(ItemDefinition.Slot.HEAD))
+	# --- FEET slot → Boots sprite ---
+	var boots_id: StringName = equipment.get_equipped(ItemDefinition.Slot.FEET)
+	var boots_region: Rect2 = ArmorAtlas.region_for(boots_id)
+	if boots_region.size == Vector2.ZERO:
+		_boots_sprite.visible = false
+	else:
+		_boots_sprite.region_rect = boots_region
+		_boots_sprite.modulate = ArmorAtlas.tint_for(boots_id)
+		_boots_sprite.visible = true
+
+
+## Shared helper: swap a sprite's region to the armor cell, or restore its
+## default appearance when the slot is empty.
+func _apply_armor_layer(sprite: Sprite2D, default_region: Rect2,
+		item_id: StringName) -> void:
+	if sprite == null:
+		return
+	var region: Rect2 = ArmorAtlas.region_for(item_id)
+	if region.size == Vector2.ZERO:
+		sprite.region_rect = default_region
+		sprite.modulate = Color(1, 1, 1)
+		return
+	sprite.region_rect = region
+	sprite.modulate = ArmorAtlas.tint_for(item_id)
 
 
 func _physics_process(delta: float) -> void:
@@ -332,6 +378,25 @@ func _auto_attack_ranged() -> void:
 			n.call("take_hit", power, self)
 		break  # One target per shot.
 	_attack_cooldown = ATTACK_COOLDOWN_SEC
+
+
+# --- Damage received -----------------------------------------------
+
+## Apply incoming damage reduced by equipped armor defense.
+## Formula: effective = max(1, raw_damage - armor_defense).
+func take_hit(damage: int, _attacker: Node = null) -> void:
+	if health <= 0:
+		return
+	var defense: int = _armor_defense()
+	var effective: int = max(1, damage - defense)
+	health = max(0, health - effective)
+
+
+## Sum defensive power from HEAD + BODY + FEET equipment slots.
+func _armor_defense() -> int:
+	return (equipment.total_power(ItemDefinition.Slot.HEAD)
+		+ equipment.total_power(ItemDefinition.Slot.BODY)
+		+ equipment.total_power(ItemDefinition.Slot.FEET))
 
 
 # --- Attack / mining ---------------------------------------------
