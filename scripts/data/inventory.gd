@@ -94,12 +94,6 @@ func has(item_id: StringName, count: int = 1) -> bool:
 	return count_of(item_id) >= count
 
 
-func is_full() -> bool:
-	for s in slots:
-		if s == null:
-			return false
-	return true
-
 
 ## Remove the item in slot `i` entirely; returns the dict (or null).
 func take_slot(i: int) -> Variant:
@@ -112,12 +106,6 @@ func take_slot(i: int) -> Variant:
 	contents_changed.emit()
 	return s
 
-
-func place_in_slot(i: int, item_id: StringName, count: int) -> void:
-	if i < 0 or i >= size or count <= 0:
-		return
-	slots[i] = {"id": item_id, "count": count}
-	contents_changed.emit()
 
 
 func to_dict() -> Dictionary:

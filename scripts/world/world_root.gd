@@ -120,7 +120,7 @@ func get_map_size() -> Vector2i:
 	return Vector2i.ZERO
 
 
-func in_interior() -> bool:
+func is_in_interior() -> bool:
 	return _interior != null
 
 
@@ -195,7 +195,7 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 
 # --- Overworld loading & painting ----------------------------------
 
-func _resolve_land_region(start: Region) -> Region:
+static func _resolve_land_region(start: Region) -> Region:
 	if start != null and not start.is_ocean and not start.spawn_points.is_empty():
 		return start
 	var start_id: Vector2i = start.region_id if start != null else Vector2i.ZERO

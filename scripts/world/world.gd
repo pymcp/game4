@@ -182,19 +182,7 @@ func _ensure_instance(key: StringName, view_kind: StringName,
 
 
 func _resolve_land_region(start: Region) -> Region:
-	if start != null and not start.is_ocean and not start.spawn_points.is_empty():
-		return start
-	var start_id: Vector2i = start.region_id if start != null else Vector2i.ZERO
-	for r in range(1, 8 + 1):
-		for dy in range(-r, r + 1):
-			for dx in range(-r, r + 1):
-				if max(abs(dx), abs(dy)) != r:
-					continue
-				var cand: Region = WorldManager.get_or_generate(
-						start_id + Vector2i(dx, dy))
-				if not cand.is_ocean and not cand.spawn_points.is_empty():
-					return cand
-	return start
+	return WorldRoot._resolve_land_region(start)
 
 
 # ─── Pets ──────────────────────────────────────────────────────────────

@@ -84,16 +84,6 @@ func get_key_label(action: StringName) -> String:
 	return "?"
 
 
-## Returns a list of [label, action_name] pairs for HUD rendering.
-func get_active_hint_pairs(player_id: int) -> Array:
-	var hints: Array = []
-	for action in get_active_actions(player_id):
-		var label := get_key_label(action)
-		var verb := _action_verb(action)
-		hints.append([label, verb])
-	return hints
-
-
 func _action_verb(action: StringName) -> String:
 	var s := String(action)
 	# Strip p1_/p2_ prefix.

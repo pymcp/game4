@@ -1,7 +1,7 @@
 ## NPC
 ##
 ## Generic non-player character. Holds HP, runs a small state machine that
-## drives movement / attack behaviour, and emits signals when damaged or
+## drives movement / attack behaviour, and emits a signal when
 ## destroyed. The pure helpers [code]decide_state[/code] and
 ## [code]wander_step[/code] are static so AI logic can be unit-tested
 ## without instantiating the node.
@@ -18,7 +18,6 @@
 extends Node2D
 class_name NPC
 
-signal damaged(remaining_hp: int, attacker: Node)
 signal died(world_position: Vector2, drops: Array)
 
 enum State { IDLE, WANDER, CHASE, ATTACK, DEAD }
@@ -242,7 +241,7 @@ func take_hit(damage: int, attacker: Node = null, element: int = 0) -> void:
 	if health <= 0:
 		_die()
 	else:
-		damaged.emit(health, attacker)
+		pass  # Hit but not dead
 
 
 func _apply_resistance(damage: int, element: int) -> int:

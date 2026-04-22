@@ -45,7 +45,3 @@ func update(curr: int, max_value: int) -> void:
 	if _label != null:
 		_label.text = "%d / %d" % [_curr, _max]
 
-
-## Test helper: returns the last-set values without inspecting Nodes.
-func get_values() -> Vector2i:
-	return Vector2i(_curr, _max)

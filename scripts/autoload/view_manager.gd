@@ -44,10 +44,6 @@ func get_view_kind(player_id: int) -> StringName:
 	return _state[player_id]["view_kind"]
 
 
-func get_region_id(player_id: int) -> Vector2i:
-	return _state[player_id]["region_id"]
-
-
 func get_interior(player_id: int) -> InteriorMap:
 	return _state[player_id]["interior"]
 

@@ -78,10 +78,6 @@ func get_state() -> State:
 	return _state
 
 
-func get_direction() -> int:
-	return _direction
-
-
 ## Pure helper: world-velocity (screen-space) -> direction index 0..7.
 static func direction_from_velocity(world_vel: Vector2, offset_rad: float = 0.0) -> int:
 	var ang: float = atan2(world_vel.y, world_vel.x) + offset_rad

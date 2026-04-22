@@ -7,7 +7,6 @@
 extends Node
 
 signal new_game_started(seed_value: int)
-signal save_loaded(slot: String)
 
 var current_save_slot: String = ""
 var in_game_seconds: float = 0.0

@@ -152,18 +152,6 @@ func _refresh_all() -> void:
 		_hotbar.set_inventory(_player.inventory)
 
 
-## Test helpers
-func get_health_bar() -> HealthBar:
-	return _health_bar
-
-
-func get_hotbar() -> Hotbar:
-	return _hotbar
-
 
 func get_interior_label() -> Label:
 	return _interior_label
-
-
-func get_biome_label() -> Label:
-	return _biome_label

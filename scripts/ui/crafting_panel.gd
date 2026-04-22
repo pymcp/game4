@@ -121,20 +121,3 @@ func _on_pressed(recipe_id: StringName) -> void:
 	# `_refresh` will fire via inventory's contents_changed signal.
 
 
-# ---------- Test helpers ----------
-
-func get_buttons() -> Array[Button]:
-	return _buttons
-
-
-func get_recipe_ids() -> Array[StringName]:
-	return _ordered_ids
-
-
-func craft_by_id(recipe_id: StringName) -> bool:
-	if _player == null:
-		return false
-	var recipe: CraftingRecipe = CraftingRegistry.get_recipe(recipe_id)
-	if recipe == null:
-		return false
-	return recipe.craft(_player.inventory)

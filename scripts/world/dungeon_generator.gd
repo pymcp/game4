@@ -185,18 +185,30 @@ static func _scatter_npcs(rng: RandomNumberGenerator, m: InteriorMap,
 
 ## Phase 10a: scatter loot piles in rooms (skipping the entry room) so a
 ## diving session has tangible reward. Each pile holds one stack of an item
-## drawn from a small loot table.
-const _LOOT_TABLE: Array = [
-	{"id": &"wood", "weight": 25, "min": 1, "max": 3},
-	{"id": &"stone", "weight": 25, "min": 1, "max": 3},
-	{"id": &"fiber", "weight": 20, "min": 1, "max": 4},
-	{"id": &"iron_ore", "weight": 10, "min": 1, "max": 2},
-	{"id": &"copper_ore", "weight": 10, "min": 1, "max": 2},
-	{"id": &"gold_ore", "weight": 3, "min": 1, "max": 1},
-	{"id": &"fennel_root", "weight": 5, "min": 1, "max": 2},
-	{"id": &"wooden_sword", "weight": 4, "min": 1, "max": 1},
-	{"id": &"iron_dagger", "weight": 3, "min": 1, "max": 1},
-]
+## drawn from a data-driven loot table loaded from resources/dungeon_loot.json.
+const _DUNGEON_LOOT_PATH: String = "res://resources/dungeon_loot.json"
+static var _loot_table: Array = []
+
+
+static func _get_loot_table() -> Array:
+	if not _loot_table.is_empty():
+		return _loot_table
+	if not FileAccess.file_exists(_DUNGEON_LOOT_PATH):
+		push_warning("[DungeonGenerator] %s not found" % _DUNGEON_LOOT_PATH)
+		return _loot_table
+	var f := FileAccess.open(_DUNGEON_LOOT_PATH, FileAccess.READ)
+	if f == null:
+		return _loot_table
+	var json := JSON.new()
+	if json.parse(f.get_as_text()) == OK and json.data is Array:
+		for entry in json.data:
+			_loot_table.append({
+				"id": StringName(entry.get("id", "")),
+				"weight": int(entry.get("weight", 1)),
+				"min": int(entry.get("min", 1)),
+				"max": int(entry.get("max", 1)),
+			})
+	return _loot_table
 
 
 static func _scatter_loot(rng: RandomNumberGenerator, m: InteriorMap,
@@ -222,7 +234,7 @@ static func _scatter_loot(rng: RandomNumberGenerator, m: InteriorMap,
 				break
 		if not ok:
 			continue
-		var pick: Dictionary = _weighted_pick(rng, _LOOT_TABLE)
+		var pick: Dictionary = _weighted_pick(rng, _get_loot_table())
 		var count: int = rng.randi_range(int(pick["min"]), int(pick["max"]))
 		m.loot_scatter.append({
 			"item_id": pick["id"],
