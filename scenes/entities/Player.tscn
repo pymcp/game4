@@ -47,5 +47,14 @@ region_rect = Rect2(0, 0, 16, 33)
 centered = true
 offset = Vector2(0, -8)
 
+[node name="Shield" type="Sprite2D" parent="SpriteRoot"]
+visible = false
+texture = ExtResource("2_sheet")
+region_enabled = true
+region_rect = Rect2(0, 0, 16, 16)
+centered = true
+offset = Vector2(0, -8)
+z_index = -1
+
 [node name="ActionVFX" type="Node2D" parent="."]
 script = ExtResource("3_vfx")

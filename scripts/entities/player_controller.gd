@@ -28,6 +28,7 @@ var _weapon_sprite: Sprite2D = null
 var _torso_sprite: Sprite2D = null
 var _hair_sprite: Sprite2D = null
 var _boots_sprite: Sprite2D = null
+var _shield_sprite: Sprite2D = null
 var _action_vfx: ActionVFX = null
 var _default_torso_region: Rect2
 var _default_hair_region: Rect2
@@ -46,11 +47,29 @@ var equipment: Equipment = Equipment.new()
 var max_health: int = 10
 var health: int = 10
 var is_sailing: bool = false
-var stats: Dictionary = { &"charisma": 3, &"wisdom": 3, &"strength": 3 }
+var stats: Dictionary = {
+	&"charisma": 3, &"wisdom": 3, &"strength": 3,
+	&"speed": 0, &"defense": 0, &"dexterity": 0,
+}
 
 
+## Base stat value (no equipment bonuses).
 func get_stat(stat: StringName) -> int:
 	return int(stats.get(stat, 0))
+
+
+## Effective stat = base + equipment bonuses.
+func get_effective_stat(stat: StringName) -> int:
+	var base: int = get_stat(stat)
+	var bonus: int = equipment.equipment_stat_totals().get(stat, 0)
+	return base + bonus
+
+
+## Movement speed in native px/sec, modified by speed stat.
+## Each point of effective speed = +5%.
+func get_move_speed() -> float:
+	var spd: int = get_effective_stat(&"speed")
+	return _MOVE_SPEED_NATIVE * (1.0 + spd * 0.05)
 var _boat: Boat = null
 
 const _INTERACT_RADIUS_PX: float = 24.0  ## native pixels
@@ -66,6 +85,7 @@ func _ready() -> void:
 	_torso_sprite = $SpriteRoot/Torso
 	_hair_sprite = $SpriteRoot/Hair
 	_boots_sprite = $SpriteRoot/Boots
+	_shield_sprite = $SpriteRoot/Shield
 	_default_torso_region = _torso_sprite.region_rect
 	_default_hair_region = _hair_sprite.region_rect
 	_action_vfx = $ActionVFX as ActionVFX
@@ -73,6 +93,7 @@ func _ready() -> void:
 		_action_vfx.setup(self, _weapon_sprite, _world)
 	equipment.contents_changed.connect(_update_weapon_sprite)
 	equipment.contents_changed.connect(_update_armor_sprites)
+	equipment.contents_changed.connect(_update_shield_sprite)
 
 
 ## Update the WorldRoot reference. Called by [World] after re-parenting
@@ -119,6 +140,26 @@ func _update_armor_sprites() -> void:
 		_boots_sprite.region_rect = boots_region
 		_boots_sprite.modulate = ArmorAtlas.tint_for(boots_id)
 		_boots_sprite.visible = true
+
+
+func _update_shield_sprite() -> void:
+	if _shield_sprite == null:
+		return
+	var item_id: StringName = equipment.get_equipped(ItemDefinition.Slot.OFF_HAND)
+	if item_id == &"":
+		_shield_sprite.visible = false
+		return
+	var def: ItemDefinition = ItemRegistry.get_item(item_id)
+	if def == null or def.shield_sprite == Vector2i(-1, -1):
+		_shield_sprite.visible = false
+		return
+	_shield_sprite.region_rect = Rect2(
+		def.shield_sprite.x * CharacterAtlas.STRIDE,
+		def.shield_sprite.y * CharacterAtlas.STRIDE,
+		CharacterAtlas.TILE,
+		CharacterAtlas.TILE,
+	)
+	_shield_sprite.visible = true
 
 
 ## Shared helper: swap a sprite's region to the armor cell, or restore its
@@ -173,7 +214,7 @@ func _physics_process(delta: float) -> void:
 	if moving:
 		if input.length() > 1.0:
 			input = input.normalized()
-		_step(input * _MOVE_SPEED_NATIVE * delta)
+		_step(input * get_move_speed() * delta)
 		if input.x > 0.05:
 			_facing_x = 1
 		elif input.x < -0.05:
@@ -302,16 +343,18 @@ func _tick_auto_mine() -> void:
 
 func _tick_auto_attack() -> void:
 	var weapon_id: StringName = equipment.get_equipped(ItemDefinition.Slot.WEAPON)
-	if weapon_id == &"bow":
-		_auto_attack_ranged()
+	var def: ItemDefinition = ItemRegistry.get_item(weapon_id) if weapon_id != &"" else null
+	if def != null and def.attack_type == ItemDefinition.AttackType.RANGED:
+		_auto_attack_ranged(weapon_id, def)
 	else:
-		_auto_attack_melee(weapon_id)
+		_auto_attack_melee(weapon_id, def)
 
 
-func _auto_attack_melee(weapon_id: StringName) -> void:
+func _auto_attack_melee(weapon_id: StringName, def: ItemDefinition) -> void:
+	var reach: float = def.reach if def != null and def.reach > 0 else _MELEE_REACH_PX
 	var best: Node2D = null
 	var best_d2: float = INF
-	var reach2: float = _MELEE_REACH_PX * _MELEE_REACH_PX
+	var reach2: float = reach * reach
 	for n in _world.entities.get_children():
 		if n == self:
 			continue
@@ -337,22 +380,24 @@ func _auto_attack_melee(weapon_id: StringName) -> void:
 	var target_cell: Vector2i = _cell_of(best.position)
 	if best.has_method("take_hit"):
 		var power: int = 1
-		if weapon_id != &"":
-			var def: ItemDefinition = ItemRegistry.get_item(weapon_id)
-			if def != null:
-				power = max(1, def.power)
-		best.call("take_hit", power, self)
+		if def != null:
+			power = max(1, def.power + get_effective_stat(&"strength"))
+		var elem: int = def.element if def != null else 0
+		best.call("take_hit", power, self, elem)
+	if def != null and def.knockback > 0:
+		_apply_knockback(best, def.knockback)
 	_play_action_vfx(target_cell, false, {})
-	_attack_cooldown = ATTACK_COOLDOWN_SEC
+	_attack_cooldown = def.attack_speed if def != null and def.attack_speed > 0 else ATTACK_COOLDOWN_SEC
 
 
-func _auto_attack_ranged() -> void:
+func _auto_attack_ranged(weapon_id: StringName, def: ItemDefinition) -> void:
 	var my_cell: Vector2i = _cell_of(position)
 	var target_cell: Vector2i = my_cell + _facing_dir
 	# Fire in the facing direction — VFX handles the arrow visual.
 	_play_action_vfx(target_cell, false, {})
 	# Check if any hostile is roughly in the facing direction within range.
-	var reach2: float = _RANGED_REACH_PX * _RANGED_REACH_PX
+	var reach: float = def.reach if def != null and def.reach > 0 else _RANGED_REACH_PX
+	var reach2: float = reach * reach
 	var dir := Vector2(_facing_dir).normalized()
 	for n in _world.entities.get_children():
 		if n == self:
@@ -371,13 +416,15 @@ func _auto_attack_ranged() -> void:
 		if to.normalized().dot(dir) < 0.7:
 			continue
 		if n.has_method("take_hit"):
-			var def: ItemDefinition = ItemRegistry.get_item(&"bow")
 			var power: int = 1
 			if def != null:
-				power = max(1, def.power)
-			n.call("take_hit", power, self)
+				power = max(1, def.power + get_effective_stat(&"strength"))
+			var elem: int = def.element if def != null else 0
+			n.call("take_hit", power, self, elem)
+		if def != null and def.knockback > 0:
+			_apply_knockback(n as Node2D, def.knockback)
 		break  # One target per shot.
-	_attack_cooldown = ATTACK_COOLDOWN_SEC
+	_attack_cooldown = def.attack_speed if def != null and def.attack_speed > 0 else ATTACK_COOLDOWN_SEC
 
 
 # --- Damage received -----------------------------------------------
@@ -392,11 +439,22 @@ func take_hit(damage: int, _attacker: Node = null) -> void:
 	health = max(0, health - effective)
 
 
-## Sum defensive power from HEAD + BODY + FEET equipment slots.
+## Sum defensive power from HEAD + BODY + FEET + OFF_HAND equipment slots,
+## plus the effective defense stat.
 func _armor_defense() -> int:
 	return (equipment.total_power(ItemDefinition.Slot.HEAD)
 		+ equipment.total_power(ItemDefinition.Slot.BODY)
-		+ equipment.total_power(ItemDefinition.Slot.FEET))
+		+ equipment.total_power(ItemDefinition.Slot.FEET)
+		+ equipment.total_power(ItemDefinition.Slot.OFF_HAND)
+		+ get_effective_stat(&"defense"))
+
+
+## Push a target away from the player.
+func _apply_knockback(target: Node2D, amount: float) -> void:
+	if amount <= 0 or target == null:
+		return
+	var dir: Vector2 = (target.position - position).normalized()
+	target.position += dir * amount
 
 
 # --- Attack / mining ---------------------------------------------
@@ -404,13 +462,17 @@ func _armor_defense() -> int:
 ## Returns the mining damage for a given target cell, factoring in
 ## the equipped tool (pickaxe doubles damage vs rock/ore kinds).
 func _compute_mine_damage(target_cell: Vector2i) -> int:
-	var base: int = 1
 	var tool_id: StringName = equipment.get_equipped(ItemDefinition.Slot.TOOL)
-	if tool_id == &"pickaxe":
-		var entry: Variant = _world._mineable.get(target_cell, null)
-		if entry != null and WorldRoot.PICKAXE_BONUS_KINDS.has(entry["kind"]):
-			base = 2
-	return base
+	if tool_id == &"":
+		return 1
+	var tdef: ItemDefinition = ItemRegistry.get_item(tool_id)
+	if tdef == null or tdef.power <= 0:
+		return 1
+	# Tools apply their power against appropriate resource kinds.
+	var entry: Variant = _world._mineable.get(target_cell, null)
+	if entry != null and WorldRoot.PICKAXE_BONUS_KINDS.has(entry["kind"]):
+		return tdef.power
+	return 1
 
 
 func try_attack() -> Dictionary:
@@ -449,16 +511,19 @@ func _play_action_vfx(target: Vector2i, is_mineable: bool, res: Dictionary) -> v
 
 	if is_mineable:
 		var tool_id: StringName = equipment.get_equipped(ItemDefinition.Slot.TOOL)
-		if tool_id == &"pickaxe":
+		if tool_id != &"":
 			_action_vfx.play_mine_swing(target, kind)
 		else:
 			_action_vfx.play_gather(target)
 	else:
 		var weapon_id: StringName = equipment.get_equipped(ItemDefinition.Slot.WEAPON)
-		if weapon_id == &"bow":
-			_action_vfx.play_ranged(target)
-		elif weapon_id != &"":
-			_action_vfx.play_melee_swing(target)
+		if weapon_id != &"":
+			var wdef: ItemDefinition = ItemRegistry.get_item(weapon_id)
+			if wdef != null:
+				var spd: float = wdef.attack_speed if wdef.attack_speed > 0 else ATTACK_COOLDOWN_SEC
+				_action_vfx.play_attack(target, wdef.weapon_category, wdef.element, spd)
+			else:
+				_action_vfx.play_melee_swing(target)
 		else:
 			# Bare-hands punch — just particles, no swing sprite.
 			var pos: Vector2 = (Vector2(target) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)

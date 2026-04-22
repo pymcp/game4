@@ -157,6 +157,7 @@ func apply_view(view_kind: StringName, region: Region, interior: InteriorMap) ->
 		if interior != null:
 			_paint_interior(interior, view_kind)
 	_spawn_scattered_npcs()
+	_materialize_loot_scatter()
 	_build_door_index(view_kind)
 	_build_mineable_index()
 	_last_door_cell_per_player.clear()
@@ -995,7 +996,10 @@ func _spawn_scattered_npcs() -> void:
 			&"monster":
 				_spawn_monster(entry)
 			_:
-				pass
+				# Try loot-table creature kinds (slime, skeleton, etc.)
+				if LootTableRegistry.has_table(kind):
+					entry["monster_kind"] = kind
+					_spawn_monster(entry)
 
 
 func _maybe_inject_mara() -> void:
@@ -1042,9 +1046,46 @@ func _spawn_villager(entry: Dictionary) -> void:
 
 func _spawn_monster(entry: Dictionary) -> void:
 	var cell: Vector2i = entry.get("cell", Vector2i.ZERO)
+	var kind: StringName = entry.get("monster_kind", &"slime")
 	var m: Monster = _MonsterScene.instantiate() as Monster
 	m.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+	m.monster_kind = kind
+	# Configure from loot table.
+	if LootTableRegistry.has_table(kind):
+		m.max_health = LootTableRegistry.get_health(kind)
+		m.health = m.max_health
+		m.resistances = LootTableRegistry.get_resistances(kind)
+	m.died.connect(_on_monster_died)
 	entities.add_child(m)
+
+
+
+func _on_monster_died(world_position: Vector2, drops: Array) -> void:
+	for d in drops:
+		var pickup := LootPickup.new()
+		pickup.item_id = d["id"] if d is Dictionary else d
+		pickup.count = d.get("count", 1) if d is Dictionary else 1
+		# Small random scatter so stacked drops spread out.
+		var offset := Vector2(randf_range(-8, 8), randf_range(-8, 8))
+		pickup.position = world_position + offset
+		entities.add_child(pickup)
+
+
+func _materialize_loot_scatter() -> void:
+	if _interior == null:
+		return
+	var scatter: Array = _interior.loot_scatter
+	for entry in scatter:
+		var id: StringName = entry.get("id", &"")
+		var count: int = int(entry.get("count", 1))
+		var cell: Vector2i = entry.get("cell", Vector2i.ZERO)
+		if id == &"":
+			continue
+		var pickup := LootPickup.new()
+		pickup.item_id = id
+		pickup.count = count
+		pickup.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+		entities.add_child(pickup)
 
 
 # --- Dialogue ------------------------------------------------------

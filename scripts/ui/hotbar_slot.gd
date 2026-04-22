@@ -13,6 +13,8 @@ var count: int = 0
 @onready var _icon: TextureRect = $Icon
 @onready var _count_label: Label = $Count
 @onready var _bg: ColorRect = $Bg
+var _bg_panel: Panel = null
+const _DEFAULT_BORDER := Color(0.62, 0.42, 0.22)
 
 
 func _ready() -> void:
@@ -33,7 +35,7 @@ func _apply_polish() -> void:
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.34, 0.21, 0.13)
-	sb.border_color = Color(0.62, 0.42, 0.22)
+	sb.border_color = _DEFAULT_BORDER
 	sb.border_width_left = 2
 	sb.border_width_right = 2
 	sb.border_width_top = 2
@@ -47,6 +49,7 @@ func _apply_polish() -> void:
 	panel.show_behind_parent = false
 	_bg.queue_free()
 	_bg = null
+	_bg_panel = panel
 
 
 ## Set the slot's contents. Pass [code]&""[/code] / 0 for an empty slot.
@@ -62,6 +65,7 @@ func _refresh() -> void:
 	if item_id == &"" or count <= 0:
 		_icon.texture = null
 		_count_label.text = ""
+		_update_border_color(null)
 		return
 	var def: ItemDefinition = ItemRegistry.get_item(item_id)
 	if def != null and def.icon != null:
@@ -69,6 +73,19 @@ func _refresh() -> void:
 	else:
 		_icon.texture = null
 	_count_label.text = "%d" % count if count > 1 else ""
+	_update_border_color(def)
+
+
+func _update_border_color(def: ItemDefinition) -> void:
+	if _bg_panel == null:
+		return
+	var sb: StyleBoxFlat = _bg_panel.get_theme_stylebox("panel") as StyleBoxFlat
+	if sb == null:
+		return
+	if def == null or def.rarity == ItemDefinition.Rarity.COMMON:
+		sb.border_color = _DEFAULT_BORDER
+	else:
+		sb.border_color = ItemDefinition.RARITY_COLORS.get(def.rarity, _DEFAULT_BORDER)
 
 
 ## Test helper: returns the current id+count without scene introspection.

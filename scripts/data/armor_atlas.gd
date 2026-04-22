@@ -29,9 +29,15 @@ const _DEFAULTS: Dictionary = {
 
 
 ## Returns {cell: Vector2i, tint: Color} for the given armor item.
+## Priority: ItemDefinition fields → _DEFAULTS.
 ## Returns {"cell": Vector2i(-1,-1), "tint": white} when the item has no
 ## displayable armor sprite.
 static func lookup(item_id: StringName) -> Dictionary:
+	# 1. ItemDefinition fields (data-driven)
+	var def: ItemDefinition = ItemRegistry.get_item(item_id)
+	if def != null and def.armor_sprite != Vector2i(-1, -1):
+		return {"cell": def.armor_sprite, "tint": def.armor_tint}
+	# 2. Hardcoded defaults (legacy)
 	var entry: Dictionary = _DEFAULTS.get(item_id, {})
 	if entry.is_empty():
 		return {"cell": _NO_CELL, "tint": Color(1, 1, 1)}

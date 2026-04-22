@@ -23,15 +23,20 @@ const _NO_CELL := Vector2i(-1, -1)
 
 
 ## Returns the atlas cell for the given item id's weapon sprite.
-## Uses the first cell from the TileMappings weapon_sprites list if
-## available, otherwise falls back to [constant _DEFAULTS].
+## Priority: ItemDefinition.weapon_sprite → TileMappings → _DEFAULTS.
 ## Returns `Vector2i(-1, -1)` for items with no displayable weapon.
 static func cell_for(item_id: StringName) -> Vector2i:
+	# 1. ItemDefinition field (data-driven)
+	var def: ItemDefinition = ItemRegistry.get_item(item_id)
+	if def != null and def.weapon_sprite != _NO_CELL:
+		return def.weapon_sprite
+	# 2. TileMappings (editor-assigned)
 	var tm: TileMappings = _load_mappings()
 	if tm != null and tm.weapon_sprites.has(item_id):
 		var arr: Array = tm.weapon_sprites[item_id]
 		if arr.size() > 0:
 			return arr[0]
+	# 3. Hardcoded defaults (legacy)
 	return _DEFAULTS.get(item_id, _NO_CELL)
 
 

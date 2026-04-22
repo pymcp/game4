@@ -187,12 +187,15 @@ static func _scatter_npcs(rng: RandomNumberGenerator, m: InteriorMap,
 ## diving session has tangible reward. Each pile holds one stack of an item
 ## drawn from a small loot table.
 const _LOOT_TABLE: Array = [
-	{"id": &"wood", "weight": 30, "min": 1, "max": 3},
-	{"id": &"stone", "weight": 30, "min": 1, "max": 3},
-	{"id": &"fiber", "weight": 25, "min": 1, "max": 4},
-	{"id": &"iron_ore", "weight": 8, "min": 1, "max": 2},
-	{"id": &"copper_ore", "weight": 8, "min": 1, "max": 2},
-	{"id": &"sword", "weight": 5, "min": 1, "max": 1},
+	{"id": &"wood", "weight": 25, "min": 1, "max": 3},
+	{"id": &"stone", "weight": 25, "min": 1, "max": 3},
+	{"id": &"fiber", "weight": 20, "min": 1, "max": 4},
+	{"id": &"iron_ore", "weight": 10, "min": 1, "max": 2},
+	{"id": &"copper_ore", "weight": 10, "min": 1, "max": 2},
+	{"id": &"gold_ore", "weight": 3, "min": 1, "max": 1},
+	{"id": &"fennel_root", "weight": 5, "min": 1, "max": 2},
+	{"id": &"wooden_sword", "weight": 4, "min": 1, "max": 1},
+	{"id": &"iron_dagger", "weight": 3, "min": 1, "max": 1},
 ]
 
 

@@ -31,6 +31,7 @@ const EQUIPMENT_SLOT_ORDER: Array = [
 	ItemDefinition.Slot.BODY,
 	ItemDefinition.Slot.FEET,
 	ItemDefinition.Slot.WEAPON,
+	ItemDefinition.Slot.OFF_HAND,
 	ItemDefinition.Slot.TOOL,
 ]
 
@@ -51,7 +52,7 @@ const TAB_LABELS: Array = [
 const TAB_SLOT_FILTER: Dictionary = {
 	Tab.ALL: null,
 	Tab.WEAPONS: [ItemDefinition.Slot.WEAPON],
-	Tab.ARMOR: [ItemDefinition.Slot.HEAD, ItemDefinition.Slot.BODY, ItemDefinition.Slot.FEET],
+	Tab.ARMOR: [ItemDefinition.Slot.HEAD, ItemDefinition.Slot.BODY, ItemDefinition.Slot.FEET, ItemDefinition.Slot.OFF_HAND],
 	Tab.TOOLS: [ItemDefinition.Slot.TOOL],
 	Tab.MATERIALS: [ItemDefinition.Slot.NONE],
 }
@@ -87,6 +88,8 @@ var _grid: GridContainer = null
 var _paperdoll: Control = null
 var _crafting: CraftingPanel = null
 var _detail_label: Label = null
+var _detail_name_label: Label = null
+var _detail_desc_label: Label = null
 var _controls_bar: PanelContainer = null
 var _controls_label: RichTextLabel = null
 
@@ -132,6 +135,7 @@ static func slot_label(s: int) -> String:
 		ItemDefinition.Slot.BODY: return "Body"
 		ItemDefinition.Slot.FEET: return "Feet"
 		ItemDefinition.Slot.WEAPON: return "Weapon"
+		ItemDefinition.Slot.OFF_HAND: return "Off-Hand"
 		ItemDefinition.Slot.TOOL: return "Tool"
 	return "?"
 
@@ -402,14 +406,29 @@ func _build_grid_page() -> VBoxContainer:
 	_cursor_panel.z_index = 10
 	page.add_child(_cursor_panel)
 
-	# Detail label below grid.
-	_detail_label = Label.new()
-	_detail_label.add_theme_color_override("font_color", COL_LABEL_DIM)
-	_detail_label.add_theme_font_size_override("font_size", 12)
-	_detail_label.text = "(empty)"
-	_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	page.add_child(_detail_label)
+	# Detail panel below grid: name (rarity colored) + generated description.
+	var detail_box := VBoxContainer.new()
+	detail_box.add_theme_constant_override("separation", 2)
+	detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_box.custom_minimum_size = Vector2(0, 48)
+
+	_detail_name_label = Label.new()
+	_detail_name_label.add_theme_color_override("font_color", COL_LABEL)
+	_detail_name_label.add_theme_font_size_override("font_size", 13)
+	_detail_name_label.text = ""
+	detail_box.add_child(_detail_name_label)
+
+	_detail_desc_label = Label.new()
+	_detail_desc_label.add_theme_color_override("font_color", COL_LABEL_DIM)
+	_detail_desc_label.add_theme_font_size_override("font_size", 11)
+	_detail_desc_label.text = "(empty)"
+	_detail_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail_desc_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_box.add_child(_detail_desc_label)
+
+	# Keep _detail_label pointing at desc for legacy compatibility.
+	_detail_label = _detail_desc_label
+	page.add_child(detail_box)
 
 	return page
 
@@ -443,11 +462,12 @@ func _build_paperdoll() -> Control:
 	var cx: float = 90.0
 	var half: float = SLOT_SZ * 0.5
 	var positions: Dictionary = {
-		ItemDefinition.Slot.HEAD:   Vector2(cx - half, 8.0),
-		ItemDefinition.Slot.BODY:   Vector2(cx - half, 72.0),
-		ItemDefinition.Slot.FEET:   Vector2(cx - half, 196.0),
-		ItemDefinition.Slot.WEAPON: Vector2(10.0, 110.0),
-		ItemDefinition.Slot.TOOL:   Vector2(180.0 - SLOT_SZ - 10.0, 110.0),
+		ItemDefinition.Slot.HEAD:     Vector2(cx - half, 8.0),
+		ItemDefinition.Slot.BODY:     Vector2(cx - half, 72.0),
+		ItemDefinition.Slot.FEET:     Vector2(cx - half, 196.0),
+		ItemDefinition.Slot.WEAPON:   Vector2(10.0, 90.0),
+		ItemDefinition.Slot.OFF_HAND: Vector2(180.0 - SLOT_SZ - 10.0, 90.0),
+		ItemDefinition.Slot.TOOL:     Vector2(10.0, 150.0),
 	}
 
 	for s in EQUIPMENT_SLOT_ORDER:
@@ -624,7 +644,7 @@ func _refresh_cursor() -> void:
 
 	if _current_tab == Tab.CRAFTING:
 		_cursor_panel.visible = false
-		_detail_label.text = ""
+		_clear_detail("")
 		return
 
 	# Grid cursor.
@@ -646,14 +666,13 @@ func _refresh_cursor() -> void:
 		if entry["id"] != &"":
 			var def: ItemDefinition = ItemRegistry.get_item(entry["id"])
 			if def != null:
-				var desc: String = def.description if def.description != "" else "(no description)"
-				_detail_label.text = "%s — %s" % [def.display_name, desc]
+				_show_item_detail(def)
 			else:
-				_detail_label.text = String(entry["id"])
+				_clear_detail(String(entry["id"]))
 		else:
-			_detail_label.text = "(empty)"
+			_clear_detail("(empty)")
 	else:
-		_detail_label.text = "(empty)"
+		_clear_detail("(empty)")
 
 
 func _update_detail_equipment() -> void:
@@ -664,17 +683,36 @@ func _update_detail_equipment() -> void:
 	var slot_type: int = EQUIPMENT_SLOT_ORDER[_cursor]
 	var slot_name: String = slot_label(slot_type)
 	if _player == null or _player.equipment == null:
-		_detail_label.text = "%s — (empty)" % slot_name
+		_clear_detail("%s — (empty)" % slot_name)
 		return
 	var equipped_id: StringName = _player.equipment.get_equipped(slot_type)
 	if equipped_id == &"":
-		_detail_label.text = "%s — (empty)" % slot_name
+		_clear_detail("%s — (empty)" % slot_name)
 		return
 	var def: ItemDefinition = ItemRegistry.get_item(equipped_id)
 	if def != null:
-		_detail_label.text = "%s — %s" % [slot_name, def.display_name]
+		_show_item_detail(def, slot_name)
 	else:
-		_detail_label.text = "%s — %s" % [slot_name, String(equipped_id)]
+		_clear_detail("%s — %s" % [slot_name, String(equipped_id)])
+
+
+func _show_item_detail(def: ItemDefinition, prefix: String = "") -> void:
+	var rarity_color: Color = ItemDefinition.RARITY_COLORS.get(def.rarity, Color.WHITE)
+	var rarity_name: String = ItemDefinition.Rarity.keys()[def.rarity].capitalize()
+	var name_text: String = def.display_name
+	if prefix != "":
+		name_text = "%s — %s" % [prefix, name_text]
+	if def.rarity != ItemDefinition.Rarity.COMMON:
+		name_text += " [%s]" % rarity_name
+	_detail_name_label.text = name_text
+	_detail_name_label.add_theme_color_override("font_color", rarity_color)
+	_detail_desc_label.text = def.generate_description()
+
+
+func _clear_detail(text: String = "(empty)") -> void:
+	_detail_name_label.text = ""
+	_detail_name_label.add_theme_color_override("font_color", COL_LABEL)
+	_detail_desc_label.text = text
 
 
 # ---------- Interact / Drop ----------
@@ -711,12 +749,10 @@ func _interact_cursor() -> void:
 	var taken: Variant = _player.inventory.take_slot(inv_idx)
 	if taken == null:
 		return
-	# If something is already equipped in that slot, unequip it first.
-	var prev: StringName = _player.equipment.get_equipped(def.slot)
-	if prev != &"":
-		_player.equipment.unequip(def.slot)
-		_player.inventory.add(prev, 1)
-	_player.equipment.equip(def.slot, entry["id"])
+	# Equip returns displaced items (previous + handedness side-effects).
+	var displaced: Array = _player.equipment.equip(def.slot, entry["id"])
+	for pair in displaced:
+		_player.inventory.add(pair[1], 1)
 
 
 func _drop_cursor() -> void:

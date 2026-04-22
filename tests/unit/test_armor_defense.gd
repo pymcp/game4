@@ -99,12 +99,13 @@ func test_take_hit_full_stack() -> void:
 	player.health = 10
 	player.max_health = 10
 	# All three armor slots: body(3) + head(2) + feet(1) = 6.
+	# Plus leather set 3pc bonus: +1 defense = 7 total.
 	player.equipment.equip(ItemDefinition.Slot.BODY, &"armor")
 	player.equipment.equip(ItemDefinition.Slot.HEAD, &"helmet")
 	player.equipment.equip(ItemDefinition.Slot.FEET, &"boots")
 	player.take_hit(10)
-	# effective = max(1, 10-6) = 4
-	assert_eq(player.health, 6, "10 damage minus 6 defense = 4 effective")
+	# effective = max(1, 10-7) = 3
+	assert_eq(player.health, 7, "10 damage minus 7 defense = 3 effective")
 
 
 func test_take_hit_no_damage_when_dead() -> void:

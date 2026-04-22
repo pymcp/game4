@@ -1,0 +1,38 @@
+{
+	"leather": {
+		"display_name": "Leather Set",
+		"thresholds": [
+			{
+				"pieces": 2,
+				"stat_bonuses": {
+					"speed": 1
+				}
+			},
+			{
+				"pieces": 3,
+				"stat_bonuses": {
+					"defense": 1,
+					"speed": 1
+				}
+			}
+		]
+	},
+	"iron": {
+		"display_name": "Iron Set",
+		"thresholds": [
+			{
+				"pieces": 2,
+				"stat_bonuses": {
+					"defense": 1
+				}
+			},
+			{
+				"pieces": 3,
+				"stat_bonuses": {
+					"defense": 2,
+					"strength": 1
+				}
+			}
+		]
+	}
+}

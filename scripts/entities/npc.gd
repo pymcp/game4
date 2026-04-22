@@ -39,6 +39,7 @@ const LEASH_RADIUS_TILES: float = 10.0
 @export var attack_range_tiles: float = ATTACK_RADIUS_TILES
 @export var leash_radius_tiles: float = LEASH_RADIUS_TILES
 @export var drops: Array = []  # Array of {id: StringName, count: int}
+@export var resistances: Dictionary = {}  # Element enum → float multiplier
 
 ## When `true`, this NPC counts as an enemy for pets and other ally AI
 ## (they will seek out and attack it). Villagers and other friendly NPCs
@@ -231,16 +232,24 @@ func _tick_attack(_delta: float) -> void:
 
 # ---------- Damage / death ----------
 
-func take_hit(damage: int, attacker: Node = null) -> void:
+func take_hit(damage: int, attacker: Node = null, element: int = 0) -> void:
 	if state == State.DEAD:
 		return
-	health = max(0, health - damage)
+	var effective: int = _apply_resistance(damage, element)
+	health = max(0, health - effective)
 	if attacker is Node2D and target == null:
 		target = attacker as Node2D
 	if health <= 0:
 		_die()
 	else:
 		damaged.emit(health, attacker)
+
+
+func _apply_resistance(damage: int, element: int) -> int:
+	if element == 0 or not resistances.has(element):
+		return max(1, damage)
+	var mult: float = float(resistances[element])
+	return max(1, ceili(damage * mult))
 
 
 func _die() -> void:

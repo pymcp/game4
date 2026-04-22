@@ -23,6 +23,9 @@ const _ICON_SCALE: float = 0.12
 ## Arrow/projectile texture.
 const _ARROW_TEXTURE_PATH: String = "res://assets/particles/pack/trace_05.png"
 
+## Spell orb texture.
+const _SPELL_TEXTURE_PATH: String = "res://assets/particles/pack/star_06.png"
+
 # References set by PlayerController after instancing.
 var _weapon_sprite: Sprite2D = null
 var _world: WorldRoot = null
@@ -50,6 +53,116 @@ func _facing_offset() -> Vector2:
 	if _player == null:
 		return Vector2(8, 0)
 	return Vector2(_player._facing_dir) * 8.0
+
+
+# --- Combat dispatcher -------------------------------------------
+
+## Main entry point for weapon-based attacks. Dispatches VFX based on
+## weapon_category and tints particles by element.
+func play_attack(target_cell: Vector2i, category: int, element: int,
+		attack_speed: float) -> void:
+	if _is_playing:
+		return
+	var dur: float = clampf(attack_speed * 0.6, 0.1, 0.4)
+	match category:
+		ItemDefinition.WeaponCategory.SWORD:
+			_play_swing(target_cell, -60.0, 60.0, dur, element)
+		ItemDefinition.WeaponCategory.AXE:
+			_play_swing(target_cell, -90.0, 20.0, dur, element)
+		ItemDefinition.WeaponCategory.DAGGER:
+			_play_swing(target_cell, -30.0, 30.0, dur * 0.6, element)
+		ItemDefinition.WeaponCategory.SPEAR:
+			_play_thrust(target_cell, dur, element)
+		ItemDefinition.WeaponCategory.BOW:
+			play_ranged(target_cell, dur, element)
+		ItemDefinition.WeaponCategory.STAFF:
+			_play_spell(target_cell, dur, element)
+		_:
+			_play_swing(target_cell, -60.0, 60.0, dur, element)
+
+
+## Parameterized arc swing: SWORD, AXE, DAGGER with different arcs.
+func _play_swing(target_cell: Vector2i, from_deg: float, to_deg: float,
+		duration: float, element: int) -> void:
+	_is_playing = true
+	var target_pos: Vector2 = _target_world_pos(target_cell) - _player.position
+	var swing_spr := _create_icon_sprite(_get_weapon_id(), target_pos)
+	if swing_spr == null:
+		_spawn_combat_particles(target_cell, element)
+		_finish()
+		return
+	add_child(swing_spr)
+	swing_spr.rotation_degrees = from_deg
+	var tw := create_tween()
+	tw.tween_property(swing_spr, "rotation_degrees", to_deg, duration)\
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.tween_callback(func():
+		swing_spr.queue_free()
+		_finish()
+	)
+	_sympathetic_tilt()
+	_spawn_combat_particles(target_cell, element)
+
+
+## Spear / polearm thrust: linear forward motion, no arc.
+func _play_thrust(target_cell: Vector2i, duration: float, element: int) -> void:
+	_is_playing = true
+	var target_pos: Vector2 = _target_world_pos(target_cell) - _player.position
+	var spr := _create_icon_sprite(_get_weapon_id(), _facing_offset())
+	if spr == null:
+		_spawn_combat_particles(target_cell, element)
+		_finish()
+		return
+	add_child(spr)
+	spr.rotation = Vector2(_player._facing_dir).angle()
+	var tw := create_tween()
+	tw.tween_property(spr, "position", target_pos, duration)\
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.tween_callback(func():
+		spr.queue_free()
+		_finish()
+	)
+	_sympathetic_tilt()
+	_spawn_combat_particles(target_cell, element)
+
+
+## Staff / magic spell: colored orb projectile.
+func _play_spell(target_cell: Vector2i, duration: float, element: int) -> void:
+	_is_playing = true
+	var start_pos: Vector2 = _facing_offset()
+	var end_pos: Vector2 = _target_world_pos(target_cell) - _player.position
+	var orb := Sprite2D.new()
+	var tex: Texture2D = load(_SPELL_TEXTURE_PATH)
+	orb.texture = tex
+	orb.scale = Vector2(0.15, 0.15)
+	orb.position = start_pos
+	match element:
+		ItemDefinition.Element.FIRE:
+			orb.modulate = Color(1.0, 0.5, 0.15)
+		ItemDefinition.Element.ICE:
+			orb.modulate = Color(0.4, 0.8, 1.0)
+		ItemDefinition.Element.LIGHTNING:
+			orb.modulate = Color(1.0, 1.0, 0.3)
+		ItemDefinition.Element.POISON:
+			orb.modulate = Color(0.4, 0.85, 0.3)
+		_:
+			orb.modulate = Color(0.8, 0.6, 1.0)
+	add_child(orb)
+	var tw := create_tween()
+	tw.tween_property(orb, "position", end_pos, duration)\
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.tween_callback(func():
+		orb.queue_free()
+		_spawn_combat_particles(target_cell, element)
+		_finish()
+	)
+
+
+func _spawn_combat_particles(target_cell: Vector2i, element: int) -> void:
+	if _world == null:
+		return
+	var pos: Vector2 = _target_world_pos(target_cell)
+	ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.MELEE, &"", element)
 
 
 # --- Melee swing ---------------------------------------------------
@@ -197,7 +310,8 @@ func _spawn_gather_particles(target_cell: Vector2i) -> void:
 
 # --- Ranged shot ---------------------------------------------------
 
-func play_ranged(target_cell: Vector2i) -> void:
+func play_ranged(target_cell: Vector2i, duration: float = 0.15,
+		element: int = 0) -> void:
 	if _is_playing:
 		return
 	_is_playing = true
@@ -216,11 +330,11 @@ func play_ranged(target_cell: Vector2i) -> void:
 	add_child(arrow)
 
 	var tw := create_tween()
-	tw.tween_property(arrow, "position", end_pos, 0.15)\
+	tw.tween_property(arrow, "position", end_pos, duration)\
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(func():
 		arrow.queue_free()
-		_spawn_ranged_particles(target_cell)
+		_spawn_ranged_particles(target_cell, element)
 		_finish()
 	)
 
@@ -228,11 +342,12 @@ func play_ranged(target_cell: Vector2i) -> void:
 	_bow_pullback()
 
 
-func _spawn_ranged_particles(target_cell: Vector2i) -> void:
+func _spawn_ranged_particles(target_cell: Vector2i,
+		element: int = 0) -> void:
 	if _world == null:
 		return
 	var pos: Vector2 = _target_world_pos(target_cell)
-	ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.RANGED)
+	ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.RANGED, &"", element)
 
 
 # --- Shared helpers ------------------------------------------------
@@ -248,6 +363,15 @@ func _create_icon_sprite(item_id: StringName, local_pos: Vector2) -> Sprite2D:
 	spr.scale = Vector2(_ICON_SCALE, _ICON_SCALE)
 	spr.position = local_pos
 	return spr
+
+
+func _get_weapon_id() -> StringName:
+	if _player == null:
+		return &""
+	var wid: StringName = _player.equipment.get_equipped(ItemDefinition.Slot.WEAPON)
+	if wid != &"":
+		return wid
+	return _player.equipment.get_equipped(ItemDefinition.Slot.TOOL)
 
 
 func equipment_get(fallback_id: StringName) -> StringName:

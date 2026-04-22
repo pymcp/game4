@@ -13,12 +13,17 @@
 extends Node2D
 class_name Monster
 
+signal died(world_position: Vector2, drops: Array)
+
 const _SLIME_TEX: Texture2D = preload("res://assets/characters/monsters/slime.png")
 const SIGHT_RADIUS_TILES: float = 8.0
 const _MOVE_SPEED_PX_PER_S: float = 32.0  ## native pixels (pre-zoom)
 
 @export var max_health: int = 3
 @export var health: int = 3
+@export var drops: Array = []  ## [{id: StringName, count: int}]
+@export var resistances: Dictionary = {}  ## Element enum → float multiplier (0.0=immune, 2.0=weak)
+@export var monster_kind: StringName = &"slime"  ## Loot table key
 
 var _world: WorldRoot = null
 var _sprite: Sprite2D = null
@@ -80,3 +85,26 @@ func _process(delta: float) -> void:
 			int(floor(next_pos.y / float(WorldConst.TILE_PX))))
 	if _world.is_walkable(next_cell):
 		position = next_pos
+
+
+func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
+	var effective: int = _apply_resistance(damage, element)
+	health = max(0, health - effective)
+	if health <= 0:
+		_die()
+
+
+func _apply_resistance(damage: int, element: int) -> int:
+	if element == 0 or not resistances.has(element):
+		return max(1, damage)
+	var mult: float = float(resistances[element])
+	return max(1, ceili(damage * mult))
+
+
+func _die() -> void:
+	var loot: Array = drops.duplicate()
+	# Roll drops from loot table if no explicit drops were set.
+	if loot.is_empty():
+		loot = LootTableRegistry.roll_drops(monster_kind)
+	died.emit(position, loot)
+	queue_free()

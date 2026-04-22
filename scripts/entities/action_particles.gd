@@ -44,7 +44,7 @@ const _ROCKY_KINDS: Dictionary = {
 ## Spawn a themed impact burst at [param world_pos] as a child of
 ## [param parent]. The burst self-frees after its lifetime.
 static func spawn_impact(parent: Node, world_pos: Vector2, action: int,
-		kind: StringName = &"") -> CPUParticles2D:
+		kind: StringName = &"", element: int = 0) -> CPUParticles2D:
 	var p := CPUParticles2D.new()
 	p.position = world_pos
 	p.one_shot = true
@@ -67,6 +67,10 @@ static func spawn_impact(parent: Node, world_pos: Vector2, action: int,
 			_configure_break(p, kind)
 		_:
 			_configure_dirt(p)
+
+	# Element tint overrides the default particle color.
+	if element != 0:
+		_apply_element_tint(p, element)
 
 	parent.add_child(p)
 
@@ -162,3 +166,15 @@ static func _configure_break(p: CPUParticles2D, kind: StringName) -> void:
 	p.gravity = Vector2(0, 100)
 	p.scale_amount_min = 0.12
 	p.scale_amount_max = 0.25
+
+
+static func _apply_element_tint(p: CPUParticles2D, element: int) -> void:
+	match element:
+		ItemDefinition.Element.FIRE:
+			p.color = Color(1.0, 0.5, 0.15, 0.9)
+		ItemDefinition.Element.ICE:
+			p.color = Color(0.4, 0.8, 1.0, 0.9)
+		ItemDefinition.Element.LIGHTNING:
+			p.color = Color(1.0, 1.0, 0.3, 0.9)
+		ItemDefinition.Element.POISON:
+			p.color = Color(0.4, 0.85, 0.3, 0.9)
