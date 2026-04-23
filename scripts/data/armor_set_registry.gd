@@ -32,6 +32,9 @@ static func _ensure_loaded() -> void:
 		push_warning("[ArmorSetRegistry] %s not found" % _PATH)
 		return
 	var f := FileAccess.open(_PATH, FileAccess.READ)
+	if f == null:
+		push_warning("[ArmorSetRegistry] cannot open %s" % _PATH)
+		return
 	var text: String = f.get_as_text()
 	f.close()
 	var parsed: Variant = JSON.parse_string(text)
@@ -51,6 +54,27 @@ static func get_set(set_id: String) -> Dictionary:
 static func all_ids() -> Array:
 	_ensure_loaded()
 	return _data.keys()
+
+
+# ─── Editor API ───────────────────────────────────────────────────────
+
+## Return the raw JSON data for editor display.
+static func get_raw_data() -> Dictionary:
+	_ensure_loaded()
+	return _data
+
+
+## Replace in-memory data, write to disk.
+static func save_data(data: Dictionary) -> void:
+	_data = data.duplicate(true)
+	var text: String = JSON.stringify(_data, "\t")
+	var f := FileAccess.open(_PATH, FileAccess.WRITE)
+	if f == null:
+		push_error("[ArmorSetRegistry] cannot write %s" % _PATH)
+		return
+	f.store_string(text)
+	f.close()
+	_loaded = true
 
 
 ## Calculate cumulative stat bonuses for a set given equipped piece count.

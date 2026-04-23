@@ -45,6 +45,27 @@ static func reset() -> void:
 	_loaded = false
 
 
+# ─── Editor API ───────────────────────────────────────────────────────
+
+## Return the raw JSON data for editor display.
+static func get_raw_data() -> Dictionary:
+	_ensure_loaded()
+	return _data
+
+
+## Replace in-memory data, write to disk, and mark loaded.
+static func save_data(data: Dictionary) -> void:
+	_data = data.duplicate(true)
+	var text: String = JSON.stringify(_data, "\t")
+	var f := FileAccess.open(_JSON_PATH, FileAccess.WRITE)
+	if f == null:
+		push_error("[LootTableRegistry] cannot write %s" % _JSON_PATH)
+		return
+	f.store_string(text)
+	f.close()
+	_loaded = true
+
+
 ## Returns true if a loot table exists for the given creature kind.
 static func has_table(kind: StringName) -> bool:
 	_ensure_loaded()

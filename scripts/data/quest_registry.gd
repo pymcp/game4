@@ -64,6 +64,54 @@ static func reload() -> void:
 	_quests = {}
 
 
+# ─── Editor API ───────────────────────────────────────────────────────
+
+## Return the raw quest data for editor display.
+static func get_raw_data() -> Dictionary:
+	_ensure_loaded()
+	return _quests
+
+
+## Save a single quest's data to its JSON file and update the cache.
+static func save_quest(quest_id: String, data: Dictionary) -> void:
+	_ensure_loaded()
+	var save_data: Dictionary = data.duplicate(true)
+	save_data["id"] = quest_id
+	_quests[quest_id] = save_data
+	var path: String = _DIR.path_join(quest_id + ".json")
+	var text: String = JSON.stringify(save_data, "\t")
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		push_error("QuestRegistry: cannot write %s" % path)
+		return
+	f.store_string(text)
+	f.close()
+
+
+## Create a new blank quest template and save to disk.
+static func create_quest(quest_id: String) -> Dictionary:
+	var template: Dictionary = {
+		"id": quest_id,
+		"display_name": quest_id.capitalize(),
+		"giver": "",
+		"description": "",
+		"prerequisites": [],
+		"branches": {},
+		"requires": {}
+	}
+	save_quest(quest_id, template)
+	return template
+
+
+## Delete a quest from cache and disk.
+static func delete_quest(quest_id: String) -> void:
+	_ensure_loaded()
+	_quests.erase(quest_id)
+	var path: String = _DIR.path_join(quest_id + ".json")
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
 # ─── Queries ──────────────────────────────────────────────────────────
 
 ## Return the full quest dict for [param id], or an empty Dictionary.

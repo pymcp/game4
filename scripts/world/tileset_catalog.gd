@@ -30,7 +30,6 @@ const _DEFAULT_SHEETS: Dictionary = {
 	&"dungeon_entrance_pair": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_doorframe": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"interior_terrain": "res://assets/tiles/roguelike/interior_sheet.png",
-	&"weapon_sprites": "res://assets/characters/roguelike/characters_sheet.png",
 }
 
 ## Convenience aliases kept for any code that still references the old consts.

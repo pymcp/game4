@@ -106,8 +106,8 @@ static func get_resolved_entry(id: String) -> Dictionary:
 
 ## Replace the in-memory data and write to disk, then rebuild cache.
 static func save_data(data: Dictionary) -> void:
-	_raw = data
-	var text: String = JSON.stringify(data, "\t")
+	_raw = data.duplicate(true)
+	var text: String = JSON.stringify(_raw, "\t")
 	var f := FileAccess.open(_JSON_PATH, FileAccess.WRITE)
 	if f == null:
 		push_error("ItemRegistry: cannot write %s" % _JSON_PATH)
@@ -215,6 +215,16 @@ static func _build_definition(id: StringName, entry: Dictionary) -> ItemDefiniti
 	def.stack_size = int(entry.get("stack_size", 99))
 	def.power = int(entry.get("power", 0))
 	def.description_flavor = entry.get("description_flavor", "")
+
+	# Economy
+	def.buy_price = int(entry.get("buy_price", 0))
+	def.sell_price = int(entry.get("sell_price", 0))
+
+	# Consumable
+	def.consumable = bool(entry.get("consumable", false))
+	def.heal_amount = int(entry.get("heal_amount", 0))
+	var cure_str: String = entry.get("cure_status", "")
+	def.cure_status = StringName(cure_str) if cure_str != "" else &""
 
 	# Slot
 	var slot_str: String = entry.get("slot", "none").to_lower()

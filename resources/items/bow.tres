@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_r7hje")
 id = &"bow"
-display_name = "Wooden Bow"
 icon = ExtResource("1_8t5xx")
-stack_size = 1
-slot = 1
-power = 3
-description = "Fires arrows at distant targets."

@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_4yguv")
 id = &"stone"
-display_name = "Stone"
 icon = ExtResource("1_o0m40")
-stack_size = 99
-slot = 0
-power = 0
-description = "A heavy chunk of rock."

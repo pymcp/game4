@@ -1,3 +1,359 @@
 {
-
+	"armor": {
+		"armor_sprite": [
+			9,
+			5
+		],
+		"description_flavor": "Reduces damage taken to the body.",
+		"display_name": "Leather Armor",
+		"parent": "base_armor",
+		"set_id": "leather",
+		"slot": "body",
+		"stack_size": 99,
+		"tier": "leather"
+	},
+	"arrow": {
+		"description_flavor": "A simple wooden arrow.",
+		"display_name": "Arrow",
+		"slot": "none",
+		"stack_size": 99
+	},
+	"base_armor": {
+		"display_name": "Armor",
+		"icon_idx": 29,
+		"power": 3,
+		"slot": "body",
+		"stack_size": 1
+	},
+	"base_axe": {
+		"attack_speed": 0.5,
+		"attack_type": "melee",
+		"display_name": "Axe",
+		"hands": 1,
+		"icon_idx": 22,
+		"knockback": 2,
+		"power": 5,
+		"reach": 20,
+		"slot": "weapon",
+		"stack_size": 1,
+		"weapon_category": "axe"
+	},
+	"base_boots": {
+		"display_name": "Boots",
+		"icon_idx": 30,
+		"power": 1,
+		"slot": "feet",
+		"stack_size": 1
+	},
+	"base_bow": {
+		"attack_speed": 0.6,
+		"attack_type": "ranged",
+		"display_name": "Bow",
+		"hands": 2,
+		"icon_idx": 24,
+		"power": 3,
+		"reach": 80,
+		"slot": "weapon",
+		"stack_size": 1,
+		"weapon_category": "bow"
+	},
+	"base_dagger": {
+		"attack_speed": 0.2,
+		"attack_type": "melee",
+		"display_name": "Dagger",
+		"hands": 1,
+		"icon_idx": 26,
+		"power": 2,
+		"reach": 16,
+		"slot": "weapon",
+		"stack_size": 1,
+		"weapon_category": "dagger"
+	},
+	"base_helmet": {
+		"display_name": "Helmet",
+		"icon_idx": 28,
+		"power": 2,
+		"slot": "head",
+		"stack_size": 1
+	},
+	"base_shield": {
+		"display_name": "Shield",
+		"icon_idx": 27,
+		"power": 1,
+		"slot": "off_hand",
+		"stack_size": 1,
+		"stat_bonuses": {
+			"defense": 1
+		}
+	},
+	"base_spear": {
+		"attack_speed": 0.45,
+		"attack_type": "melee",
+		"display_name": "Spear",
+		"hands": 2,
+		"icon_idx": 23,
+		"power": 3,
+		"reach": 40,
+		"slot": "weapon",
+		"stack_size": 1,
+		"weapon_category": "spear"
+	},
+	"base_staff": {
+		"attack_speed": 0.7,
+		"attack_type": "ranged",
+		"display_name": "Staff",
+		"hands": 2,
+		"icon_idx": 25,
+		"power": 2,
+		"reach": 60,
+		"slot": "weapon",
+		"stack_size": 1,
+		"weapon_category": "staff"
+	},
+	"base_sword": {
+		"attack_speed": 0.35,
+		"attack_type": "melee",
+		"display_name": "Sword",
+		"hands": 1,
+		"icon_idx": 21,
+		"power": 4,
+		"reach": 24,
+		"slot": "weapon",
+		"stack_size": 1,
+		"weapon_category": "sword"
+	},
+	"boots": {
+		"description_flavor": "Slightly increases movement speed.",
+		"display_name": "Leather Boots",
+		"parent": "base_boots",
+		"set_id": "leather",
+		"tier": "leather"
+	},
+	"bow": {
+		"description_flavor": "Fires arrows at distant targets.",
+		"display_name": "Wooden Bow",
+		"parent": "base_bow",
+		"weapon_sprite": [
+			52,
+			0
+		]
+	},
+	"copper_ore": {
+		"description_flavor": "A lump of unrefined copper.",
+		"display_name": "Copper Ore",
+		"slot": "none",
+		"stack_size": 99
+	},
+	"fennel_root": {
+		"consumable": true,
+		"description_flavor": "A pungent root used in herbal remedies.",
+		"display_name": "Fennel Root",
+		"heal_amount": 1,
+		"slot": "none",
+		"stack_size": 99
+	},
+	"fiber": {
+		"description_flavor": "Plant fibres for crafting.",
+		"display_name": "Fiber",
+		"slot": "none",
+		"stack_size": 99
+	},
+	"fire_staff": {
+		"display_name": "Fire Staff",
+		"element": "fire",
+		"parent": "base_staff",
+		"rarity": "uncommon"
+	},
+	"fire_sword": {
+		"display_name": "Fire Sword",
+		"element": "fire",
+		"parent": "sword",
+		"rarity": "rare",
+		"stat_bonuses": {
+			"strength": 1
+		}
+	},
+	"gold": {
+		"description_flavor": "Shiny coins used for trade.",
+		"display_name": "Gold",
+		"icon_idx": 130,
+		"slot": "none",
+		"stack_size": 9999
+	},
+	"gold_ore": {
+		"description_flavor": "A gleaming nugget of gold.",
+		"display_name": "Gold Ore",
+		"slot": "none",
+		"stack_size": 99
+	},
+	"healing_herb": {
+		"consumable": true,
+		"description_flavor": "A fragrant herb with restorative properties.",
+		"display_name": "Healing Herb",
+		"heal_amount": 3,
+		"slot": "none",
+		"stack_size": 99
+	},
+	"helmet": {
+		"armor_sprite": [
+			19,
+			3
+		],
+		"description_flavor": "Reduces damage taken to the head.",
+		"display_name": "Leather Helmet",
+		"parent": "base_helmet",
+		"set_id": "leather",
+		"tier": "leather"
+	},
+	"ice_staff": {
+		"display_name": "Ice Staff",
+		"element": "ice",
+		"parent": "base_staff",
+		"rarity": "uncommon"
+	},
+	"iron_armor": {
+		"display_name": "Iron Armor",
+		"parent": "base_armor",
+		"power": 5,
+		"rarity": "uncommon",
+		"set_id": "iron",
+		"tier": "iron"
+	},
+	"iron_axe": {
+		"display_name": "Iron Axe",
+		"parent": "base_axe",
+		"tier": "iron"
+	},
+	"iron_boots": {
+		"display_name": "Iron Boots",
+		"parent": "base_boots",
+		"power": 2,
+		"rarity": "uncommon",
+		"set_id": "iron",
+		"tier": "iron"
+	},
+	"iron_dagger": {
+		"display_name": "Iron Dagger",
+		"parent": "base_dagger",
+		"tier": "iron"
+	},
+	"iron_helmet": {
+		"display_name": "Iron Helmet",
+		"parent": "base_helmet",
+		"power": 3,
+		"rarity": "uncommon",
+		"set_id": "iron",
+		"tier": "iron"
+	},
+	"iron_ore": {
+		"description_flavor": "A lump of unrefined iron.",
+		"display_name": "Iron Ore",
+		"slot": "none",
+		"stack_size": 99
+	},
+	"iron_shield": {
+		"display_name": "Iron Shield",
+		"parent": "base_shield",
+		"power": 2,
+		"stat_bonuses": {
+			"defense": 2
+		}
+	},
+	"iron_spear": {
+		"display_name": "Iron Spear",
+		"parent": "base_spear",
+		"tier": "iron"
+	},
+	"lightning_staff": {
+		"display_name": "Lightning Staff",
+		"element": "lightning",
+		"parent": "base_staff",
+		"rarity": "rare"
+	},
+	"longbow": {
+		"display_name": "Longbow",
+		"parent": "base_bow",
+		"power": 4,
+		"rarity": "uncommon",
+		"reach": 100
+	},
+	"mithril_sword": {
+		"display_name": "Mithril Sword",
+		"parent": "base_sword",
+		"power": 9,
+		"rarity": "rare",
+		"stat_bonuses": {
+			"speed": 1
+		}
+	},
+	"pickaxe": {
+		"description_flavor": "Doubles mining damage against rocks and ore veins.",
+		"display_name": "Iron Pickaxe",
+		"power": 2,
+		"slot": "tool",
+		"stack_size": 1,
+		"weapon_sprite": [
+			50,
+			0
+		]
+	},
+	"poison_dagger": {
+		"display_name": "Poison Dagger",
+		"element": "poison",
+		"parent": "base_dagger",
+		"rarity": "rare",
+		"stat_bonuses": {
+			"dexterity": 2
+		}
+	},
+	"steel_shield": {
+		"display_name": "Steel Shield",
+		"parent": "base_shield",
+		"power": 3,
+		"rarity": "uncommon",
+		"stat_bonuses": {
+			"defense": 3
+		}
+	},
+	"steel_sword": {
+		"display_name": "Steel Sword",
+		"parent": "base_sword",
+		"power": 6,
+		"rarity": "uncommon",
+		"tier": "steel",
+		"weapon_sprite": [
+			43,
+			6
+		]
+	},
+	"stone": {
+		"description_flavor": "A heavy chunk of rock.",
+		"display_name": "Stone",
+		"slot": "none",
+		"stack_size": 99
+	},
+	"sword": {
+		"description_flavor": "A balanced blade for combat.",
+		"display_name": "Iron Sword",
+		"parent": "base_sword",
+		"tier": "iron",
+		"weapon_sprite": [
+			43,
+			5
+		]
+	},
+	"wood": {
+		"description_flavor": "A bundle of sturdy logs.",
+		"display_name": "Wood",
+		"slot": "none",
+		"stack_size": 99
+	},
+	"wooden_shield": {
+		"display_name": "Wooden Shield",
+		"parent": "base_shield",
+		"power": 1,
+		"stat_bonuses": {
+			"defense": 1
+		}
+	}
 }

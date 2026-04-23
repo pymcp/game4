@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_58rog")
 id = &"pickaxe"
-display_name = "Iron Pickaxe"
 icon = ExtResource("1_jqfde")
-stack_size = 1
-slot = 2
-power = 2
-description = "Doubles mining damage against rocks and ore veins."

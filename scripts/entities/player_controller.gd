@@ -55,6 +55,8 @@ var stats: Dictionary = {
 	&"charisma": 3, &"wisdom": 3, &"strength": 3,
 	&"speed": 0, &"defense": 0, &"dexterity": 0,
 }
+## Active status effects: Array of {effect_id: StringName, remaining: float, tick_timer: float}
+var active_effects: Array = []
 
 
 ## Base stat value (no equipment bonuses).
@@ -77,6 +79,7 @@ func get_move_speed() -> float:
 	var base: float = _MOVE_SPEED_NATIVE * (1.0 + spd * 0.05)
 	if is_mounted and _mount != null:
 		base *= _mount.speed_multiplier
+	base *= get_status_speed_multiplier()
 	return base
 var _boat: Boat = null
 
@@ -233,6 +236,7 @@ func _apply_armor_layer(sprite: Sprite2D, default_region: Rect2,
 func _physics_process(delta: float) -> void:
 	if _world == null:
 		return
+	tick_effects(delta)
 	# Freeze this player while they are in a conversation.
 	if in_conversation:
 		_bob_t = 0.0
@@ -247,6 +251,10 @@ func _physics_process(delta: float) -> void:
 	# Skip all gameplay input when this player isn't in GAMEPLAY context
 	# (inventory open, disabled by pause menu, etc.).
 	if InputContext.get_context(player_id) != InputContext.Context.GAMEPLAY:
+		_bob_t = 0.0
+		_sprite_root.position = Vector2.ZERO
+		return
+	if is_stunned():
 		_bob_t = 0.0
 		_sprite_root.position = Vector2.ZERO
 		return
@@ -507,7 +515,8 @@ func _auto_attack_ranged(weapon_id: StringName, def: ItemDefinition) -> void:
 
 ## Apply incoming damage reduced by equipped armor defense.
 ## Formula: effective = max(1, raw_damage - armor_defense).
-func take_hit(damage: int, _attacker: Node = null) -> void:
+## If element != NONE, applies the corresponding status effect.
+func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 	if health <= 0:
 		return
 	# Invincible while in a conversation.
@@ -516,6 +525,15 @@ func take_hit(damage: int, _attacker: Node = null) -> void:
 	var defense: int = _armor_defense()
 	var effective: int = max(1, damage - defense)
 	health = max(0, health - effective)
+	if element != 0:
+		apply_status_from_element(element)
+
+
+## Restore health, clamped to max_health.
+func heal(amount: int) -> void:
+	if amount <= 0 or health <= 0:
+		return
+	health = min(health + amount, max_health)
 
 
 ## Sum defensive power from HEAD + BODY + FEET + OFF_HAND equipment slots,
@@ -607,3 +625,99 @@ func _play_action_vfx(target: Vector2i, is_mineable: bool, res: Dictionary) -> v
 			# Bare-hands punch — just particles, no swing sprite.
 			var pos: Vector2 = (Vector2(target) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
 			ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.MELEE)
+
+
+# --- Status effects -------------------------------------------------
+
+## Apply a status effect by element. Resets duration if already active.
+func apply_status_from_element(element: int) -> void:
+	var eff: StatusEffect = StatusEffectRegistry.get_effect_for_element(element)
+	if eff == null:
+		return
+	apply_status(eff.id)
+
+
+## Apply a status effect by id. Resets duration if already active (no stacking).
+func apply_status(effect_id: StringName) -> void:
+	var eff: StatusEffect = StatusEffectRegistry.get_effect(effect_id)
+	if eff == null:
+		return
+	for entry: Dictionary in active_effects:
+		if entry["effect_id"] == effect_id:
+			entry["remaining"] = eff.duration_sec
+			entry["tick_timer"] = 0.0
+			return
+	active_effects.append({
+		"effect_id": effect_id,
+		"remaining": eff.duration_sec,
+		"tick_timer": 0.0,
+	})
+
+
+## Remove a status effect by id.
+func remove_status(effect_id: StringName) -> void:
+	for i in range(active_effects.size() - 1, -1, -1):
+		if active_effects[i]["effect_id"] == effect_id:
+			active_effects.remove_at(i)
+			return
+
+
+## Clear all active effects.
+func clear_effects() -> void:
+	active_effects.clear()
+
+
+## Tick all active effects. Call from _physics_process.
+func tick_effects(delta: float) -> void:
+	if health <= 0:
+		return
+	var i: int = active_effects.size() - 1
+	while i >= 0:
+		var entry: Dictionary = active_effects[i]
+		var eff: StatusEffect = StatusEffectRegistry.get_effect(entry["effect_id"])
+		if eff == null:
+			active_effects.remove_at(i)
+			i -= 1
+			continue
+		entry["remaining"] -= delta
+		if entry["remaining"] <= 0.0:
+			active_effects.remove_at(i)
+			i -= 1
+			continue
+		# Tick damage
+		if eff.damage_per_tick > 0 and eff.tick_interval > 0.0:
+			entry["tick_timer"] += delta
+			if entry["tick_timer"] >= eff.tick_interval:
+				entry["tick_timer"] -= eff.tick_interval
+				health = max(0, health - eff.damage_per_tick)
+				if health <= 0:
+					clear_effects()
+					return
+		i -= 1
+
+
+## Returns true if any active effect has stun == true.
+func is_stunned() -> bool:
+	for entry: Dictionary in active_effects:
+		var eff: StatusEffect = StatusEffectRegistry.get_effect(entry["effect_id"])
+		if eff != null and eff.stun:
+			return true
+	return false
+
+
+## Combined speed multiplier from all active effects.
+func get_status_speed_multiplier() -> float:
+	var mult: float = 1.0
+	for entry: Dictionary in active_effects:
+		var eff: StatusEffect = StatusEffectRegistry.get_effect(entry["effect_id"])
+		if eff != null:
+			mult *= eff.speed_multiplier
+	return mult
+
+
+## Check if a specific effect is active.
+func has_status(effect_id: StringName) -> bool:
+	for entry: Dictionary in active_effects:
+		if entry["effect_id"] == effect_id:
+			return true
+	return false

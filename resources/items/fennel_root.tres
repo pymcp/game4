@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("1")
 id = &"fennel_root"
-display_name = "Fennel Root"
 icon = ExtResource("2")
-stack_size = 99
-slot = 0
-power = 0
-description = "A pungent root used in herbal remedies"

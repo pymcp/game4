@@ -1,97 +1,245 @@
 {
-	"slime": {
-		"display_name": "Slime",
-		"health": 3,
-		"drops": [
-			{"item_id": "fiber", "weight": 40, "min": 1, "max": 2},
-			{"item_id": "copper_ore", "weight": 15, "min": 1, "max": 1},
-			{"item_id": "fennel_root", "weight": 10, "min": 1, "max": 1}
-		],
-		"drop_count": 1,
-		"drop_chance": 0.7
-	},
-	"skeleton": {
-		"display_name": "Skeleton",
-		"health": 5,
-		"drops": [
-			{"item_id": "iron_ore", "weight": 30, "min": 1, "max": 2},
-			{"item_id": "stone", "weight": 25, "min": 1, "max": 3},
-			{"item_id": "iron_dagger", "weight": 5, "min": 1, "max": 1},
-			{"item_id": "wooden_shield", "weight": 5, "min": 1, "max": 1}
-		],
-		"drop_count": 1,
-		"drop_chance": 0.8
-	},
-	"goblin": {
-		"display_name": "Goblin",
-		"health": 4,
-		"drops": [
-			{"item_id": "copper_ore", "weight": 25, "min": 1, "max": 2},
-			{"item_id": "gold_ore", "weight": 10, "min": 1, "max": 1},
-			{"item_id": "iron_dagger", "weight": 8, "min": 1, "max": 1},
-			{"item_id": "wooden_sword", "weight": 5, "min": 1, "max": 1}
-		],
-		"drop_count": 1,
-		"drop_chance": 0.75
-	},
 	"bat": {
 		"display_name": "Cave Bat",
-		"health": 2,
-		"drops": [
-			{"item_id": "fiber", "weight": 50, "min": 1, "max": 1},
-			{"item_id": "fennel_root", "weight": 15, "min": 1, "max": 1}
-		],
+		"drop_chance": 0.4,
 		"drop_count": 1,
-		"drop_chance": 0.4
-	},
-	"wolf": {
-		"display_name": "Wolf",
-		"health": 5,
 		"drops": [
-			{"item_id": "fiber", "weight": 40, "min": 1, "max": 3},
-			{"item_id": "fennel_root", "weight": 20, "min": 1, "max": 1}
+			{
+				"item_id": "fiber",
+				"max": 1,
+				"min": 1,
+				"weight": 50
+			},
+			{
+				"item_id": "fennel_root",
+				"max": 1,
+				"min": 1,
+				"weight": 15
+			}
 		],
-		"drop_count": 1,
-		"drop_chance": 0.6
-	},
-	"ogre": {
-		"display_name": "Ogre",
-		"health": 12,
-		"resistances": {"4": 0.5},
-		"drops": [
-			{"item_id": "iron_ore", "weight": 25, "min": 2, "max": 4},
-			{"item_id": "gold_ore", "weight": 15, "min": 1, "max": 2},
-			{"item_id": "steel_sword", "weight": 5, "min": 1, "max": 1},
-			{"item_id": "iron_shield", "weight": 5, "min": 1, "max": 1},
-			{"item_id": "iron_armor", "weight": 3, "min": 1, "max": 1}
-		],
-		"drop_count": 2,
-		"drop_chance": 0.9
+		"health": 2
 	},
 	"fire_elemental": {
 		"display_name": "Fire Elemental",
-		"health": 8,
-		"resistances": {"1": 0.0, "2": 2.0},
-		"drops": [
-			{"item_id": "fire_sword", "weight": 3, "min": 1, "max": 1},
-			{"item_id": "fire_staff", "weight": 5, "min": 1, "max": 1},
-			{"item_id": "gold_ore", "weight": 20, "min": 1, "max": 2},
-			{"item_id": "copper_ore", "weight": 30, "min": 1, "max": 3}
-		],
+		"drop_chance": 0.85,
 		"drop_count": 1,
-		"drop_chance": 0.85
+		"drops": [
+			{
+				"item_id": "fire_sword",
+				"max": 1,
+				"min": 1,
+				"weight": 3
+			},
+			{
+				"item_id": "fire_staff",
+				"max": 1,
+				"min": 1,
+				"weight": 5
+			},
+			{
+				"item_id": "gold_ore",
+				"max": 2,
+				"min": 1,
+				"weight": 20
+			},
+			{
+				"item_id": "copper_ore",
+				"max": 3,
+				"min": 1,
+				"weight": 30
+			}
+		],
+		"health": 8,
+		"resistances": {
+			"1": 0,
+			"2": 2
+		}
+	},
+	"goblin": {
+		"display_name": "Goblin",
+		"drop_chance": 0.75,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "copper_ore",
+				"max": 2,
+				"min": 1,
+				"weight": 25
+			},
+			{
+				"item_id": "gold_ore",
+				"max": 1,
+				"min": 1,
+				"weight": 10
+			},
+			{
+				"item_id": "iron_dagger",
+				"max": 1,
+				"min": 1,
+				"weight": 8
+			},
+			{
+				"item_id": "wooden_sword",
+				"max": 1,
+				"min": 1,
+				"weight": 5
+			}
+		],
+		"health": 4
 	},
 	"ice_elemental": {
 		"display_name": "Ice Elemental",
-		"health": 8,
-		"resistances": {"2": 0.0, "1": 2.0},
-		"drops": [
-			{"item_id": "ice_staff", "weight": 5, "min": 1, "max": 1},
-			{"item_id": "mithril_sword", "weight": 2, "min": 1, "max": 1},
-			{"item_id": "gold_ore", "weight": 20, "min": 1, "max": 2},
-			{"item_id": "iron_ore", "weight": 30, "min": 1, "max": 3}
-		],
+		"drop_chance": 0.85,
 		"drop_count": 1,
-		"drop_chance": 0.85
+		"drops": [
+			{
+				"item_id": "ice_staff",
+				"max": 1,
+				"min": 1,
+				"weight": 5
+			},
+			{
+				"item_id": "mithril_sword",
+				"max": 1,
+				"min": 1,
+				"weight": 2
+			},
+			{
+				"item_id": "gold_ore",
+				"max": 2,
+				"min": 1,
+				"weight": 20
+			},
+			{
+				"item_id": "iron_ore",
+				"max": 3,
+				"min": 1,
+				"weight": 30
+			}
+		],
+		"health": 8,
+		"resistances": {
+			"1": 2,
+			"2": 0
+		}
+	},
+	"ogre": {
+		"display_name": "Ogre",
+		"drop_chance": 0.9,
+		"drop_count": 2,
+		"drops": [
+			{
+				"item_id": "iron_ore",
+				"max": 4,
+				"min": 2,
+				"weight": 25
+			},
+			{
+				"item_id": "gold_ore",
+				"max": 2,
+				"min": 1,
+				"weight": 15
+			},
+			{
+				"item_id": "steel_sword",
+				"max": 1,
+				"min": 1,
+				"weight": 5
+			},
+			{
+				"item_id": "iron_shield",
+				"max": 1,
+				"min": 1,
+				"weight": 5
+			},
+			{
+				"item_id": "iron_armor",
+				"max": 1,
+				"min": 1,
+				"weight": 3
+			}
+		],
+		"health": 12,
+		"resistances": {
+			"4": 0.5
+		}
+	},
+	"skeleton": {
+		"display_name": "Skeleton",
+		"drop_chance": 0.8,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "iron_ore",
+				"max": 2,
+				"min": 1,
+				"weight": 30
+			},
+			{
+				"item_id": "stone",
+				"max": 3,
+				"min": 1,
+				"weight": 25
+			},
+			{
+				"item_id": "iron_dagger",
+				"max": 1,
+				"min": 1,
+				"weight": 5
+			},
+			{
+				"item_id": "wooden_shield",
+				"max": 1,
+				"min": 1,
+				"weight": 5
+			}
+		],
+		"health": 5
+	},
+	"slime": {
+		"display_name": "Slime",
+		"drop_chance": 0.7,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"max": 2,
+				"min": 1,
+				"weight": 40
+			},
+			{
+				"item_id": "copper_ore",
+				"max": 1,
+				"min": 1,
+				"weight": 15
+			},
+			{
+				"item_id": "fennel_root",
+				"max": 1,
+				"min": 1,
+				"weight": 10
+			}
+		],
+		"health": 3
+	},
+	"wolf": {
+		"display_name": "Wolf",
+		"drop_chance": 0.6,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"max": 3,
+				"min": 1,
+				"weight": 40
+			},
+			{
+				"item_id": "fennel_root",
+				"max": 1,
+				"min": 1,
+				"weight": 20
+			}
+		],
+		"health": 5
 	}
 }

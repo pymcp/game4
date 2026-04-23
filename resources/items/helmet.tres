@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_d1x2s")
 id = &"helmet"
-display_name = "Leather Helmet"
 icon = ExtResource("1_1wqrq")
-stack_size = 1
-slot = 3
-power = 2
-description = "Reduces damage taken to the head."

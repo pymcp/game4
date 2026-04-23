@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_ykw3n")
 id = &"armor"
-display_name = "Leather Armor"
 icon = ExtResource("1_mjwdh")
-stack_size = 1
-slot = 4
-power = 3
-description = "Reduces damage taken to the body."

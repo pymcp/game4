@@ -35,6 +35,7 @@ var _prop_scroll: ScrollContainer = null
 var _tab_bar: TabBar = null
 var _prop_panel: VBoxContainer = null  # property editor widgets
 var _table_scroll: ScrollContainer = null  # balance overview
+var _where_used_container: VBoxContainer = null  # Where Used section
 
 # CRUD
 var _add_btn: Button = null
@@ -51,6 +52,11 @@ var _desc_preview: Label = null
 var _stack_spin: SpinBox = null
 var _power_spin: SpinBox = null
 var _slot_opt: OptionButton = null
+var _buy_price_spin: SpinBox = null
+var _sell_price_spin: SpinBox = null
+var _consumable_check: CheckButton = null
+var _heal_amount_spin: SpinBox = null
+var _cure_status_edit: LineEdit = null
 
 # Equipment properties
 var _rarity_opt: OptionButton = null
@@ -76,6 +82,7 @@ var _weapon_sprite_btn: Button = null
 var _armor_sprite_btn: Button = null
 var _shield_sprite_btn: Button = null
 var _weapon_sprite_label: Label = null
+var _weapon_sprite_warn: Label = null
 var _armor_sprite_label: Label = null
 var _shield_sprite_label: Label = null
 
@@ -254,6 +261,31 @@ func _build_prop_panel() -> ScrollContainer:
 	_stack_spin = _add_spin_row("Stack Size", 1, 999, 1, func(v): _set_field("stack_size", int(v)))
 	_rarity_opt = _add_opt_row("Rarity", _RARITY_LABELS, func(i): _set_field("rarity", _RARITY_LABELS[i].to_lower()))
 
+	# --- Economy ---
+	_prop_panel.add_child(_make_sep())
+	_prop_panel.add_child(_make_label("Economy"))
+	_buy_price_spin = _add_spin_row("Buy Price", 0, 99999, 1, func(v): _set_field("buy_price", int(v)))
+	_sell_price_spin = _add_spin_row("Sell Price", 0, 99999, 1, func(v): _set_field("sell_price", int(v)))
+
+	# --- Consumable ---
+	_prop_panel.add_child(_make_sep())
+	_prop_panel.add_child(_make_label("Consumable"))
+	_consumable_check = CheckButton.new()
+	_consumable_check.text = "Is Consumable"
+	_consumable_check.toggled.connect(func(on): _set_field("consumable", on))
+	_prop_panel.add_child(_consumable_check)
+	_heal_amount_spin = _add_spin_row("Heal Amount", 0, 999, 1, func(v): _set_field("heal_amount", int(v)))
+	var cure_row := HBoxContainer.new()
+	var cure_lbl := Label.new()
+	cure_lbl.text = "Cure Status"
+	cure_lbl.custom_minimum_size = Vector2(90, 0)
+	cure_row.add_child(cure_lbl)
+	_cure_status_edit = LineEdit.new()
+	_cure_status_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_cure_status_edit.text_changed.connect(func(t): _set_field("cure_status", t))
+	cure_row.add_child(_cure_status_edit)
+	_prop_panel.add_child(cure_row)
+
 	# --- Combat ---
 	_prop_panel.add_child(_make_sep())
 	_prop_panel.add_child(_make_label("Combat"))
@@ -322,10 +354,15 @@ func _build_prop_panel() -> ScrollContainer:
 	_weapon_sprite_btn.pressed.connect(_on_pick_weapon_sprite)
 	_weapon_sprite_label = Label.new()
 	_weapon_sprite_label.add_theme_font_size_override("font_size", 11)
+	_weapon_sprite_warn = Label.new()
+	_weapon_sprite_warn.add_theme_font_size_override("font_size", 11)
+	_weapon_sprite_warn.add_theme_color_override("font_color", Color.ORANGE)
+	_weapon_sprite_warn.text = ""
 	var ws_row := HBoxContainer.new()
 	ws_row.add_child(_weapon_sprite_btn)
 	ws_row.add_child(_weapon_sprite_label)
 	_prop_panel.add_child(ws_row)
+	_prop_panel.add_child(_weapon_sprite_warn)
 
 	_armor_sprite_btn = Button.new()
 	_armor_sprite_btn.text = "Pick Armor Sprite"
@@ -379,6 +416,12 @@ func _build_prop_panel() -> ScrollContainer:
 	_add_mineable_btn.pressed.connect(_on_add_drop_source)
 	add_row.add_child(_add_mineable_btn)
 	_prop_panel.add_child(add_row)
+
+	# --- Where Used (cross-references) ---
+	_prop_panel.add_child(_make_sep())
+	_prop_panel.add_child(_make_label("Where Used"))
+	_where_used_container = VBoxContainer.new()
+	_prop_panel.add_child(_where_used_container)
 
 	scroll.add_child(_prop_panel)
 	return scroll
@@ -477,6 +520,15 @@ func _refresh_props() -> void:
 	_stack_spin.value = float(e.get("stack_size", 99))
 	_rarity_opt.selected = _RARITY_STR_MAP.get(e.get("rarity", "common"), 0)
 
+	# Economy
+	_buy_price_spin.value = float(e.get("buy_price", 0))
+	_sell_price_spin.value = float(e.get("sell_price", 0))
+
+	# Consumable
+	_consumable_check.set_pressed_no_signal(bool(e.get("consumable", false)))
+	_heal_amount_spin.value = float(e.get("heal_amount", 0))
+	_cure_status_edit.text = e.get("cure_status", "")
+
 	# Combat
 	_hands_spin.value = float(e.get("hands", 1))
 	_attack_type_opt.selected = _ATTACK_TYPE_STR_MAP.get(e.get("attack_type", "none"), 0)
@@ -506,6 +558,15 @@ func _refresh_props() -> void:
 	_refresh_sprite_label(_armor_sprite_label, e.get("armor_sprite", null))
 	_refresh_sprite_label(_shield_sprite_label, e.get("shield_sprite", null))
 
+	# Warn if weapon/tool slot but no weapon_sprite set
+	var slot_str: String = e.get("slot", "none")
+	var ws_arr: Variant = e.get("weapon_sprite", null)
+	var ws_set: bool = ws_arr is Array and ws_arr.size() >= 2
+	if (slot_str == "weapon" or slot_str == "tool") and not ws_set:
+		_weapon_sprite_warn.text = "\u26a0 No weapon sprite — will use fallback or be invisible"
+	else:
+		_weapon_sprite_warn.text = ""
+
 	# Description
 	_desc_flavor_edit.text = e.get("description_flavor", "")
 	_refresh_desc_preview()
@@ -515,6 +576,9 @@ func _refresh_props() -> void:
 
 	# Dropped by
 	_refresh_dropped_by()
+
+	# Where Used (cross-references)
+	_refresh_where_used()
 
 
 func _refresh_parent_opt() -> void:
@@ -941,6 +1005,77 @@ func _build_balance_table() -> ScrollContainer:
 	return scroll
 
 
+# ═══════════════════════════════════════════════════════════════════════
+#  WHERE USED (cross-references)
+# ═══════════════════════════════════════════════════════════════════════
+
+func _refresh_where_used() -> void:
+	if _where_used_container == null:
+		return
+	for c: Node in _where_used_container.get_children():
+		c.queue_free()
+	if _selected_id == &"":
+		return
+	var item_str: String = String(_selected_id)
+	var refs: Array = []
+
+	# Loot tables: creatures that drop this item
+	var loot_data: Dictionary = LootTableRegistry.get_raw_data()
+	for kind: String in loot_data:
+		var entry: Dictionary = loot_data[kind]
+		for drop: Dictionary in entry.get("drops", []):
+			if drop.get("id", "") == item_str:
+				refs.append("Dropped by creature: %s" % kind)
+				break
+
+	# Crafting: recipes that use or produce this item
+	var recipe_data: Dictionary = CraftingRegistry.get_raw_data()
+	for rid: String in recipe_data:
+		var recipe: Dictionary = recipe_data[rid]
+		if recipe.get("output_id", "") == item_str:
+			refs.append("Crafted by recipe: %s" % rid)
+		for inp: Dictionary in recipe.get("inputs", []):
+			if inp.get("id", "") == item_str:
+				refs.append("Used in recipe: %s" % rid)
+				break
+
+	# Shops that sell this item
+	var shop_data: Dictionary = ShopRegistry.get_raw_data()
+	for sid: String in shop_data:
+		var shop: Dictionary = shop_data[sid]
+		for sitem: Dictionary in shop.get("items", []):
+			if sitem.get("item_id", "") == item_str:
+				refs.append("Sold in shop: %s" % shop.get("display_name", sid))
+				break
+
+	# Quests that reference this item
+	var quest_data: Dictionary = QuestRegistry.get_raw_data()
+	for qid: String in quest_data:
+		var quest: Dictionary = quest_data[qid]
+		var found: bool = false
+		for branch: Dictionary in quest.get("branches", {}).values():
+			for obj: Dictionary in branch.get("objectives", []):
+				if obj.get("item", obj.get("id", "")) == item_str:
+					refs.append("Quest objective: %s" % qid)
+					found = true
+					break
+			if found:
+				break
+
+	if refs.is_empty():
+		var lbl := Label.new()
+		lbl.text = "(not referenced anywhere)"
+		lbl.add_theme_font_size_override("font_size", 11)
+		lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		_where_used_container.add_child(lbl)
+	else:
+		for ref: String in refs:
+			var lbl := Label.new()
+			lbl.text = "• %s" % ref
+			lbl.add_theme_font_size_override("font_size", 11)
+			_where_used_container.add_child(lbl)
+
+
 func _refresh_balance_table() -> void:
 	for c in _table_grid.get_children():
 		c.queue_free()
@@ -993,7 +1128,15 @@ func save() -> void:
 	if _mineable_dirty:
 		MineableRegistry.save_data(MineableRegistry.get_raw_data())
 		_mineable_dirty = false
+	# reset() clears _raw which may alias _items — reload a fresh copy.
 	ItemRegistry.reset()
+	_load_data()
+	_populate_list()
+	if not _selected_id.is_empty():
+		select_item(_selected_id)
+	elif _item_list.item_count > 0:
+		_item_list.select(0)
+		_on_item_selected(0)
 	_dirty = false
 
 

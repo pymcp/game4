@@ -1186,6 +1186,24 @@ func _on_choice_selected(choice: DialogueChoice, passed: bool) -> void:
 	box.show_node(node, stats)
 
 
+# --- Shop integration ------------------------------------------------
+
+var _shop_screen: ShopScreen = null
+
+func open_shop(player: PlayerController, shop_id: String, npc: Node2D = null) -> void:
+	_begin_conversation(player, npc)
+	if _shop_screen == null:
+		_shop_screen = ShopScreen.new()
+		_shop_screen.name = "ShopScreen"
+		_shop_screen.closed.connect(_on_shop_closed)
+		add_child(_shop_screen)
+	_shop_screen.open(player, shop_id, npc)
+
+
+func _on_shop_closed() -> void:
+	_end_conversation()
+
+
 # --- Debug spawn helpers -------------------------------------------
 
 func debug_spawn_villager_for(player: PlayerController) -> void:

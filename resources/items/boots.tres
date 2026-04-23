@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_keyw6")
 id = &"boots"
-display_name = "Leather Boots"
 icon = ExtResource("1_eo1vq")
-stack_size = 1
-slot = 5
-power = 1
-description = "Slightly increases movement speed."

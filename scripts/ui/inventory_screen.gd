@@ -799,7 +799,18 @@ func _interact_cursor() -> void:
 	if entry["id"] == &"":
 		return
 	var def: ItemDefinition = ItemRegistry.get_item(entry["id"])
-	if def == null or def.slot == ItemDefinition.Slot.NONE:
+	if def == null:
+		return
+	# Consumable items: apply effect and remove 1 from inventory.
+	if def.consumable and def.slot == ItemDefinition.Slot.NONE:
+		if def.heal_amount > 0 and _player != null:
+			if _player.health >= _player.max_health:
+				return  # Don't waste consumable at full health.
+			_player.heal(def.heal_amount)
+		_player.inventory.remove(entry["id"], 1)
+		_refresh()
+		return
+	if def.slot == ItemDefinition.Slot.NONE:
 		return
 	# Equip: remove from inventory, put in equipment slot.
 	var inv_idx: int = entry.get("inv_index", -1)

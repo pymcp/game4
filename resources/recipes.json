@@ -1,0 +1,50 @@
+{
+	"armor": {
+		"inputs": [
+			{
+				"count": 6,
+				"id": "fiber"
+			}
+		],
+		"output_count": 1,
+		"output_id": "armor"
+	},
+	"boots": {
+		"inputs": [
+			{
+				"count": 3,
+				"id": "fiber"
+			}
+		],
+		"output_count": 1,
+		"output_id": "boots"
+	},
+	"helmet": {
+		"inputs": [
+			{
+				"count": 4,
+				"id": "fiber"
+			}
+		],
+		"output_count": 1,
+		"output_id": "helmet"
+	},
+	"sword": {
+		"inputs": [
+			{
+				"count": 1,
+				"id": "wood"
+			},
+			{
+				"count": 4,
+				"id": "stone"
+			},
+			{
+				"count": 1,
+				"id": "fiber"
+			}
+		],
+		"output_count": 1,
+		"output_id": "sword"
+	}
+}

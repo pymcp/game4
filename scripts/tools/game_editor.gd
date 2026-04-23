@@ -69,9 +69,6 @@ const _MAPPINGS: Array = [
 	{"id": &"interior_terrain",                  "label": "Interior terrain",
 	 "sheet": "res://assets/tiles/roguelike/interior_sheet.png",
 	 "field": &"interior_terrain",                  "kind": &"list"},
-	{"id": &"weapon_sprites",                    "label": "Weapon / tool sprites",
-	 "sheet": "res://assets/characters/roguelike/characters_sheet.png",
-	 "field": &"weapon_sprites",                    "kind": &"list"},
 	{"id": &"mineable_resources",                "label": "Mineable Resources",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_mineable_json",                    "kind": &"mineable"},
@@ -84,6 +81,30 @@ const _MAPPINGS: Array = [
 	{"id": &"creature_editor",                    "label": "Creatures",
 	 "sheet": "res://assets/characters/monsters/slime.png",
 	 "field": &"_creature_editor",                  "kind": &"creature_editor"},
+	{"id": &"loot_table_editor",                  "label": "Loot Tables",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_loot_table_editor",                "kind": &"loot_table_editor"},
+	{"id": &"crafting_editor",                     "label": "Crafting Recipes",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_crafting_editor",                   "kind": &"crafting_editor"},
+	{"id": &"armor_set_editor",                    "label": "Armor Sets",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_armor_set_editor",                  "kind": &"armor_set_editor"},
+	{"id": &"biome_editor",                        "label": "Biomes",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_biome_editor",                      "kind": &"biome_editor"},
+	{"id": &"shop_editor",                         "label": "Shops",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_shop_editor",                       "kind": &"shop_editor"},
+	{"id": &"quest_editor",                        "label": "Quests (Graph)",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_quest_editor",                     "kind": &"quest_editor"},
+	{"id": &"dialogue_editor",                     "label": "Dialogue (Graph)",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_dialogue_editor",                  "kind": &"dialogue_editor"},
+	{"id": &"balance_overview",                    "label": "Balance Overview",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_balance_overview",                 "kind": &"balance_overview"},
 	{"id": &"asset_browser",                      "label": "Import from Kenney",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_asset_browser",                    "kind": &"asset_browser"},
@@ -109,6 +130,14 @@ var _item_editor: ItemEditor = null          ## Active only for kind=="item_edit
 var _encounter_editor: EncounterEditor = null ## Active only for kind=="encounter_editor".
 var _creature_editor: CreatureEditor = null  ## Active only for kind=="creature_editor".
 var _asset_browser: AssetBrowser = null      ## Active only for kind=="asset_browser".
+var _loot_table_editor: LootTableEditor = null
+var _crafting_editor: CraftingEditor = null
+var _armor_set_editor: ArmorSetEditor = null
+var _biome_editor: BiomeEditor = null
+var _shop_editor: ShopEditor = null
+var _quest_editor: QuestEditor = null
+var _dialogue_editor: DialogueEditor = null
+var _balance_overview: BalanceOverview = null
 
 # Quest TODO panel state.
 var _quest_panel: ScrollContainer = null
@@ -132,7 +161,9 @@ var _active_slot: int = -1
 var _tree: Tree = null
 var _sheet_view: SheetView = null
 var _slot_root: VBoxContainer = null
+var _slot_scroll: ScrollContainer = null
 var _header_label: Label = null
+var _preview_label: Label = null
 var _status_label: Label = null
 var _save_btn: Button = null
 var _revert_btn: Button = null
@@ -554,14 +585,15 @@ func _build_right_pane() -> Control:
 	vb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_header_label = _make_section_label("Slots")
 	vb.add_child(_header_label)
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vb.add_child(scroll)
+	_slot_scroll = ScrollContainer.new()
+	_slot_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_slot_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vb.add_child(_slot_scroll)
 	_slot_root = VBoxContainer.new()
 	_slot_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_slot_root)
-	vb.add_child(_make_section_label("Live preview"))
+	_slot_scroll.add_child(_slot_root)
+	_preview_label = _make_section_label("Live preview")
+	vb.add_child(_preview_label)
 	_preview = PreviewView.new()
 	_preview.tile_px = TILE_PX
 	_preview.gutter = TILE_GUTTER
@@ -642,59 +674,96 @@ func _select_mapping(entry: Dictionary) -> void:
 
 	if kind == &"mineable":
 		_show_mineable_editor()
-		_hide_item_editor()
-		_hide_encounter_editor()
-		_hide_creature_editor()
-		_hide_asset_browser()
+		_hide_all_editors_except(&"mineable")
 		_refresh_marks()
 		_status_label.text = "Editing mineables — %s" % sheet_path
 		return
 
 	if kind == &"item_editor":
 		_show_item_editor()
-		_hide_mineable_editor()
-		_hide_encounter_editor()
-		_hide_creature_editor()
-		_hide_asset_browser()
+		_hide_all_editors_except(&"item_editor")
 		_refresh_marks()
 		_status_label.text = "Editing items — %s" % sheet_path
 		return
 
 	if kind == &"encounter_editor":
 		_show_encounter_editor()
-		_hide_mineable_editor()
-		_hide_item_editor()
-		_hide_creature_editor()
-		_hide_asset_browser()
+		_hide_all_editors_except(&"encounter_editor")
 		_refresh_marks()
 		_status_label.text = "Editing encounters"
 		return
 
 	if kind == &"creature_editor":
 		_show_creature_editor()
-		_hide_mineable_editor()
-		_hide_item_editor()
-		_hide_encounter_editor()
-		_hide_asset_browser()
+		_hide_all_editors_except(&"creature_editor")
 		_refresh_marks()
 		_status_label.text = "Editing creatures"
 		return
 
+	if kind == &"loot_table_editor":
+		_show_loot_table_editor()
+		_hide_all_editors_except(&"loot_table_editor")
+		_refresh_marks()
+		_status_label.text = "Editing loot tables"
+		return
+
+	if kind == &"crafting_editor":
+		_show_crafting_editor()
+		_hide_all_editors_except(&"crafting_editor")
+		_refresh_marks()
+		_status_label.text = "Editing crafting recipes"
+		return
+
+	if kind == &"armor_set_editor":
+		_show_armor_set_editor()
+		_hide_all_editors_except(&"armor_set_editor")
+		_refresh_marks()
+		_status_label.text = "Editing armor sets"
+		return
+
+	if kind == &"biome_editor":
+		_show_biome_editor()
+		_hide_all_editors_except(&"biome_editor")
+		_refresh_marks()
+		_status_label.text = "Editing biomes"
+		return
+
+	if kind == &"shop_editor":
+		_show_shop_editor()
+		_hide_all_editors_except(&"shop_editor")
+		_refresh_marks()
+		_status_label.text = "Editing shops"
+		return
+
+	if kind == &"quest_editor":
+		_show_quest_editor()
+		_hide_all_editors_except(&"quest_editor")
+		_refresh_marks()
+		_status_label.text = "Editing quests (graph)"
+		return
+
+	if kind == &"dialogue_editor":
+		_show_dialogue_editor()
+		_hide_all_editors_except(&"dialogue_editor")
+		_refresh_marks()
+		_status_label.text = "Editing dialogue (graph)"
+		return
+
+	if kind == &"balance_overview":
+		_show_balance_overview()
+		_hide_all_editors_except(&"balance_overview")
+		_refresh_marks()
+		_status_label.text = "Balance overview"
+		return
+
 	if kind == &"asset_browser":
 		_show_asset_browser()
-		_hide_mineable_editor()
-		_hide_item_editor()
-		_hide_encounter_editor()
-		_hide_creature_editor()
+		_hide_all_editors_except(&"asset_browser")
 		_refresh_marks()
 		_status_label.text = "Browsing Kenney assets"
 		return
 
-	_hide_mineable_editor()
-	_hide_item_editor()
-	_hide_encounter_editor()
-	_hide_creature_editor()
-	_hide_asset_browser()
+	_hide_all_editors()
 	_slot_root.visible = true
 	_header_label.visible = true
 	if _preview != null:
@@ -713,7 +782,7 @@ func _select_mapping(entry: Dictionary) -> void:
 func _build_slots(entry: Dictionary) -> Array:
 	var field: StringName = entry["field"]
 	var kind: StringName = entry["kind"]
-	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser":
+	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser" or kind == &"loot_table_editor" or kind == &"crafting_editor" or kind == &"armor_set_editor" or kind == &"biome_editor" or kind == &"shop_editor" or kind == &"quest_editor" or kind == &"dialogue_editor" or kind == &"balance_overview":
 		return []  # These use their own editors.
 	var value: Variant = _mappings_resource.get(field)
 	var out: Array = []
@@ -898,6 +967,31 @@ func _on_cell_clicked(cell: Vector2i) -> void:
 		_refresh_marks()
 		_status_label.text = "creature editor: picked %s" % _str_cell(cell)
 		return
+	# Route to new data editors (they generally don't use atlas clicks).
+	if _loot_table_editor != null and _loot_table_editor.visible:
+		_loot_table_editor.on_atlas_cell_clicked(cell)
+		return
+	if _crafting_editor != null and _crafting_editor.visible:
+		_crafting_editor.on_atlas_cell_clicked(cell)
+		return
+	if _armor_set_editor != null and _armor_set_editor.visible:
+		_armor_set_editor.on_atlas_cell_clicked(cell)
+		return
+	if _biome_editor != null and _biome_editor.visible:
+		_biome_editor.on_atlas_cell_clicked(cell)
+		return
+	if _shop_editor != null and _shop_editor.visible:
+		_shop_editor.on_atlas_cell_clicked(cell)
+		return
+	if _quest_editor != null and _quest_editor.visible:
+		_quest_editor.on_atlas_cell_clicked(cell)
+		return
+	if _dialogue_editor != null and _dialogue_editor.visible:
+		_dialogue_editor.on_atlas_cell_clicked(cell)
+		return
+	if _balance_overview != null and _balance_overview.visible:
+		_balance_overview.on_atlas_cell_clicked(cell)
+		return
 	if _active_slot < 0 or _active_slot >= _slots.size():
 		_status_label.text = "no active slot — pick one in the right pane first"
 		return
@@ -943,6 +1037,22 @@ func _save() -> void:
 		_encounter_editor.save()
 	if _creature_editor != null and _creature_editor.is_dirty():
 		_creature_editor.save()
+	if _loot_table_editor != null and _loot_table_editor.is_dirty():
+		_loot_table_editor.save()
+	if _crafting_editor != null and _crafting_editor.is_dirty():
+		_crafting_editor.save()
+	if _armor_set_editor != null and _armor_set_editor.is_dirty():
+		_armor_set_editor.save()
+	if _biome_editor != null and _biome_editor.is_dirty():
+		_biome_editor.save()
+	if _shop_editor != null and _shop_editor.is_dirty():
+		_shop_editor.save()
+	if _quest_editor != null and _quest_editor.is_dirty():
+		_quest_editor.save()
+	if _dialogue_editor != null and _dialogue_editor.is_dirty():
+		_dialogue_editor.save()
+	if _balance_overview != null and _balance_overview.is_dirty():
+		_balance_overview.save()
 	var err: int = ResourceSaver.save(_mappings_resource, MAPPINGS_PATH)
 	if err != OK:
 		_status_label.text = "SAVE FAILED (err %d)" % err
@@ -963,6 +1073,22 @@ func _revert() -> void:
 		_encounter_editor.revert()
 	if _creature_editor != null:
 		_creature_editor.revert()
+	if _loot_table_editor != null:
+		_loot_table_editor.revert()
+	if _crafting_editor != null:
+		_crafting_editor.revert()
+	if _armor_set_editor != null:
+		_armor_set_editor.revert()
+	if _biome_editor != null:
+		_biome_editor.revert()
+	if _shop_editor != null:
+		_shop_editor.revert()
+	if _quest_editor != null:
+		_quest_editor.revert()
+	if _dialogue_editor != null:
+		_dialogue_editor.revert()
+	if _balance_overview != null:
+		_balance_overview.revert()
 	# Force a fresh load — drop the cached resource so subsequent loads
 	# pick up the on-disk version (in case it was edited externally).
 	if ResourceLoader.has_cached(MAPPINGS_PATH):
@@ -1050,6 +1176,30 @@ func _refresh_marks() -> void:
 		return
 	if _creature_editor != null and _creature_editor.visible:
 		_sheet_view.set_marks(_creature_editor.get_marks())
+		return
+	if _loot_table_editor != null and _loot_table_editor.visible:
+		_sheet_view.set_marks(_loot_table_editor.get_marks())
+		return
+	if _crafting_editor != null and _crafting_editor.visible:
+		_sheet_view.set_marks(_crafting_editor.get_marks())
+		return
+	if _armor_set_editor != null and _armor_set_editor.visible:
+		_sheet_view.set_marks(_armor_set_editor.get_marks())
+		return
+	if _biome_editor != null and _biome_editor.visible:
+		_sheet_view.set_marks(_biome_editor.get_marks())
+		return
+	if _shop_editor != null and _shop_editor.visible:
+		_sheet_view.set_marks(_shop_editor.get_marks())
+		return
+	if _quest_editor != null and _quest_editor.visible:
+		_sheet_view.set_marks(_quest_editor.get_marks())
+		return
+	if _dialogue_editor != null and _dialogue_editor.visible:
+		_sheet_view.set_marks(_dialogue_editor.get_marks())
+		return
+	if _balance_overview != null and _balance_overview.visible:
+		_sheet_view.set_marks(_balance_overview.get_marks())
 		return
 	var marks: Array = []
 	for i in _slots.size():
@@ -1532,7 +1682,9 @@ func _on_mineable_dirty() -> void:
 func _show_item_editor() -> void:
 	_hide_quest_panel()
 	_slot_root.visible = false
+	_slot_scroll.visible = false
 	_header_label.visible = false
+	_preview_label.visible = false
 	if _preview != null:
 		_preview.visible = false
 	_slots = []
@@ -1551,6 +1703,11 @@ func _show_item_editor() -> void:
 func _hide_item_editor() -> void:
 	if _item_editor != null:
 		_item_editor.visible = false
+	_slot_scroll.visible = true
+	_header_label.visible = true
+	_preview_label.visible = true
+	if _preview != null:
+		_preview.visible = true
 
 
 func _on_item_dirty() -> void:
@@ -1665,6 +1822,263 @@ func _show_asset_browser() -> void:
 func _hide_asset_browser() -> void:
 	if _asset_browser != null:
 		_asset_browser.visible = false
+
+
+# ─── Loot Table editor integration ────────────────────────────────────
+
+func _show_loot_table_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _loot_table_editor == null:
+		_loot_table_editor = LootTableEditor.new()
+		_loot_table_editor.dirty_changed.connect(_on_loot_table_dirty)
+		_slot_root.get_parent().get_parent().add_child(_loot_table_editor)
+	_loot_table_editor.visible = true
+
+
+func _hide_loot_table_editor() -> void:
+	if _loot_table_editor != null:
+		_loot_table_editor.visible = false
+
+
+func _on_loot_table_dirty() -> void:
+	_mark_dirty()
+
+
+# ─── Crafting editor integration ──────────────────────────────────────
+
+func _show_crafting_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _crafting_editor == null:
+		_crafting_editor = CraftingEditor.new()
+		_crafting_editor.dirty_changed.connect(_on_crafting_dirty)
+		_slot_root.get_parent().get_parent().add_child(_crafting_editor)
+	_crafting_editor.visible = true
+
+
+func _hide_crafting_editor() -> void:
+	if _crafting_editor != null:
+		_crafting_editor.visible = false
+
+
+func _on_crafting_dirty() -> void:
+	_mark_dirty()
+
+
+# ─── Armor Set editor integration ────────────────────────────────────
+
+func _show_armor_set_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _armor_set_editor == null:
+		_armor_set_editor = ArmorSetEditor.new()
+		_armor_set_editor.dirty_changed.connect(_on_armor_set_dirty)
+		_slot_root.get_parent().get_parent().add_child(_armor_set_editor)
+	_armor_set_editor.visible = true
+
+
+func _hide_armor_set_editor() -> void:
+	if _armor_set_editor != null:
+		_armor_set_editor.visible = false
+
+
+func _on_armor_set_dirty() -> void:
+	_mark_dirty()
+
+
+# ─── Biome editor integration ────────────────────────────────────────
+
+func _show_biome_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _biome_editor == null:
+		_biome_editor = BiomeEditor.new()
+		_biome_editor.dirty_changed.connect(_on_biome_dirty)
+		_slot_root.get_parent().get_parent().add_child(_biome_editor)
+	_biome_editor.visible = true
+
+
+func _hide_biome_editor() -> void:
+	if _biome_editor != null:
+		_biome_editor.visible = false
+
+
+func _on_biome_dirty() -> void:
+	_mark_dirty()
+
+
+# ─── Shop editor integration ──────────────────────────────────────────
+
+func _show_shop_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _shop_editor == null:
+		_shop_editor = ShopEditor.new()
+		_shop_editor.dirty_changed.connect(_on_shop_dirty)
+		_slot_root.get_parent().get_parent().add_child(_shop_editor)
+	_shop_editor.visible = true
+
+
+func _hide_shop_editor() -> void:
+	if _shop_editor != null:
+		_shop_editor.visible = false
+
+
+func _on_shop_dirty() -> void:
+	_mark_dirty()
+
+
+func _show_quest_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _quest_editor == null:
+		_quest_editor = QuestEditor.new()
+		_quest_editor.dirty_changed.connect(_on_quest_editor_dirty)
+		_slot_root.get_parent().get_parent().add_child(_quest_editor)
+	_quest_editor.visible = true
+
+
+func _hide_quest_editor() -> void:
+	if _quest_editor != null:
+		_quest_editor.visible = false
+
+
+func _on_quest_editor_dirty() -> void:
+	_mark_dirty()
+
+
+func _show_dialogue_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _dialogue_editor == null:
+		_dialogue_editor = DialogueEditor.new()
+		_dialogue_editor.dirty_changed.connect(_on_dialogue_editor_dirty)
+		_slot_root.get_parent().get_parent().add_child(_dialogue_editor)
+	_dialogue_editor.visible = true
+
+
+func _hide_dialogue_editor() -> void:
+	if _dialogue_editor != null:
+		_dialogue_editor.visible = false
+
+
+func _on_dialogue_editor_dirty() -> void:
+	_mark_dirty()
+
+
+func _show_balance_overview() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _balance_overview == null:
+		_balance_overview = BalanceOverview.new()
+		_balance_overview.dirty_changed.connect(_on_balance_overview_dirty)
+		_slot_root.get_parent().get_parent().add_child(_balance_overview)
+	_balance_overview.visible = true
+
+
+func _hide_balance_overview() -> void:
+	if _balance_overview != null:
+		_balance_overview.visible = false
+
+
+func _on_balance_overview_dirty() -> void:
+	_mark_dirty()
+
+
+# ─── Editor visibility helpers ────────────────────────────────────────
+
+func _hide_all_editors() -> void:
+	_hide_mineable_editor()
+	_hide_item_editor()
+	_hide_encounter_editor()
+	_hide_creature_editor()
+	_hide_asset_browser()
+	_hide_loot_table_editor()
+	_hide_crafting_editor()
+	_hide_armor_set_editor()
+	_hide_biome_editor()
+	_hide_shop_editor()
+	_hide_quest_editor()
+	_hide_dialogue_editor()
+	_hide_balance_overview()
+
+
+func _hide_all_editors_except(kind: StringName) -> void:
+	if kind != &"mineable":
+		_hide_mineable_editor()
+	if kind != &"item_editor":
+		_hide_item_editor()
+	if kind != &"encounter_editor":
+		_hide_encounter_editor()
+	if kind != &"creature_editor":
+		_hide_creature_editor()
+	if kind != &"asset_browser":
+		_hide_asset_browser()
+	if kind != &"loot_table_editor":
+		_hide_loot_table_editor()
+	if kind != &"crafting_editor":
+		_hide_crafting_editor()
+	if kind != &"armor_set_editor":
+		_hide_armor_set_editor()
+	if kind != &"biome_editor":
+		_hide_biome_editor()
+	if kind != &"shop_editor":
+		_hide_shop_editor()
+	if kind != &"quest_editor":
+		_hide_quest_editor()
+	if kind != &"dialogue_editor":
+		_hide_dialogue_editor()
+	if kind != &"balance_overview":
+		_hide_balance_overview()
 
 
 func _on_navigate_to_mineable(resource_id: StringName) -> void:

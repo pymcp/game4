@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_7ywvs")
 id = &"gold_ore"
-display_name = "Gold Ore"
 icon = ExtResource("1_avf13")
-stack_size = 99
-slot = 0
-power = 0
-description = "A gleaming nugget of gold."

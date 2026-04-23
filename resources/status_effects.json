@@ -1,0 +1,38 @@
+{
+	"burn": {
+		"damage_per_tick": 1,
+		"display_name": "Burn",
+		"duration_sec": 3,
+		"element": 1,
+		"speed_multiplier": 1,
+		"stun": false,
+		"tick_interval": 1
+	},
+	"freeze": {
+		"damage_per_tick": 0,
+		"display_name": "Freeze",
+		"duration_sec": 2,
+		"element": 2,
+		"speed_multiplier": 0.5,
+		"stun": false,
+		"tick_interval": 0
+	},
+	"poison": {
+		"damage_per_tick": 1,
+		"display_name": "Poison",
+		"duration_sec": 4,
+		"element": 4,
+		"speed_multiplier": 1,
+		"stun": false,
+		"tick_interval": 1.5
+	},
+	"shock": {
+		"damage_per_tick": 0,
+		"display_name": "Shock",
+		"duration_sec": 1,
+		"element": 3,
+		"speed_multiplier": 1,
+		"stun": true,
+		"tick_interval": 0
+	}
+}

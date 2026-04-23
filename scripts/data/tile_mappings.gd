@@ -87,12 +87,6 @@ extends Resource
 
 # ─── Character / weapon sprites ─────────────────────────────────────────
 
-## Weapon/tool sprites from the character sheet. Each item id maps to an
-## array of atlas cells (element [0] is used for the persistent display).
-## Cells are 2-tile-tall regions (16×33) on the character sheet.
-## `StringName → Array[Vector2i]`.
-@export var weapon_sprites: Dictionary = {}
-
 # ─── Sheet overrides ────────────────────────────────────────────────────
 
 ## Optional per-field sheet-path overrides. When a mapping field (e.g.
@@ -240,12 +234,6 @@ static func default_mappings() -> TileMappings:
 		&"floor": [Vector2i(5, 13)],
 		&"wall":  [Vector2i(5, 1)],
 		&"door":  [Vector2i(20, 9)],
-	}
-
-	m.weapon_sprites = {
-		&"sword":   [Vector2i(42, 5)],   # first sword variant, row 5
-		&"pickaxe": [Vector2i(50, 0)],   # hammer col (closest to pickaxe)
-		&"bow":     [Vector2i(52, 0)],   # first bow variant
 	}
 
 	# No sheet overrides by default — everything uses the historical sheets.

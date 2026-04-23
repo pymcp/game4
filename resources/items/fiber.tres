@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_j7ap8")
 id = &"fiber"
-display_name = "Fiber"
 icon = ExtResource("1_3opin")
-stack_size = 99
-slot = 0
-power = 0
-description = "Plant fibres for crafting."

@@ -1,0 +1,108 @@
+{
+	"desert": {
+		"bleed_chance": 0.25,
+		"decoration_weights": {
+			"bush": 0.01,
+			"rock": 0.03
+		},
+		"ground_modulate": [
+			1,
+			0.95,
+			0.75,
+			1
+		],
+		"npc_density": 0.002,
+		"npc_kinds": [
+			"slime"
+		],
+		"primary_terrain": 2,
+		"secondary_chance": 0.08,
+		"secondary_terrain": 4
+	},
+	"grass": {
+		"bleed_chance": 0.25,
+		"decoration_weights": {
+			"bush": 0.04,
+			"flower": 0.04,
+			"rock": 0.015,
+			"tree": 0.06
+		},
+		"ground_modulate": [
+			1,
+			1,
+			1,
+			1
+		],
+		"npc_density": 0.002,
+		"npc_kinds": [
+			"slime"
+		],
+		"primary_terrain": 3,
+		"secondary_chance": 0.08,
+		"secondary_terrain": 4
+	},
+	"rocky": {
+		"bleed_chance": 0.25,
+		"decoration_weights": {
+			"copper_vein": 0.01,
+			"gold_vein": 0.005,
+			"iron_vein": 0.015,
+			"rock": 0.06,
+			"tree": 0.02
+		},
+		"ground_modulate": [
+			0.95,
+			0.95,
+			0.95,
+			1
+		],
+		"npc_density": 0.002,
+		"npc_kinds": [
+			"slime"
+		],
+		"primary_terrain": 5,
+		"secondary_chance": 0.08,
+		"secondary_terrain": 4
+	},
+	"snow": {
+		"bleed_chance": 0.25,
+		"decoration_weights": {
+			"rock": 0.02,
+			"tree": 0.04
+		},
+		"ground_modulate": [
+			0.85,
+			0.95,
+			1.05,
+			1
+		],
+		"npc_density": 0.002,
+		"npc_kinds": [
+			"slime"
+		],
+		"primary_terrain": 6,
+		"secondary_chance": 0.08,
+		"secondary_terrain": 5
+	},
+	"swamp": {
+		"bleed_chance": 0.25,
+		"decoration_weights": {
+			"bush": 0.06,
+			"flower": 0.02,
+			"tree": 0.05
+		},
+		"ground_modulate": [
+			0.7,
+			0.85,
+			0.6,
+			1
+		],
+		"npc_density": 0.002,
+		"npc_kinds": [
+			"slime"
+		],
+		"primary_terrain": 7,
+		"secondary_chance": 0.08,
+		"secondary_terrain": 1
+	}
+}

@@ -27,6 +27,7 @@ const _BOB_AMP_PX: float = 1.0
 @export var monster_kind: StringName = &"slime"  ## Loot table key
 
 var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
+var active_effects: Array = []  ## [{effect_id, remaining, tick_timer}]
 var _world: WorldRoot = null
 var _sprite: Sprite2D = null
 var _facing_right: bool = false
@@ -72,8 +73,13 @@ static func nearest_player(from: Vector2, candidates: Array,
 func _process(delta: float) -> void:
 	if _world == null:
 		return
+	_tick_effects(delta)
+	if health <= 0:
+		return
 	# Freeze while in a conversation.
 	if in_conversation:
+		return
+	if _is_stunned():
 		return
 	var target: PlayerController = nearest_player(position,
 			_world.entities.get_children(), SIGHT_RADIUS_TILES)
@@ -83,7 +89,7 @@ func _process(delta: float) -> void:
 	var dist: float = to.length()
 	if dist <= 1.0:
 		return
-	var step: float = _MOVE_SPEED_PX_PER_S * delta
+	var step: float = _MOVE_SPEED_PX_PER_S * _get_speed_multiplier() * delta
 	if step > dist:
 		step = dist
 	var next_pos: Vector2 = position + to / dist * step
@@ -115,6 +121,8 @@ func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 		return
 	var effective: int = _apply_resistance(damage, element)
 	health = max(0, health - effective)
+	if element != 0:
+		_apply_status_from_element(element)
 	if health <= 0:
 		_die()
 
@@ -133,3 +141,65 @@ func _die() -> void:
 		loot = LootTableRegistry.roll_drops(monster_kind)
 	died.emit(position, loot)
 	queue_free()
+
+
+# --- Status effects -------------------------------------------------
+
+func _apply_status_from_element(element: int) -> void:
+	var eff: StatusEffect = StatusEffectRegistry.get_effect_for_element(element)
+	if eff == null:
+		return
+	for entry: Dictionary in active_effects:
+		if entry["effect_id"] == eff.id:
+			entry["remaining"] = eff.duration_sec
+			entry["tick_timer"] = 0.0
+			return
+	active_effects.append({
+		"effect_id": eff.id,
+		"remaining": eff.duration_sec,
+		"tick_timer": 0.0,
+	})
+
+
+func _tick_effects(delta: float) -> void:
+	if health <= 0:
+		return
+	var i: int = active_effects.size() - 1
+	while i >= 0:
+		var entry: Dictionary = active_effects[i]
+		var eff: StatusEffect = StatusEffectRegistry.get_effect(entry["effect_id"])
+		if eff == null:
+			active_effects.remove_at(i)
+			i -= 1
+			continue
+		entry["remaining"] -= delta
+		if entry["remaining"] <= 0.0:
+			active_effects.remove_at(i)
+			i -= 1
+			continue
+		if eff.damage_per_tick > 0 and eff.tick_interval > 0.0:
+			entry["tick_timer"] += delta
+			if entry["tick_timer"] >= eff.tick_interval:
+				entry["tick_timer"] -= eff.tick_interval
+				health = max(0, health - eff.damage_per_tick)
+				if health <= 0:
+					_die()
+					return
+		i -= 1
+
+
+func _is_stunned() -> bool:
+	for entry: Dictionary in active_effects:
+		var eff: StatusEffect = StatusEffectRegistry.get_effect(entry["effect_id"])
+		if eff != null and eff.stun:
+			return true
+	return false
+
+
+func _get_speed_multiplier() -> float:
+	var mult: float = 1.0
+	for entry: Dictionary in active_effects:
+		var eff: StatusEffect = StatusEffectRegistry.get_effect(entry["effect_id"])
+		if eff != null:
+			mult *= eff.speed_multiplier
+	return mult

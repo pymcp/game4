@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_nrssb")
 id = &"iron_ore"
-display_name = "Iron Ore"
 icon = ExtResource("1_ot074")
-stack_size = 99
-slot = 0
-power = 0
-description = "A lump of unrefined iron."

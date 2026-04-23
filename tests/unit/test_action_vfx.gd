@@ -102,9 +102,8 @@ func test_equipment_contents_changed_signal() -> void:
 	assert_true(fired[0], "contents_changed should fire on equip")
 
 
-func test_weapon_atlas_defaults_match_tile_mappings() -> void:
-	# The TileMappings defaults should include weapon_sprites.
-	var tm: TileMappings = TileMappings.default_mappings()
-	assert_true(tm.weapon_sprites.has(&"sword"), "defaults should have sword")
-	assert_true(tm.weapon_sprites.has(&"pickaxe"), "defaults should have pickaxe")
-	assert_true(tm.weapon_sprites.has(&"bow"), "defaults should have bow")
+func test_weapon_atlas_defaults_match_item_definitions() -> void:
+	# Weapon sprites are now in items.json, resolved via WeaponAtlas.
+	assert_ne(WeaponAtlas.cell_for(&"sword"), Vector2i(-1, -1), "sword should have weapon cell")
+	assert_ne(WeaponAtlas.cell_for(&"pickaxe"), Vector2i(-1, -1), "pickaxe should have weapon cell")
+	assert_ne(WeaponAtlas.cell_for(&"bow"), Vector2i(-1, -1), "bow should have weapon cell")

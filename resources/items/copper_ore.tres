@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_s1v5b")
 id = &"copper_ore"
-display_name = "Copper Ore"
 icon = ExtResource("1_8rxvu")
-stack_size = 99
-slot = 0
-power = 0
-description = "A lump of unrefined copper."

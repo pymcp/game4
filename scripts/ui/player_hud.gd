@@ -16,6 +16,9 @@ var _health_bar: HealthBar = null
 var _hotbar: Hotbar = null
 var _interior_label: Label = null
 var _biome_label: Label = null
+var _status_container: HBoxContainer = null
+var _status_labels: Dictionary = {}  # effect_id -> Label
+var _clock_label: Label = null
 
 
 func _ready() -> void:
@@ -41,6 +44,8 @@ func _process(_delta: float) -> void:
 	# Cheap polling for health; we don't have a `health_changed` signal yet.
 	if _player != null and _health_bar != null:
 		_health_bar.update(_player.health, _player.max_health)
+	_refresh_status_effects()
+	_refresh_clock()
 
 
 func _build() -> void:
@@ -68,6 +73,14 @@ func _build() -> void:
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_health_bar.add_child(label)
 	add_child(_health_bar)
+
+	# Status effect icons below health bar.
+	_status_container = HBoxContainer.new()
+	_status_container.name = "StatusEffects"
+	_status_container.position = Vector2(MARGIN, MARGIN + HealthBar.BAR_HEIGHT + 18)
+	_status_container.add_theme_constant_override("separation", 6)
+	_status_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_status_container)
 
 	# Hotbar centred along the bottom.
 	_hotbar = Hotbar.new()
@@ -117,6 +130,20 @@ func _build() -> void:
 	_biome_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_biome_label)
 
+	# Clock label below biome readout.
+	_clock_label = Label.new()
+	_clock_label.name = "Clock"
+	_clock_label.add_theme_font_size_override("font_size", 13)
+	_clock_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.7))
+	_clock_label.anchor_left = 1.0
+	_clock_label.anchor_right = 1.0
+	_clock_label.offset_left = -160
+	_clock_label.offset_top = MARGIN + 36
+	_clock_label.offset_right = -MARGIN
+	_clock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_clock_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_clock_label)
+
 
 func _on_active_interior_changed(interior: InteriorMap) -> void:
 	if _interior_label == null:
@@ -155,3 +182,59 @@ func _refresh_all() -> void:
 
 func get_interior_label() -> Label:
 	return _interior_label
+
+
+func _refresh_clock() -> void:
+	if _clock_label == null:
+		return
+	var h: int = int(TimeManager.time_of_day)
+	var m: int = int((TimeManager.time_of_day - h) * 60.0)
+	var period: String = String(TimeManager.get_period()).capitalize()
+	_clock_label.text = "%02d:%02d %s" % [h, m, period]
+
+
+const _ELEMENT_COLORS: Dictionary = {
+	1: Color(1.0, 0.4, 0.2),   # FIRE — red-orange
+	2: Color(0.3, 0.7, 1.0),   # ICE — blue
+	3: Color(1.0, 0.9, 0.2),   # LIGHTNING — yellow
+	4: Color(0.3, 0.9, 0.3),   # POISON — green
+}
+
+
+func _refresh_status_effects() -> void:
+	if _status_container == null:
+		return
+	if _player == null:
+		for lbl: Label in _status_labels.values():
+			lbl.queue_free()
+		_status_labels.clear()
+		return
+	var active_ids: Dictionary = {}
+	for entry: Dictionary in _player.active_effects:
+		var eid: StringName = entry["effect_id"]
+		active_ids[eid] = entry["remaining"]
+	# Remove labels for expired effects.
+	for eid: StringName in _status_labels.keys():
+		if not active_ids.has(eid):
+			var lbl: Label = _status_labels[eid]
+			_status_container.remove_child(lbl)
+			lbl.queue_free()
+			_status_labels.erase(eid)
+	# Add/update labels for active effects.
+	for eid: StringName in active_ids:
+		var remaining: float = active_ids[eid]
+		var eff: StatusEffect = StatusEffectRegistry.get_effect(eid)
+		if eff == null:
+			continue
+		var lbl: Label
+		if _status_labels.has(eid):
+			lbl = _status_labels[eid]
+		else:
+			lbl = Label.new()
+			lbl.add_theme_font_size_override("font_size", 11)
+			lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var col: Color = _ELEMENT_COLORS.get(eff.element, Color.WHITE)
+			lbl.add_theme_color_override("font_color", col)
+			_status_container.add_child(lbl)
+			_status_labels[eid] = lbl
+		lbl.text = "%s %.1f" % [eff.display_name, remaining]

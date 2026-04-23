@@ -32,6 +32,8 @@ const _BOB_AMP_PX: float = 1.0
 @export var wander_radius: int = 6
 ## Optional branching dialogue tree. If null, falls back to one-liner.
 @export var dialogue_tree: DialogueTree = null
+## Optional shop ID. If set, interaction opens the shop screen instead of dialogue.
+@export var shop_id: StringName = &""
 
 var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
 var state: State = State.IDLE
@@ -239,6 +241,9 @@ func _current_cell() -> Vector2i:
 func interact(player: PlayerController) -> bool:
 	if _world == null or player == null:
 		return false
+	if shop_id != &"" and ShopRegistry.has_shop(String(shop_id)):
+		_world.open_shop(player, String(shop_id), self)
+		return true
 	if dialogue_tree != null:
 		_world.show_dialogue_tree(player, dialogue_tree, self)
 		return true

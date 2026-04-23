@@ -127,11 +127,6 @@ interior_terrain = {
 "floor": [Vector2i(24, 1)],
 "wall": [Vector2i(24, 6)]
 }
-weapon_sprites = {
-"bow": [Vector2i(52, 0)],
-"pickaxe": [Vector2i(38, 29)],
-"sword": [Vector2i(44, 6)]
-}
 sheet_overrides = {
 "_creature_editor": "res://assets/tiles/roguelike/monster_animals2.png",
 "_item_editor": "res://assets/characters/roguelike/characters_sheet.png"

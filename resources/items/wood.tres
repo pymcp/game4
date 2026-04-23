@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_t5iv8")
 id = &"wood"
-display_name = "Wood"
 icon = ExtResource("1_0wy5k")
-stack_size = 99
-slot = 0
-power = 0
-description = "A bundle of sturdy logs."

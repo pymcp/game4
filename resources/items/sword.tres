@@ -6,9 +6,4 @@
 [resource]
 script = ExtResource("2_7xmd5")
 id = &"sword"
-display_name = "Iron Sword"
 icon = ExtResource("1_0sjwf")
-stack_size = 1
-slot = 1
-power = 4
-description = "A balanced blade for combat."

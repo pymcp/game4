@@ -50,6 +50,15 @@ const RARITY_COLORS: Dictionary = {
 @export var shield_sprite: Vector2i = Vector2i(-1, -1)
 @export var description_flavor: String = ""
 
+# --- Economy fields ---
+@export var buy_price: int = 0
+@export var sell_price: int = 0
+
+# --- Consumable fields ---
+@export var consumable: bool = false
+@export var heal_amount: int = 0
+@export var cure_status: StringName = &""
+
 
 func generate_description() -> String:
 	var parts: PackedStringArray = []
@@ -77,6 +86,12 @@ func generate_description() -> String:
 
 	if set_id != "":
 		parts.append(set_id.capitalize() + " Set")
+
+	if consumable:
+		if heal_amount > 0:
+			parts.append("Heal %d" % heal_amount)
+		if cure_status != &"":
+			parts.append("Cure %s" % str(cure_status).capitalize())
 
 	var line: String = " · ".join(parts) if parts.size() > 0 else ""
 	if description_flavor != "":

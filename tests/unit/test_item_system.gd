@@ -114,7 +114,7 @@ func before_each() -> void:
 
 func test_all_13_items_loaded() -> void:
 	var ids: Array = ItemRegistry.all_ids()
-	assert_eq(ids.size(), 42, "should load 42 items from items.json")
+	assert_eq(ids.size(), 43, "should load 43 items from items.json")
 
 
 func test_has_all_original_ids() -> void:
