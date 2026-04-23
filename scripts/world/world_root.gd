@@ -1041,6 +1041,9 @@ func _spawn_villager(entry: Dictionary) -> void:
 		var tree: DialogueTree = load(dlg_path) as DialogueTree
 		if tree != null:
 			v.dialogue_tree = tree
+	var sid: String = entry.get("shop_id", "")
+	if sid != "":
+		v.shop_id = StringName(sid)
 	v.add_to_group(&"scattered_npcs")
 	entities.add_child(v)
 
@@ -1228,6 +1231,32 @@ func debug_spawn_villager_for(player: PlayerController) -> void:
 	elif _region != null:
 		_region.npcs_scatter.append(e)
 	_spawn_villager(e)
+
+
+func debug_spawn_shop_villager_for(player: PlayerController) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	var centre: Vector2i = Vector2i(
+		int(floor(player.position.x / float(WorldConst.TILE_PX))),
+		int(floor(player.position.y / float(WorldConst.TILE_PX))))
+	var cell: Vector2i = find_safe_spawn_cell(centre, 4, true)
+	var seed_base: int = 0
+	if _interior != null:
+		seed_base = _interior.seed
+	elif _region != null:
+		seed_base = _region.seed
+	var e: Dictionary = {
+		"kind": &"villager",
+		"cell": cell,
+		"seed": (seed_base ^ Time.get_ticks_msec()) & 0x7fffffff,
+		"shop_id": "general_store",
+	}
+	if _interior != null:
+		_interior.npcs_scatter.append(e)
+	elif _region != null:
+		_region.npcs_scatter.append(e)
+	_spawn_villager(e)
+	print("[F9] shop villager (general_store) @ %s" % str(cell))
 
 
 func debug_spawn_monster_for(player: PlayerController) -> void:

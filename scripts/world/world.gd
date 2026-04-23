@@ -235,6 +235,13 @@ func debug_spawn_mount() -> void:
 			inst.debug_spawn_mount_for(_players[pid])
 
 
+func debug_spawn_shop_villager() -> void:
+	for pid in range(2):
+		var inst: WorldRoot = get_player_world(pid)
+		if inst != null:
+			inst.debug_spawn_shop_villager_for(_players[pid])
+
+
 func debug_spawn_interactables() -> void:
 	for pid in range(2):
 		var inst: WorldRoot = get_player_world(pid)
