@@ -133,5 +133,6 @@ weapon_sprites = {
 "sword": [Vector2i(44, 6)]
 }
 sheet_overrides = {
+"_creature_editor": "res://assets/tiles/roguelike/monster_animals2.png",
 "_item_editor": "res://assets/characters/roguelike/characters_sheet.png"
 }

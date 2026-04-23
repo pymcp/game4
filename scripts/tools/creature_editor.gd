@@ -17,6 +17,7 @@ signal sheet_requested(path: String)
 const TILE_PX := 16
 
 var sheet_path: String = "res://assets/characters/monsters/slime.png"
+var gutter: int = 0  ## Set by game editor from SheetView auto-detection.
 
 ## Raw creature_sprites.json data (id → dict). Edits mutate this directly.
 var _data: Dictionary = {}
@@ -147,7 +148,7 @@ func _build_identity_section() -> void:
 	row.add_child(_label("ID:"))
 	_id_edit = LineEdit.new()
 	_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_id_edit.editable = false
+	_id_edit.editable = true
 	row.add_child(_id_edit)
 	_rename_btn = Button.new()
 	_rename_btn.text = "Rename"
@@ -640,10 +641,11 @@ func on_atlas_cell_clicked(cell: Vector2i) -> void:
 			_region_pick_btn.text = "Click second corner..."
 			return
 		# Compute region from two corners.
-		var x0: int = mini(cell.x, _region_drag_start.x) * TILE_PX
-		var y0: int = mini(cell.y, _region_drag_start.y) * TILE_PX
-		var x1: int = (maxi(cell.x, _region_drag_start.x) + 1) * TILE_PX
-		var y1: int = (maxi(cell.y, _region_drag_start.y) + 1) * TILE_PX
+		var step: int = TILE_PX + gutter
+		var x0: int = mini(cell.x, _region_drag_start.x) * step
+		var y0: int = mini(cell.y, _region_drag_start.y) * step
+		var x1: int = (maxi(cell.x, _region_drag_start.x) + 1) * step - gutter
+		var y1: int = (maxi(cell.y, _region_drag_start.y) + 1) * step - gutter
 		e["region"] = [x0, y0, x1 - x0, y1 - y0]
 		_region_check.set_pressed_no_signal(true)
 		_pick_mode = ""
@@ -655,8 +657,9 @@ func on_atlas_cell_clicked(cell: Vector2i) -> void:
 
 	if _pick_mode == "anchor":
 		# Store anchor in pixels (cell center).
-		var px_x: float = float(cell.x) * TILE_PX + TILE_PX * 0.5
-		var px_y: float = float(cell.y) * TILE_PX + TILE_PX * 0.5
+		var step: int = TILE_PX + gutter
+		var px_x: float = float(cell.x) * step + TILE_PX * 0.5
+		var px_y: float = float(cell.y) * step + TILE_PX * 0.5
 		# Relative to region origin if region exists.
 		var region: Array = e.get("region", [])
 		if region.size() == 4:
@@ -675,9 +678,10 @@ func on_atlas_cell_clicked(cell: Vector2i) -> void:
 	if _pick_mode == "mount_point":
 		# Rider offset is relative to anchor, in native pixels.
 		var anchor: Vector2 = _get_current_anchor(e)
+		var step: int = TILE_PX + gutter
 		var click_px := Vector2(
-			float(cell.x) * TILE_PX + TILE_PX * 0.5,
-			float(cell.y) * TILE_PX + TILE_PX * 0.5)
+			float(cell.x) * step + TILE_PX * 0.5,
+			float(cell.y) * step + TILE_PX * 0.5)
 		# Adjust for region origin.
 		var region: Array = e.get("region", [])
 		if region.size() == 4:
@@ -710,9 +714,10 @@ func get_marks() -> Array:
 
 	# Region rectangle.
 	var region: Array = e.get("region", [])
+	var step: int = TILE_PX + gutter
 	if region.size() == 4:
-		var rx: int = int(region[0]) / TILE_PX
-		var ry: int = int(region[1]) / TILE_PX
+		var rx: int = int(region[0]) / step
+		var ry: int = int(region[1]) / step
 		var rw: int = ceili(float(region[2]) / TILE_PX)
 		var rh: int = ceili(float(region[3]) / TILE_PX)
 		for dy in rh:
@@ -756,7 +761,7 @@ func get_marks() -> Array:
 # ─── Save / Revert / Dirty ────────────────────────────────────────────
 
 func save() -> void:
-	CreatureSpriteRegistry.save_data(_data)
+	CreatureSpriteRegistry.save_data(_data.duplicate(true))
 	CreatureSpriteRegistry.reset()
 	_dirty = false
 
@@ -810,7 +815,8 @@ func _anchor_to_cell(e: Dictionary) -> Vector2i:
 	var region: Array = e.get("region", [])
 	var ox: float = float(region[0]) if region.size() == 4 else 0.0
 	var oy: float = float(region[1]) if region.size() == 4 else 0.0
-	return Vector2i(int((ox + anchor.x) / TILE_PX), int((oy + anchor.y) / TILE_PX))
+	var step: int = TILE_PX + gutter
+	return Vector2i(int((ox + anchor.x) / step), int((oy + anchor.y) / step))
 
 
 func _rider_offset_to_cell(e: Dictionary) -> Vector2i:
@@ -825,7 +831,8 @@ func _rider_offset_to_cell(e: Dictionary) -> Vector2i:
 	var region: Array = e.get("region", [])
 	var ox: float = float(region[0]) if region.size() == 4 else 0.0
 	var oy: float = float(region[1]) if region.size() == 4 else 0.0
-	return Vector2i(int((ox + abs_px.x) / TILE_PX), int((oy + abs_px.y) / TILE_PX))
+	var step: int = TILE_PX + gutter
+	return Vector2i(int((ox + abs_px.x) / step), int((oy + abs_px.y) / step))
 
 
 func _section_label(text: String) -> VBoxContainer:

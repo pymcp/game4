@@ -31,6 +31,7 @@ var _filename_edit: LineEdit = null
 var _import_btn: Button = null
 var _status_label: Label = null
 var _image_preview: TextureRect = null
+var _magenta_check: CheckBox = null
 
 ## Flat list of all png paths found under RAW_ROOT (relative to RAW_ROOT).
 var _all_pngs: PackedStringArray = []
@@ -52,8 +53,19 @@ const _DEST_PRESETS: Array = [
 ]
 
 
+## Per-folder PNG counts, built during scan. folder_path → int.
+var _folder_counts: Dictionary = {}
+
+const _MAX_FILE_LIST := 500
+
+
 func _ready() -> void:
 	_build_ui()
+	# Defer the scan so the UI is visible first and doesn't appear frozen.
+	call_deferred(&"_deferred_init")
+
+
+func _deferred_init() -> void:
 	_scan_raw_pngs()
 	_populate_folder_tree()
 
@@ -94,11 +106,15 @@ func _build_ui() -> void:
 	_folder_tree.item_selected.connect(_on_folder_selected)
 	left.add_child(_folder_tree)
 
-	# ── Right area: file list + preview + import controls ──
+	# ── Right area: file list + preview + import controls (scrollable) ──
+	var right_scroll := ScrollContainer.new()
+	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.add_child(right_scroll)
+
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	split.add_child(right)
+	right_scroll.add_child(right)
 
 	# File list (icons mode for compact display).
 	right.add_child(_section("Files"))
@@ -149,6 +165,11 @@ func _build_ui() -> void:
 	name_row.add_child(_filename_edit)
 	right.add_child(name_row)
 
+	_magenta_check = CheckBox.new()
+	_magenta_check.text = "Convert magenta to transparent"
+	_magenta_check.button_pressed = true
+	right.add_child(_magenta_check)
+
 	_import_btn = Button.new()
 	_import_btn.text = "Import into assets/"
 	_import_btn.pressed.connect(_on_import)
@@ -164,6 +185,7 @@ func _build_ui() -> void:
 
 func _scan_raw_pngs() -> void:
 	_all_pngs = PackedStringArray()
+	_folder_counts = {}
 	var abs_root: String = ProjectSettings.globalize_path(RAW_ROOT)
 	_scan_dir_recursive(abs_root, "")
 
@@ -184,6 +206,9 @@ func _scan_dir_recursive(abs_base: String, rel: String) -> void:
 			_scan_dir_recursive(abs_base, child_rel)
 		elif name.to_lower().ends_with(".png"):
 			_all_pngs.append(child_rel)
+			# Tally per-folder count.
+			var dir: String = child_rel.get_base_dir()
+			_folder_counts[dir] = _folder_counts.get(dir, 0) + 1
 		name = da.get_next()
 	da.list_dir_end()
 
@@ -193,10 +218,10 @@ func _scan_dir_recursive(abs_base: String, rel: String) -> void:
 func _populate_folder_tree() -> void:
 	_folder_tree.clear()
 	var root := _folder_tree.create_item()
-	# Build unique folder set from all png paths.
+	# Build unique folder set from pre-computed counts + parent paths.
 	var folders: Dictionary = {}  # path → true
-	for png_path in _all_pngs:
-		var dir: String = png_path.get_base_dir()
+	for folder_path in _folder_counts:
+		var dir: String = folder_path
 		while dir != "":
 			folders[dir] = true
 			var parent_dir: String = dir.get_base_dir()
@@ -221,11 +246,7 @@ func _populate_folder_tree() -> void:
 		var parent_item: TreeItem = tree_items.get(parent_path, root)
 		var item := _folder_tree.create_item(parent_item)
 		var folder_name: String = folder_path.get_file()
-		# Count PNGs in this folder (direct children only).
-		var count: int = 0
-		for p in _all_pngs:
-			if p.get_base_dir() == folder_path:
-				count += 1
+		var count: int = _folder_counts.get(folder_path, 0)
 		if count > 0:
 			item.set_text(0, "%s (%d)" % [folder_name, count])
 		else:
@@ -250,6 +271,7 @@ func _on_folder_selected() -> void:
 func _populate_file_list() -> void:
 	_file_list.clear()
 	var filter: String = _search_edit.text.strip_edges().to_lower()
+	var added: int = 0
 	for png_path in _all_pngs:
 		# Folder filter: show files whose base_dir starts with _current_folder.
 		if _current_folder != "":
@@ -264,6 +286,10 @@ func _populate_file_list() -> void:
 			display = png_path
 		_file_list.add_item(display)
 		_file_list.set_item_metadata(_file_list.item_count - 1, png_path)
+		added += 1
+		if added >= _MAX_FILE_LIST:
+			_file_list.add_item("… (%d+ results, narrow your search)" % _MAX_FILE_LIST)
+			break
 
 
 func _on_search_changed(_text: String) -> void:
@@ -341,20 +367,17 @@ func _on_import() -> void:
 		_status_label.text = "Already exists: %s — rename to overwrite." % dst_res
 		return
 
-	# Copy the file.
-	var src_file := FileAccess.open(src_abs, FileAccess.READ)
-	if src_file == null:
-		_status_label.text = "Cannot read source: %s" % src_abs
+	# Copy the file, optionally converting magenta to transparent.
+	var img := Image.new()
+	var load_err := img.load(src_abs)
+	if load_err != OK:
+		_status_label.text = "Cannot read image: %s" % src_abs
 		return
-	var data := src_file.get_buffer(src_file.get_length())
-	src_file.close()
 
-	var dst_file := FileAccess.open(dst_abs, FileAccess.WRITE)
-	if dst_file == null:
-		_status_label.text = "Cannot write to: %s" % dst_abs
-		return
-	dst_file.store_buffer(data)
-	dst_file.close()
+	if _magenta_check.button_pressed:
+		_strip_magenta(img)
+
+	img.save_png(dst_abs)
 
 	_status_label.text = "Imported → %s" % dst_res
 
@@ -382,6 +405,21 @@ func is_dirty() -> bool:
 
 
 # ─── Helpers ───────────────────────────────────────────────────────────
+
+## Replace magenta and near-magenta pixels with fully transparent.
+## "Near magenta" = high red, low green, high blue (hue ≈ 300°, high sat).
+const _MAGENTA_THRESHOLD := 0.15  ## Max green channel for near-magenta.
+const _MAGENTA_MIN_RB := 0.75     ## Min red & blue for near-magenta.
+
+func _strip_magenta(img: Image) -> void:
+	var w: int = img.get_width()
+	var h: int = img.get_height()
+	for y in h:
+		for x in w:
+			var c: Color = img.get_pixel(x, y)
+			if c.r >= _MAGENTA_MIN_RB and c.g <= _MAGENTA_THRESHOLD and c.b >= _MAGENTA_MIN_RB:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+
 
 func _section(text: String) -> Label:
 	var lbl := Label.new()

@@ -208,6 +208,55 @@ static func _load_cached_sheet(sheet_path: String) -> Texture2D:
 	return tex
 
 
+## Detect gutter from sheet dimensions (mirrors SheetView auto-detection).
+## Returns 1 for guttered sheets, 0 otherwise.
+static func _detect_gutter(tex: Texture2D) -> int:
+	var w: int = tex.get_width()
+	var h: int = tex.get_height()
+	var step: int = WorldConst.TILE_PX + 1  # 17
+	var fits_w: bool = ((w + 1) % step == 0) or (w % step == 0)
+	var fits_h: bool = ((h + 1) % step == 0) or (h % step == 0)
+	if fits_w and fits_h:
+		return 1
+	return 0
+
+
+## For multi-tile regions on guttered sheets, composite the tiles into a
+## clean image with gutter pixels stripped out.  Returns null when no
+## compositing is needed (single tile or no gutter).
+static func _composite_region(tex: Texture2D, region: Array) -> ImageTexture:
+	var gut: int = _detect_gutter(tex)
+	if gut == 0:
+		return null
+	var tile_px: int = WorldConst.TILE_PX
+	var content_w: int = int(region[2])
+	var content_h: int = int(region[3])
+	var tiles_w: int = ceili(float(content_w) / tile_px)
+	var tiles_h: int = ceili(float(content_h) / tile_px)
+	# Only need compositing when region spans more than one tile in either axis.
+	if tiles_w <= 1 and tiles_h <= 1:
+		return null
+	var step: int = tile_px + gut
+	var src_img: Image = tex.get_image()
+	if src_img == null:
+		return null
+	var dst := Image.create(content_w, content_h, false, src_img.get_format())
+	var origin_x: int = int(region[0])
+	var origin_y: int = int(region[1])
+	for ty in tiles_h:
+		for tx in tiles_w:
+			var src_x: int = origin_x + tx * step
+			var src_y: int = origin_y + ty * step
+			var dst_x: int = tx * tile_px
+			var dst_y: int = ty * tile_px
+			var blit_w: int = mini(tile_px, content_w - dst_x)
+			var blit_h: int = mini(tile_px, content_h - dst_y)
+			dst.blit_rect(src_img,
+				Rect2i(src_x, src_y, blit_w, blit_h),
+				Vector2i(dst_x, dst_y))
+	return ImageTexture.create_from_image(dst)
+
+
 ## Build a [Sprite2D] configured for this creature kind.
 ## Returns null if the kind has no entry or the sheet cannot be loaded.
 static func build_sprite(kind: StringName) -> Sprite2D:
@@ -228,17 +277,23 @@ static func build_sprite(kind: StringName) -> Sprite2D:
 	# If a region is specified, use AtlasTexture to crop.
 	var region: Array = entry.get("region", [])
 	if region.size() == 4:
-		var region_rect := Rect2(
-			float(region[0]), float(region[1]),
-			float(region[2]), float(region[3]))
-		# Skip atlas if region covers the full texture.
-		if region_rect.size.x < tex.get_width() or region_rect.size.y < tex.get_height():
-			var atlas := AtlasTexture.new()
-			atlas.atlas = tex
-			atlas.region = region_rect
-			spr.texture = atlas
+		# Multi-tile regions on guttered sheets need compositing to strip
+		# the gutter pixels between tiles.
+		var composited: ImageTexture = _composite_region(tex, region)
+		if composited != null:
+			spr.texture = composited
 		else:
-			spr.texture = tex
+			var region_rect := Rect2(
+				float(region[0]), float(region[1]),
+				float(region[2]), float(region[3]))
+			# Skip atlas if region covers the full texture.
+			if region_rect.size.x < tex.get_width() or region_rect.size.y < tex.get_height():
+				var atlas := AtlasTexture.new()
+				atlas.atlas = tex
+				atlas.region = region_rect
+				spr.texture = atlas
+			else:
+				spr.texture = tex
 	else:
 		spr.texture = tex
 

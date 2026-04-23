@@ -17,6 +17,8 @@ signal died(world_position: Vector2, drops: Array)
 
 const SIGHT_RADIUS_TILES: float = 8.0
 const _MOVE_SPEED_PX_PER_S: float = 32.0  ## native pixels (pre-zoom)
+const _BOB_HZ: float = 4.0
+const _BOB_AMP_PX: float = 1.0
 
 @export var max_health: int = 3
 @export var health: int = 3
@@ -27,6 +29,9 @@ const _MOVE_SPEED_PX_PER_S: float = 32.0  ## native pixels (pre-zoom)
 var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
 var _world: WorldRoot = null
 var _sprite: Sprite2D = null
+var _facing_right: bool = false
+var _bob_t: float = 0.0
+var _last_position: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -36,9 +41,11 @@ func _ready() -> void:
 		# Fallback: coloured square so the monster is still visible.
 		_sprite = Sprite2D.new()
 		_sprite.centered = true
+	_facing_right = CreatureSpriteRegistry.is_facing_right(monster_kind)
 	add_child(_sprite)
 	add_to_group(&"monsters")
 	add_to_group(&"scattered_npcs")
+	_last_position = position
 
 
 ## Pure helper: nearest [PlayerController] to [param from] within
@@ -85,6 +92,21 @@ func _process(delta: float) -> void:
 			int(floor(next_pos.y / float(WorldConst.TILE_PX))))
 	if _world.is_walkable(next_cell):
 		position = next_pos
+	# Flip sprite based on movement direction.
+	if to.x != 0.0:
+		if _facing_right:
+			_sprite.flip_h = (to.x < 0.0)
+		else:
+			_sprite.flip_h = (to.x > 0.0)
+	# Bob while moving.
+	var moved: bool = position.distance_squared_to(_last_position) > 0.01
+	_last_position = position
+	if moved:
+		_bob_t += delta
+		_sprite.position.y = -abs(sin(_bob_t * TAU * _BOB_HZ)) * _BOB_AMP_PX
+	else:
+		_bob_t = 0.0
+		_sprite.position.y = 0.0
 
 
 func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:

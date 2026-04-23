@@ -159,6 +159,25 @@ class SheetView extends Control:
 
 	func set_sheet(tex: Texture2D) -> void:
 		texture = tex
+		# Auto-detect gutter: Kenney roguelike sheets use 1-px gutter.
+		# Accepted patterns (step = tile_px + 1 = 17):
+		#   w = cols * step - 1  (no trailing gutter)  → (w+1) % step == 0
+		#   w = cols * step      (trailing gutter)     →  w    % step == 0
+		# Sheets that divide evenly by tile_px alone have no gutter.
+		if tex != null:
+			var w: int = tex.get_width()
+			var h: int = tex.get_height()
+			var step: int = tile_px + 1  # 17
+			var fits_gutter_w: bool = ((w + 1) % step == 0) or (w % step == 0)
+			var fits_gutter_h: bool = ((h + 1) % step == 0) or (h % step == 0)
+			var fits_no_gutter_w: bool = (w % tile_px) == 0
+			var fits_no_gutter_h: bool = (h % tile_px) == 0
+			if fits_gutter_w and fits_gutter_h:
+				gutter = 1
+			elif fits_no_gutter_w and fits_no_gutter_h:
+				gutter = 0
+			else:
+				gutter = 0  # fallback for odd sizes
 		_resize_to_texture()
 		queue_redraw()
 
@@ -383,17 +402,22 @@ func _resolve_sheet(entry: Dictionary) -> String:
 	return entry["sheet"]
 
 
-func _sync_sheet_selector(sheet_path: String) -> void:
+func _sync_sheet_selector(new_path: String) -> void:
 	if _sheet_selector == null:
 		return
+	# Block _on_sheet_selected from firing during programmatic sync.
+	if _sheet_selector.item_selected.is_connected(_on_sheet_selected):
+		_sheet_selector.item_selected.disconnect(_on_sheet_selected)
 	for i in _available_sheets.size():
-		if _available_sheets[i] == sheet_path:
+		if _available_sheets[i] == new_path:
 			_sheet_selector.select(i)
+			_sheet_selector.item_selected.connect(_on_sheet_selected)
 			return
 	# Sheet not in list — append it.
-	_available_sheets.append(sheet_path)
+	_available_sheets.append(new_path)
 	_populate_sheet_selector()
 	_sheet_selector.select(_available_sheets.size() - 1)
+	_sheet_selector.item_selected.connect(_on_sheet_selected)
 
 
 func _on_sheet_selected(idx: int) -> void:
@@ -423,6 +447,7 @@ func _on_sheet_selected(idx: int) -> void:
 			_encounter_editor.sheet_path = new_sheet
 		if _creature_editor != null and _creature_editor.visible:
 			_creature_editor.sheet_path = new_sheet
+			_creature_editor.gutter = _sheet_view.gutter
 		_status_label.text = "sheet → %s" % new_sheet
 
 
@@ -1597,6 +1622,7 @@ func _show_creature_editor() -> void:
 		_creature_editor.sheet_requested.connect(_on_creature_sheet_requested)
 		_slot_root.get_parent().get_parent().add_child(_creature_editor)
 	_creature_editor.sheet_path = _resolve_sheet(_current_mapping)
+	_creature_editor.gutter = _sheet_view.gutter
 	_creature_editor.visible = true
 
 
@@ -1615,6 +1641,7 @@ func _on_creature_sheet_requested(path: String) -> void:
 	var tex: Texture2D = load(path) as Texture2D
 	if tex != null:
 		_sheet_view.set_sheet(tex)
+		_creature_editor.gutter = _sheet_view.gutter
 		_sync_sheet_selector(path)
 
 

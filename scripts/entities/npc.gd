@@ -58,7 +58,11 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _path: Array = []
 var _path_target_cell: Vector2i = Vector2i(0x7fffffff, 0x7fffffff)
 var _path_repath_timer: float = 0.0
+var _bob_t: float = 0.0
+var _npc_sprite: Node = null  ## The Sprite child, for bob animation.
 const PATH_REPATH_SEC: float = 0.5
+const _BOB_HZ: float = 4.0
+const _BOB_AMP_PX: float = 1.0
 
 
 # ---------- Pure helpers ----------
@@ -148,6 +152,7 @@ func _ready() -> void:
 			s.name = "Sprite"
 			s.modulate = Color(0.85, 0.4, 0.4)
 			add_child(s)
+	_npc_sprite = get_node_or_null("Sprite")
 
 
 func _physics_process(delta: float) -> void:
@@ -180,6 +185,14 @@ func _physics_process(delta: float) -> void:
 			_tick_attack(delta)
 		_:
 			pass
+	# Bob sprite while moving.
+	if _npc_sprite != null:
+		if state == State.WANDER or state == State.CHASE:
+			_bob_t += delta
+			_npc_sprite.position.y = -abs(sin(_bob_t * TAU * _BOB_HZ)) * _BOB_AMP_PX
+		else:
+			_bob_t = 0.0
+			_npc_sprite.position.y = 0.0
 
 
 func _enter_state(s: State) -> void:

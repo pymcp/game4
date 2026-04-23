@@ -35,6 +35,7 @@ var can_jump: bool = true
 
 var _sprite: Sprite2D = null
 var _bob_t: float = 0.0
+var _last_rider_pos: Vector2 = Vector2.ZERO
 var _hop_t: float = -1.0  ## < 0 means not hopping
 var _hop_cooldown: float = 0.0
 var _hop_start_pos: Vector2 = Vector2.ZERO
@@ -140,15 +141,20 @@ func _process(delta: float) -> void:
 	if rider != null:
 		# Track the rider.
 		position = rider.position
-		# Bob while rider is moving.
-		var bob: float = sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
-		_sprite.position.y = -bob
+		# Only bob while the rider is actually moving.
+		var rider_moved: bool = rider.position.distance_squared_to(_last_rider_pos) > 0.01
+		_last_rider_pos = rider.position
+		if rider_moved:
+			var bob: float = sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
+			_sprite.position.y = -bob
+		else:
+			_bob_t = 0.0
+			_sprite.position.y = 0.0
 		# Flip based on rider's facing direction.
 		if facing_right:
 			_sprite.flip_h = (rider._facing_x < 0)
 		else:
 			_sprite.flip_h = (rider._facing_x > 0)
 	else:
-		# Idle: gentle bob in place.
-		var bob: float = sin(_bob_t * TAU * _IDLE_BOB_HZ) * _IDLE_BOB_AMP_PX
-		_sprite.position.y = -bob
+		# Idle: no bob.
+		_sprite.position.y = 0.0
