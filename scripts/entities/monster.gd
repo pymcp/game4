@@ -103,7 +103,7 @@ func _process(delta: float) -> void:
 	_last_position = position
 	if moved:
 		_bob_t += delta
-		_sprite.position.y = -abs(sin(_bob_t * TAU * _BOB_HZ)) * _BOB_AMP_PX
+		_sprite.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
 	else:
 		_bob_t = 0.0
 		_sprite.position.y = 0.0

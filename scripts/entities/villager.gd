@@ -162,7 +162,7 @@ func _physics_process(delta: float) -> void:
 	# Bob sprite while wandering.
 	if state == State.WANDER and _sprite_root != null:
 		_bob_t += delta
-		_sprite_root.position.y = -abs(sin(_bob_t * TAU * _BOB_HZ)) * _BOB_AMP_PX
+		_sprite_root.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
 	elif _sprite_root != null:
 		_bob_t = 0.0
 		_sprite_root.position.y = 0.0

@@ -86,6 +86,7 @@ var _inv_slots: Array[HotbarSlot] = []
 var _eq_slots: Array[HotbarSlot] = []
 var _eq_labels: Array[Label] = []
 var _grid: GridContainer = null
+var _grid_scroll: ScrollContainer = null
 var _paperdoll: Control = null
 var _crafting: CraftingPanel = null
 var _char_page: VBoxContainer = null
@@ -415,12 +416,19 @@ func _build_grid_page() -> VBoxContainer:
 	page.anchor_right = 1.0
 	page.anchor_bottom = 1.0
 
-	# Grid of slots.
+	# Scrollable grid of slots.
+	_grid_scroll = ScrollContainer.new()
+	_grid_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_grid_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_grid_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	page.add_child(_grid_scroll)
+
 	_grid = GridContainer.new()
 	_grid.columns = COLS
 	_grid.add_theme_constant_override("h_separation", 4)
 	_grid.add_theme_constant_override("v_separation", 4)
-	page.add_child(_grid)
+	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_grid_scroll.add_child(_grid)
 
 	for i in range(TOTAL_SLOTS):
 		var slot := _make_slot()
@@ -700,6 +708,9 @@ func _refresh_cursor() -> void:
 			# Position relative to grid_page so it overlays correctly.
 			_cursor_panel.global_position = slot.global_position
 			_cursor_panel.size = slot.size
+			# Scroll the cursor slot into view.
+			if _grid_scroll != null:
+				_grid_scroll.ensure_control_visible(slot)
 		else:
 			_cursor_panel.visible = false
 	else:
@@ -863,15 +874,27 @@ func _refresh() -> void:
 	# Build filtered inventory view for current tab.
 	_build_filtered_view()
 
+	# Ensure enough grid slots exist (at least COLS * ROWS, or as many as
+	# needed for the filtered view).
+	var needed: int = maxi(_filtered_view.size(), COLS * ROWS)
+	# Round up to full row.
+	needed = ceili(float(needed) / COLS) * COLS
+	while _inv_slots.size() < needed:
+		var slot := _make_slot()
+		_grid.add_child(slot)
+		_inv_slots.append(slot)
+
 	# Populate grid slots.
-	for i in range(TOTAL_SLOTS):
+	for i in range(_inv_slots.size()):
 		if i < _filtered_view.size():
 			var e: Dictionary = _filtered_view[i]
 			_inv_slots[i].set_item(e["id"], int(e["count"]))
 			_inv_slots[i].visible = true
-		else:
+		elif i < needed:
 			_inv_slots[i].set_item(&"", 0)
-			_inv_slots[i].visible = true  # Show empty slots up to grid capacity.
+			_inv_slots[i].visible = true
+		else:
+			_inv_slots[i].visible = false
 
 	# Clamp cursor.
 	var max_cursor: int = maxi(_filtered_view.size() - 1, 0)

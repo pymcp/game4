@@ -189,7 +189,7 @@ func _physics_process(delta: float) -> void:
 	if _npc_sprite != null:
 		if state == State.WANDER or state == State.CHASE:
 			_bob_t += delta
-			_npc_sprite.position.y = -abs(sin(_bob_t * TAU * _BOB_HZ)) * _BOB_AMP_PX
+			_npc_sprite.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
 		else:
 			_bob_t = 0.0
 			_npc_sprite.position.y = 0.0

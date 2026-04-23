@@ -1,8 +1,8 @@
 ## Inventory
 ##
-## Fixed-size slot array. Each slot is either null or a Dictionary with keys
-## `id: StringName` and `count: int`. Stack rules come from the item's
-## `stack_size` in `ItemRegistry`.
+## Dynamically-growing slot array. Each slot is either null or a Dictionary
+## with keys `id: StringName` and `count: int`. Stack rules come from the
+## item's `stack_size` in `ItemRegistry`.
 ##
 ## Emits `changed` whenever any slot mutates. Save/load via `to_dict` /
 ## `from_dict` keeps the API stable while the storage layout evolves.
@@ -25,8 +25,8 @@ func _init(slot_count: int = DEFAULT_SIZE) -> void:
 
 
 ## Add `count` of `item_id` to the inventory, stacking onto existing slots
-## first then filling empty slots. Returns the leftover count (0 on full
-## success).
+## first then filling empty slots. Grows the inventory if all slots are
+## full. Returns the leftover count (always 0 for valid items).
 func add(item_id: StringName, count: int = 1) -> int:
 	if count <= 0:
 		return 0
@@ -55,6 +55,12 @@ func add(item_id: StringName, count: int = 1) -> int:
 			continue
 		var add_amt: int = min(stack_size, remaining)
 		slots[i] = {"id": item_id, "count": add_amt}
+		remaining -= add_amt
+	# Grow if still items left over.
+	while remaining > 0:
+		var add_amt: int = min(stack_size, remaining)
+		slots.append({"id": item_id, "count": add_amt})
+		size += 1
 		remaining -= add_amt
 	if remaining != count:
 		contents_changed.emit()

@@ -1,5 +1,7 @@
 {
-	"items": {},
+	"items": {
+
+	},
 	"resources": {
 		"bush": {
 			"biome_weights": {
@@ -14,6 +16,7 @@
 					"item_id": "fiber"
 				}
 			],
+			"height_tiles": 1,
 			"hp": 1,
 			"is_pickaxe_bonus": false,
 			"ref_id": "bush",
@@ -59,11 +62,10 @@
 					9
 				]
 			],
-			"width_tiles": 1,
-			"height_tiles": 1,
 			"walkable_mask": [
 				true
-			]
+			],
+			"width_tiles": 1
 		},
 		"copper_vein": {
 			"biome_weights": {
@@ -76,6 +78,7 @@
 					"item_id": "copper_ore"
 				}
 			],
+			"height_tiles": 1,
 			"hp": 5,
 			"is_pickaxe_bonus": true,
 			"ref_id": "copper_vein",
@@ -105,11 +108,10 @@
 					20
 				]
 			],
-			"width_tiles": 1,
-			"height_tiles": 1,
 			"walkable_mask": [
 				true
-			]
+			],
+			"width_tiles": 1
 		},
 		"fennel_plant": {
 			"biome_weights": {
@@ -123,6 +125,7 @@
 					"item_id": "fennel_root"
 				}
 			],
+			"height_tiles": 1,
 			"hp": 1,
 			"is_pickaxe_bonus": false,
 			"ref_id": "fennel_plant",
@@ -132,11 +135,10 @@
 					29
 				]
 			],
-			"width_tiles": 1,
-			"height_tiles": 1,
 			"walkable_mask": [
 				true
-			]
+			],
+			"width_tiles": 1
 		},
 		"gold_vein": {
 			"biome_weights": {
@@ -149,6 +151,7 @@
 					"item_id": "gold_ore"
 				}
 			],
+			"height_tiles": 1,
 			"hp": 8,
 			"is_pickaxe_bonus": true,
 			"ref_id": "gold_vein",
@@ -166,11 +169,10 @@
 					11
 				]
 			],
-			"width_tiles": 1,
-			"height_tiles": 1,
 			"walkable_mask": [
 				true
-			]
+			],
+			"width_tiles": 1
 		},
 		"iron_vein": {
 			"biome_weights": {
@@ -183,6 +185,7 @@
 					"item_id": "iron_ore"
 				}
 			],
+			"height_tiles": 1,
 			"hp": 6,
 			"is_pickaxe_bonus": true,
 			"ref_id": "iron_vein",
@@ -212,11 +215,10 @@
 					21
 				]
 			],
-			"width_tiles": 1,
-			"height_tiles": 1,
 			"walkable_mask": [
 				true
-			]
+			],
+			"width_tiles": 1
 		},
 		"new_resource": {
 			"biome_weights": {
@@ -225,6 +227,7 @@
 			},
 			"display_name": "Short Tree",
 			"drops": [],
+			"height_tiles": 1,
 			"hp": 2,
 			"is_pickaxe_bonus": false,
 			"ref_id": "new_resource",
@@ -258,11 +261,10 @@
 					9
 				]
 			],
-			"width_tiles": 1,
-			"height_tiles": 1,
 			"walkable_mask": [
 				true
-			]
+			],
+			"width_tiles": 1
 		},
 		"rock": {
 			"biome_weights": {
@@ -278,6 +280,7 @@
 					"item_id": "stone"
 				}
 			],
+			"height_tiles": 1,
 			"hp": 5,
 			"is_pickaxe_bonus": true,
 			"ref_id": "rock",
@@ -287,11 +290,10 @@
 					10
 				]
 			],
-			"width_tiles": 1,
-			"height_tiles": 1,
 			"walkable_mask": [
 				true
-			]
+			],
+			"width_tiles": 1
 		},
 		"tree": {
 			"biome_weights": {
@@ -307,33 +309,45 @@
 					"item_id": "wood"
 				}
 			],
+			"height_tiles": 2,
 			"hp": 2,
 			"is_pickaxe_bonus": false,
 			"ref_id": "tree",
 			"sprites": [
 				[
-					13,
-					8
-				],
-				[
 					14,
-					8
+					10
 				],
 				[
 					15,
-					8
+					10
 				],
 				[
 					16,
-					8
+					10
+				],
+				[
+					13,
+					10
+				],
+				[
+					17,
+					10
+				],
+				[
+					18,
+					10
+				],
+				[
+					23,
+					10
 				]
 			],
-			"width_tiles": 1,
-			"height_tiles": 2,
 			"walkable_mask": [
 				false,
 				true
-			]
+			],
+			"width_tiles": 1
 		}
 	}
 }

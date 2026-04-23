@@ -1218,13 +1218,22 @@ func debug_spawn_monster_for(player: PlayerController) -> void:
 	var centre: Vector2i = Vector2i(
 			int(floor(player.position.x / float(WorldConst.TILE_PX))),
 			int(floor(player.position.y / float(WorldConst.TILE_PX))))
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(3, 0), 6, true)
-	var e: Dictionary = {"kind": &"monster", "cell": cell}
-	if _interior != null:
-		_interior.npcs_scatter.append(e)
-	elif _region != null:
-		_region.npcs_scatter.append(e)
-	_spawn_monster(e)
+	# Spawn one of every non-mount creature kind.
+	var kinds: Array = CreatureSpriteRegistry.all_kinds()
+	var idx: int = 0
+	for kind in kinds:
+		if CreatureSpriteRegistry.is_mount(kind):
+			continue
+		var offset := Vector2i(3 + (idx % 6) * 2, (idx / 6) * 2)
+		var cell: Vector2i = find_safe_spawn_cell(centre + offset, 6, true)
+		var e: Dictionary = {"kind": &"monster", "cell": cell, "monster_kind": kind}
+		if _interior != null:
+			_interior.npcs_scatter.append(e)
+		elif _region != null:
+			_region.npcs_scatter.append(e)
+		_spawn_monster(e)
+		print("[F8] monster \"%s\" @ %s" % [kind, str(cell)])
+		idx += 1
 
 
 
@@ -1236,16 +1245,18 @@ func debug_spawn_mount_for(player: PlayerController) -> void:
 	var centre: Vector2i = Vector2i(
 		int(floor(player.position.x / float(WorldConst.TILE_PX))),
 		int(floor(player.position.y / float(WorldConst.TILE_PX))))
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(2, 0), 6, true)
 	var kinds: Array = CreatureSpriteRegistry.all_mount_kinds()
 	if kinds.is_empty():
 		push_warning("[F8] no mount kinds registered")
 		return
-	var mount := Mount.new()
-	mount.mount_kind = kinds[0]
-	mount.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
-	entities.add_child(mount)
-	print("[F8] mount \"%s\" @ %s" % [mount.mount_kind, str(cell)])
+	for i in kinds.size():
+		var offset := Vector2i(2 + i * 3, -2)
+		var cell: Vector2i = find_safe_spawn_cell(centre + offset, 6, true)
+		var mount := Mount.new()
+		mount.mount_kind = kinds[i]
+		mount.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+		entities.add_child(mount)
+		print("[F8] mount \"%s\" @ %s" % [mount.mount_kind, str(cell)])
 
 
 func debug_spawn_interactables_for(player: PlayerController) -> void:
