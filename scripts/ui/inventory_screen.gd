@@ -190,8 +190,11 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	# When open, consume ALL input events so nothing leaks to gameplay.
+	# When open, consume input events for THIS player so nothing leaks to
+	# gameplay — but don't eat the other player's inputs.
 	if not visible:
+		return
+	if not _is_my_event(prefix, event):
 		return
 	get_viewport().set_input_as_handled()
 
@@ -226,10 +229,21 @@ func _input(event: InputEvent) -> void:
 		_interact_cursor()
 		return
 
-	# Attack key — drop in inventory context.
-	if Input.is_action_just_pressed(StringName(prefix + "attack")):
+	# Back key — drop in inventory context.
+	if Input.is_action_just_pressed(StringName(prefix + "back")):
 		_drop_cursor()
 		return
+
+
+## True if [param event] matches any action bound to this player's prefix.
+func _is_my_event(prefix: String, event: InputEvent) -> bool:
+	var actions := InputContext.get_active_actions(_player.player_id)
+	# Also include inventory toggle which is always checked.
+	actions.append(StringName(prefix + "inventory"))
+	for action in actions:
+		if event.is_action(action):
+			return true
+	return false
 
 
 func toggle() -> void:

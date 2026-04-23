@@ -11,7 +11,8 @@ class_name ControlsHud
 
 const _ACTION_LABELS: Dictionary = {
 	&"up": "Up", &"down": "Down", &"left": "Left", &"right": "Right",
-	&"interact": "Interact", &"attack": "Attack", &"inventory": "Inventory",
+	&"interact": "Interact", &"attack": "Attack", &"back": "Back/Drop",
+	&"inventory": "Inventory",
 	&"auto_mine": "Auto-Mine", &"auto_attack": "Auto-Attack",
 	&"tab_prev": "Tab ◀", &"tab_next": "Tab ▶",
 }

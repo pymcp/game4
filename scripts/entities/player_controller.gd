@@ -22,6 +22,7 @@ const _BOB_HZ: float = 6.0
 
 @export var player_id: int = 0
 
+var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
 var _world: WorldRoot = null
 var _sprite_root: Node2D = null
 var _weapon_sprite: Sprite2D = null
@@ -48,6 +49,8 @@ var equipment: Equipment = Equipment.new()
 var max_health: int = 10
 var health: int = 10
 var is_sailing: bool = false
+var is_mounted: bool = false
+var _mount: Mount = null
 var stats: Dictionary = {
 	&"charisma": 3, &"wisdom": 3, &"strength": 3,
 	&"speed": 0, &"defense": 0, &"dexterity": 0,
@@ -67,10 +70,14 @@ func get_effective_stat(stat: StringName) -> int:
 
 
 ## Movement speed in native px/sec, modified by speed stat.
-## Each point of effective speed = +5%.
+## Each point of effective speed = +5%. Mounted speed uses the mount's
+## multiplier on top of the base speed.
 func get_move_speed() -> float:
 	var spd: int = get_effective_stat(&"speed")
-	return _MOVE_SPEED_NATIVE * (1.0 + spd * 0.05)
+	var base: float = _MOVE_SPEED_NATIVE * (1.0 + spd * 0.05)
+	if is_mounted and _mount != null:
+		base *= _mount.speed_multiplier
+	return base
 var _boat: Boat = null
 
 const _INTERACT_RADIUS_PX: float = 24.0  ## native pixels
@@ -226,6 +233,17 @@ func _apply_armor_layer(sprite: Sprite2D, default_region: Rect2,
 func _physics_process(delta: float) -> void:
 	if _world == null:
 		return
+	# Freeze this player while they are in a conversation.
+	if in_conversation:
+		_bob_t = 0.0
+		_sprite_root.position = Vector2.ZERO
+		# Still allow the interact key to dismiss / advance dialogue.
+		var prefix: String = "p%d_" % (player_id + 1)
+		if Input.is_action_just_pressed(StringName(prefix + "interact")):
+			_try_interact()
+		elif Input.is_action_just_pressed(StringName(prefix + "back")):
+			_world.hide_dialogue()
+		return
 	# Skip all gameplay input when this player isn't in GAMEPLAY context
 	# (inventory open, disabled by pause menu, etc.).
 	if InputContext.get_context(player_id) != InputContext.Context.GAMEPLAY:
@@ -241,7 +259,9 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed(StringName(prefix + "auto_attack")):
 		auto_attack = not auto_attack
 	if Input.is_action_just_pressed(StringName(prefix + "attack")):
-		if _attack_cooldown <= 0.0:
+		if is_mounted and _mount != null and _mount.can_jump:
+			_mount.try_hop(_facing_dir)
+		elif _attack_cooldown <= 0.0:
 			try_attack()
 			_attack_cooldown = ATTACK_COOLDOWN_SEC
 	# Auto-mine: mine nearest mineable within radius when cooldown ready.
@@ -315,6 +335,16 @@ func start_sailing(boat: Boat) -> void:
 func stop_sailing(_boat: Boat) -> void:
 	is_sailing = false
 	_boat = null
+
+
+func start_riding(mount: Mount) -> void:
+	is_mounted = true
+	_mount = mount
+
+
+func stop_riding() -> void:
+	is_mounted = false
+	_mount = null
 	# Snap to nearest walkable land if currently on water.
 	var my_cell: Vector2i = _cell_of(position)
 	if _world.is_walkable(my_cell):
@@ -479,6 +509,9 @@ func _auto_attack_ranged(weapon_id: StringName, def: ItemDefinition) -> void:
 ## Formula: effective = max(1, raw_damage - armor_defense).
 func take_hit(damage: int, _attacker: Node = null) -> void:
 	if health <= 0:
+		return
+	# Invincible while in a conversation.
+	if in_conversation:
 		return
 	var defense: int = _armor_defense()
 	var effective: int = max(1, damage - defense)

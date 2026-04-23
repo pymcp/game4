@@ -1,0 +1,29 @@
+{
+	"id": "goblin_camp",
+	"size": [7, 7],
+	"tiles": [
+		[-1, -1, -1, -1, -1, -1, -1],
+		[-1, -1,  4,  4,  4, -1, -1],
+		[-1,  4,  4,  4,  4,  4, -1],
+		[-1,  4,  4,  4,  4,  4, -1],
+		[-1,  4,  4,  4,  4,  4, -1],
+		[-1, -1,  4,  4,  4, -1, -1],
+		[-1, -1, -1, -1, -1, -1, -1]
+	],
+	"decorations": [
+		{"offset": [3, 3], "kind": "rock", "variant": 0}
+	],
+	"entities": [
+		{"offset": [1, 2], "type": "npc", "kind": "goblin"},
+		{"offset": [5, 2], "type": "npc", "kind": "goblin"},
+		{"offset": [2, 5], "type": "npc", "kind": "goblin"},
+		{"offset": [4, 5], "type": "npc", "kind": "goblin"}
+	],
+	"placement": {
+		"biomes": ["grass", "swamp", "rocky"],
+		"min_distance_from_center": 20,
+		"min_distance_between": 24,
+		"max_per_region": 1,
+		"weight": 10
+	}
+}

@@ -1,4 +1,4 @@
-## SpritePicker (dev tool)
+## Game Editor (dev tool)
 ##
 ## Standalone scene that lets the developer browse every editable sprite
 ## mapping in [TileMappings], view the source atlas sheet for the
@@ -6,13 +6,11 @@
 ## active, then click a cell in the sheet to bind that cell to the active
 ## slot. Save writes back to `res://resources/tilesets/tile_mappings.tres`.
 ##
-## v1 intentionally does NOT support adding/renaming slots — only
-## rebinding existing ones — to keep the editor focused on visual cell
-## picking. New slots get added in source code, then re-seeded.
+## Also includes sub-editors for mineables, items, and encounters.
 ##
 ## The scene is built fully from code so the layout is in one place and
 ## doesn't fight `.tscn` formatting. Run via:
-##   godot res://scenes/tools/SpritePicker.tscn
+##   godot res://scenes/tools/GameEditor.tscn
 extends Control
 
 const MAPPINGS_PATH: String = "res://resources/tilesets/tile_mappings.tres"
@@ -80,6 +78,15 @@ const _MAPPINGS: Array = [
 	{"id": &"item_editor",                        "label": "Items / Drops",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_item_editor",                      "kind": &"item_editor"},
+	{"id": &"encounter_editor",                  "label": "Encounters",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_encounter_editor",                 "kind": &"encounter_editor"},
+	{"id": &"creature_editor",                    "label": "Creatures",
+	 "sheet": "res://assets/characters/monsters/slime.png",
+	 "field": &"_creature_editor",                  "kind": &"creature_editor"},
+	{"id": &"asset_browser",                      "label": "Import from Kenney",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_asset_browser",                    "kind": &"asset_browser"},
 ]
 
 # Tile-sheet geometry. Matches WorldConst.TILE_PX (16) and the 1-px
@@ -99,6 +106,9 @@ var _mappings_resource: TileMappings = null
 var _dirty: bool = false
 var _mineable_editor: MineableEditor = null  ## Active only for kind=="mineable".
 var _item_editor: ItemEditor = null          ## Active only for kind=="item_editor".
+var _encounter_editor: EncounterEditor = null ## Active only for kind=="encounter_editor".
+var _creature_editor: CreatureEditor = null  ## Active only for kind=="creature_editor".
+var _asset_browser: AssetBrowser = null      ## Active only for kind=="asset_browser".
 
 # Quest TODO panel state.
 var _quest_panel: ScrollContainer = null
@@ -318,7 +328,7 @@ func _load_mappings_resource() -> void:
 			# until the user explicitly Saves.
 			_mappings_resource = r.duplicate(true) as TileMappings
 			return
-	push_warning("SpritePicker: %s missing or wrong type, using defaults" % MAPPINGS_PATH)
+	push_warning("GameEditor: %s missing or wrong type, using defaults" % MAPPINGS_PATH)
 	_mappings_resource = TileMappings.default_mappings()
 
 
@@ -330,6 +340,10 @@ func _discover_sheets() -> void:
 		"res://assets/tiles/roguelike",
 		"res://assets/tiles/runes",
 		"res://assets/characters/roguelike",
+		"res://assets/characters/monsters",
+		"res://assets/characters/mounts",
+		"res://assets/characters/pets",
+		"res://assets/characters/iso_miniature",
 	]
 	for dir_path in dirs:
 		var da := DirAccess.open(dir_path)
@@ -405,6 +419,10 @@ func _on_sheet_selected(idx: int) -> void:
 			_mineable_editor.sheet_path = new_sheet
 		if _item_editor != null and _item_editor.visible:
 			_item_editor.sheet_path = new_sheet
+		if _encounter_editor != null and _encounter_editor.visible:
+			_encounter_editor.sheet_path = new_sheet
+		if _creature_editor != null and _creature_editor.visible:
+			_creature_editor.sheet_path = new_sheet
 		_status_label.text = "sheet → %s" % new_sheet
 
 
@@ -443,7 +461,7 @@ func _build_ui() -> void:
 func _build_toolbar() -> Control:
 	var hb := HBoxContainer.new()
 	var title := Label.new()
-	title.text = "SpritePicker"
+	title.text = "Game Editor"
 	title.add_theme_font_size_override("font_size", 18)
 	hb.add_child(title)
 	var spacer := Control.new()
@@ -600,6 +618,9 @@ func _select_mapping(entry: Dictionary) -> void:
 	if kind == &"mineable":
 		_show_mineable_editor()
 		_hide_item_editor()
+		_hide_encounter_editor()
+		_hide_creature_editor()
+		_hide_asset_browser()
 		_refresh_marks()
 		_status_label.text = "Editing mineables — %s" % sheet_path
 		return
@@ -607,12 +628,48 @@ func _select_mapping(entry: Dictionary) -> void:
 	if kind == &"item_editor":
 		_show_item_editor()
 		_hide_mineable_editor()
+		_hide_encounter_editor()
+		_hide_creature_editor()
+		_hide_asset_browser()
 		_refresh_marks()
 		_status_label.text = "Editing items — %s" % sheet_path
 		return
 
+	if kind == &"encounter_editor":
+		_show_encounter_editor()
+		_hide_mineable_editor()
+		_hide_item_editor()
+		_hide_creature_editor()
+		_hide_asset_browser()
+		_refresh_marks()
+		_status_label.text = "Editing encounters"
+		return
+
+	if kind == &"creature_editor":
+		_show_creature_editor()
+		_hide_mineable_editor()
+		_hide_item_editor()
+		_hide_encounter_editor()
+		_hide_asset_browser()
+		_refresh_marks()
+		_status_label.text = "Editing creatures"
+		return
+
+	if kind == &"asset_browser":
+		_show_asset_browser()
+		_hide_mineable_editor()
+		_hide_item_editor()
+		_hide_encounter_editor()
+		_hide_creature_editor()
+		_refresh_marks()
+		_status_label.text = "Browsing Kenney assets"
+		return
+
 	_hide_mineable_editor()
 	_hide_item_editor()
+	_hide_encounter_editor()
+	_hide_creature_editor()
+	_hide_asset_browser()
 	_slot_root.visible = true
 	_header_label.visible = true
 	if _preview != null:
@@ -631,7 +688,7 @@ func _select_mapping(entry: Dictionary) -> void:
 func _build_slots(entry: Dictionary) -> Array:
 	var field: StringName = entry["field"]
 	var kind: StringName = entry["kind"]
-	if kind == &"mineable" or kind == &"item_editor":
+	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser":
 		return []  # These use their own editors.
 	var value: Variant = _mappings_resource.get(field)
 	var out: Array = []
@@ -804,6 +861,18 @@ func _on_cell_clicked(cell: Vector2i) -> void:
 		_refresh_marks()
 		_status_label.text = "set item icon to %s" % _str_cell(cell)
 		return
+	# Route to encounter editor if active.
+	if _encounter_editor != null and _encounter_editor.visible:
+		_encounter_editor.on_atlas_cell_clicked(cell)
+		_refresh_marks()
+		_status_label.text = "encounter editor: picked %s" % _str_cell(cell)
+		return
+	# Route to creature editor if active.
+	if _creature_editor != null and _creature_editor.visible:
+		_creature_editor.on_atlas_cell_clicked(cell)
+		_refresh_marks()
+		_status_label.text = "creature editor: picked %s" % _str_cell(cell)
+		return
 	if _active_slot < 0 or _active_slot >= _slots.size():
 		_status_label.text = "no active slot — pick one in the right pane first"
 		return
@@ -845,6 +914,10 @@ func _save() -> void:
 		_mineable_editor.save()
 	if _item_editor != null and _item_editor.is_dirty():
 		_item_editor.save()
+	if _encounter_editor != null and _encounter_editor.is_dirty():
+		_encounter_editor.save()
+	if _creature_editor != null and _creature_editor.is_dirty():
+		_creature_editor.save()
 	var err: int = ResourceSaver.save(_mappings_resource, MAPPINGS_PATH)
 	if err != OK:
 		_status_label.text = "SAVE FAILED (err %d)" % err
@@ -861,6 +934,10 @@ func _revert() -> void:
 		_mineable_editor.revert()
 	if _item_editor != null:
 		_item_editor.revert()
+	if _encounter_editor != null:
+		_encounter_editor.revert()
+	if _creature_editor != null:
+		_creature_editor.revert()
 	# Force a fresh load — drop the cached resource so subsequent loads
 	# pick up the on-disk version (in case it was edited externally).
 	if ResourceLoader.has_cached(MAPPINGS_PATH):
@@ -942,6 +1019,12 @@ func _refresh_marks() -> void:
 		return
 	if _item_editor != null and _item_editor.visible:
 		_sheet_view.set_marks(_item_editor.get_marks())
+		return
+	if _encounter_editor != null and _encounter_editor.visible:
+		_sheet_view.set_marks(_encounter_editor.get_marks())
+		return
+	if _creature_editor != null and _creature_editor.visible:
+		_sheet_view.set_marks(_creature_editor.get_marks())
 		return
 	var marks: Array = []
 	for i in _slots.size():
@@ -1040,6 +1123,9 @@ const _ICON_SIZE := 36
 func _select_quest_todo(quest_id: String) -> void:
 	_hide_mineable_editor()
 	_hide_item_editor()
+	_hide_encounter_editor()
+	_hide_creature_editor()
+	_hide_asset_browser()
 	_current_mapping = {}
 	_slots = []
 	_active_slot = -1
@@ -1463,6 +1549,95 @@ func _on_item_sheet_requested(path: String) -> void:
 			_sheet_selector.select(i)
 			break
 	_refresh_marks()
+
+
+# ─── Encounter editor integration ─────────────────────────────────────
+
+func _show_encounter_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _encounter_editor == null:
+		_encounter_editor = EncounterEditor.new()
+		_encounter_editor.dirty_changed.connect(_on_encounter_dirty)
+		_slot_root.get_parent().get_parent().add_child(_encounter_editor)
+	_encounter_editor.sheet_path = _resolve_sheet(_current_mapping)
+	_encounter_editor.visible = true
+
+
+func _hide_encounter_editor() -> void:
+	if _encounter_editor != null:
+		_encounter_editor.visible = false
+
+
+func _on_encounter_dirty() -> void:
+	_mark_dirty()
+	_refresh_marks()
+
+
+# ─── Creature editor integration ──────────────────────────────────────
+
+func _show_creature_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _creature_editor == null:
+		_creature_editor = CreatureEditor.new()
+		_creature_editor.dirty_changed.connect(_on_creature_dirty)
+		_creature_editor.sheet_requested.connect(_on_creature_sheet_requested)
+		_slot_root.get_parent().get_parent().add_child(_creature_editor)
+	_creature_editor.sheet_path = _resolve_sheet(_current_mapping)
+	_creature_editor.visible = true
+
+
+func _hide_creature_editor() -> void:
+	if _creature_editor != null:
+		_creature_editor.visible = false
+
+
+func _on_creature_dirty() -> void:
+	_mark_dirty()
+	_refresh_marks()
+
+
+func _on_creature_sheet_requested(path: String) -> void:
+	# When the creature editor requests a sheet, switch the atlas view.
+	var tex: Texture2D = load(path) as Texture2D
+	if tex != null:
+		_sheet_view.set_sheet(tex)
+		_sync_sheet_selector(path)
+
+
+# ─── Asset browser integration ─────────────────────────────────────────
+
+func _show_asset_browser() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _asset_browser == null:
+		_asset_browser = AssetBrowser.new()
+		_slot_root.get_parent().get_parent().add_child(_asset_browser)
+	_asset_browser.visible = true
+
+
+func _hide_asset_browser() -> void:
+	if _asset_browser != null:
+		_asset_browser.visible = false
 
 
 func _on_navigate_to_mineable(resource_id: StringName) -> void:

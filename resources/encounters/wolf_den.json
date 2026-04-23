@@ -1,0 +1,26 @@
+{
+	"id": "wolf_den",
+	"size": [5, 5],
+	"tiles": [
+		[-1, -1, -1, -1, -1],
+		[-1,  4,  4,  4, -1],
+		[-1,  4,  4,  4, -1],
+		[-1,  4,  4,  4, -1],
+		[-1, -1, -1, -1, -1]
+	],
+	"decorations": [
+		{"offset": [2, 2], "kind": "bush", "variant": 0}
+	],
+	"entities": [
+		{"offset": [1, 1], "type": "npc", "kind": "wolf"},
+		{"offset": [3, 1], "type": "npc", "kind": "wolf"},
+		{"offset": [2, 3], "type": "npc", "kind": "wolf"}
+	],
+	"placement": {
+		"biomes": ["grass", "snow"],
+		"min_distance_from_center": 20,
+		"min_distance_between": 24,
+		"max_per_region": 2,
+		"weight": 12
+	}
+}

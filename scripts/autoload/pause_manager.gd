@@ -36,6 +36,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F8:
 				_dispatch_debug(&"debug_spawn_villager")
 				_dispatch_debug(&"debug_spawn_monster")
+				_dispatch_debug(&"debug_spawn_mount")
 				get_viewport().set_input_as_handled()
 			KEY_F9:
 				_dispatch_debug(&"debug_spawn_interactables")

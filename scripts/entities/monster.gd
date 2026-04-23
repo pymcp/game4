@@ -24,6 +24,7 @@ const _MOVE_SPEED_PX_PER_S: float = 32.0  ## native pixels (pre-zoom)
 @export var resistances: Dictionary = {}  ## Element enum → float multiplier (0.0=immune, 2.0=weak)
 @export var monster_kind: StringName = &"slime"  ## Loot table key
 
+var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
 var _world: WorldRoot = null
 var _sprite: Sprite2D = null
 
@@ -64,6 +65,9 @@ static func nearest_player(from: Vector2, candidates: Array,
 func _process(delta: float) -> void:
 	if _world == null:
 		return
+	# Freeze while in a conversation.
+	if in_conversation:
+		return
 	var target: PlayerController = nearest_player(position,
 			_world.entities.get_children(), SIGHT_RADIUS_TILES)
 	if target == null:
@@ -84,6 +88,9 @@ func _process(delta: float) -> void:
 
 
 func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
+	# Invincible while in a conversation.
+	if in_conversation:
+		return
 	var effective: int = _apply_resistance(damage, element)
 	health = max(0, health - effective)
 	if health <= 0:

@@ -1,7 +1,7 @@
 ## Structural smoke tests for `tile_mappings.tres`: the on-disk resource
 ## must load, contain the expected dictionary keys, and agree with the
 ## TilesetCatalog facade on a few known cells. The .tres is the source of
-## truth (edited via SpritePicker), so we do NOT compare against the
+## truth (edited via Game Editor), so we do NOT compare against the
 ## hardcoded `default_mappings()` seed — intentional drift is expected.
 extends GutTest
 
@@ -39,7 +39,7 @@ func test_tres_loads_and_has_expected_keys() -> void:
 
 
 # Catalog still owns its constants; verify they agree with the resource
-# so any drift between SpritePicker edits and the renderer is caught.
+# so any drift between Game Editor edits and the renderer is caught.
 # (When the catalog is migrated to read from TileMappings, this becomes
 # trivially true.)
 func test_catalog_constants_match_resource() -> void:
@@ -49,13 +49,13 @@ func test_catalog_constants_match_resource() -> void:
 	assert_eq(TilesetCatalog.OVERWORLD_TERRAIN_CELLS[&"water"][0], loaded.overworld_terrain[&"water"][0])
 
 
-# Smoke: SpritePicker dev tool scene loads without parse / instantiation
+# Smoke: Game Editor dev tool scene loads without parse / instantiation
 # errors. Doesn't touch the editor — just instances and frees.
-func test_sprite_picker_scene_loads() -> void:
-	var scn: PackedScene = load("res://scenes/tools/SpritePicker.tscn") as PackedScene
-	assert_not_null(scn, "SpritePicker.tscn should load")
+func test_game_editor_scene_loads() -> void:
+	var scn: PackedScene = load("res://scenes/tools/GameEditor.tscn") as PackedScene
+	assert_not_null(scn, "GameEditor.tscn should load")
 	var inst: Node = scn.instantiate()
-	assert_not_null(inst, "SpritePicker should instantiate")
+	assert_not_null(inst, "GameEditor should instantiate")
 	add_child_autofree(inst)
 	# Let one frame tick so _ready runs.
 	await get_tree().process_frame

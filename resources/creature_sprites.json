@@ -62,5 +62,17 @@
 		"scale": [0.9, 0.9],
 		"footprint": [1, 1],
 		"tint": [0.3, 0.7, 1.0, 1.0]
+	},
+	"grasshopper": {
+		"sheet": "res://assets/characters/mounts/grasshopper.png",
+		"anchor_ratio": [0.5, 0.95],
+		"target_width_tiles": 2,
+		"footprint": [2, 1],
+		"tint": [1.0, 1.0, 1.0, 1.0],
+		"mount": true,
+		"facing_right": true,
+		"speed_multiplier": 1.8,
+		"can_jump": true,
+		"rider_offset": [0, -12]
 	}
 }

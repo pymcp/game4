@@ -23,7 +23,7 @@ const _DEFAULTS: Dictionary = {
 	# HEAD slot — hair ACCESSORY style (row+3)
 	&"helmet":  {"cell": Vector2i(19, 3), "tint": Color(1, 1, 1)},  # brown accessory cap
 
-	# FEET slot — placeholder, user will map via SpritePicker
+	# FEET slot — placeholder, user will map via Game Editor
 	&"boots":   {"cell": _NO_CELL, "tint": Color(1, 1, 1)},
 }
 

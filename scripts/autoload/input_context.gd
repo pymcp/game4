@@ -46,6 +46,7 @@ func get_active_actions(player_id: int) -> Array[StringName]:
 				StringName(prefix + "right"),
 				StringName(prefix + "interact"),
 				StringName(prefix + "attack"),
+				StringName(prefix + "back"),
 				StringName(prefix + "inventory"),
 				StringName(prefix + "auto_mine"),
 				StringName(prefix + "auto_attack"),
@@ -57,6 +58,7 @@ func get_active_actions(player_id: int) -> Array[StringName]:
 				StringName(prefix + "left"),
 				StringName(prefix + "right"),
 				StringName(prefix + "interact"),
+				StringName(prefix + "back"),
 				StringName(prefix + "tab_prev"),
 				StringName(prefix + "tab_next"),
 				StringName(prefix + "inventory"),
@@ -80,8 +82,15 @@ func get_key_label(action: StringName) -> String:
 	for ev in events:
 		if ev is InputEventKey:
 			var keycode := (ev as InputEventKey).keycode
+			if _KP_LABELS.has(keycode):
+				return _KP_LABELS[keycode]
 			return OS.get_keycode_string(keycode)
 	return "?"
+
+## Numpad keycodes that OS.get_keycode_string() can't handle in Godot 4.3.
+const _KP_LABELS: Dictionary = {
+	4194450: "Kp .",  # KEY_KP_PERIOD
+}
 
 
 func _action_verb(action: StringName) -> String:
@@ -98,6 +107,8 @@ func _action_verb(action: StringName) -> String:
 			return "Inventory"
 		"attack":
 			return "Attack"
+		"back":
+			return "Back"
 		"auto_mine":
 			return "Auto-Mine"
 		"auto_attack":

@@ -151,16 +151,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var prefix: String = "p%d_" % (player_id + 1)
 
-	# Number keys 1-9 for direct choice selection.
-	if event is InputEventKey and event.pressed and not event.echo:
-		var key: int = (event as InputEventKey).keycode
-		if key >= KEY_1 and key <= KEY_9:
-			var idx: int = key - KEY_1
-			if idx < _visible_choices.size():
-				_pick_choice(idx)
-				get_viewport().set_input_as_handled()
-				return
-
 	# Arrow / WASD navigation within choices.
 	if _visible_choices.size() > 0:
 		if event.is_action_pressed(StringName(prefix + "up")):

@@ -4,7 +4,7 @@
 ## dungeon / interior rendering. Serves as the single source of truth that
 ## [TilesetCatalog] reads from at runtime, replacing the old in-source
 ## `const` tables. Persists as `res://resources/tilesets/tile_mappings.tres`
-## and is editable by the SpritePicker dev tool.
+## and is editable by the Game Editor dev tool.
 ##
 ## Design notes:
 ##   - Typed `Array[Vector2i]` is used wherever Godot supports it; nested
@@ -98,7 +98,7 @@ extends Resource
 ## Optional per-field sheet-path overrides. When a mapping field (e.g.
 ## `&"city_terrain"`) needs to pull cells from a different PNG than the
 ## historical default, store the mapping here: `StringName → String`.
-## The SpritePicker sheet selector writes this; TilesetCatalog reads it.
+## The Game Editor sheet selector writes this; TilesetCatalog reads it.
 ## Missing keys fall back to the built-in default sheet.
 @export var sheet_overrides: Dictionary = {}
 

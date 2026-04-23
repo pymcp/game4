@@ -27,8 +27,8 @@ func test_set_context_emits_signal() -> void:
 	InputContext.set_context(0, InputContext.Context.GAMEPLAY)
 
 
-func test_p1_attack_label_is_F() -> void:
-	assert_eq(InputContext.get_key_label(&"p1_attack"), "F")
+func test_p1_attack_label_is_R() -> void:
+	assert_eq(InputContext.get_key_label(&"p1_attack"), "R")
 
 
 func test_p2_attack_label_is_kp_add() -> void:

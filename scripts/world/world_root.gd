@@ -61,6 +61,7 @@ var _mineable: Dictionary = {}  ## Vector2i -> {kind: StringName, hp: int}
 var last_rune_message: String = ""
 var _dialogue_box: DialogueBox = null  ## Per-instance dialogue UI.
 var _active_tree_player: PlayerController = null  ## Player driving branching dialogue.
+var _active_dialogue_npc: Node2D = null  ## NPC/entity the player is talking to.
 
 const MINEABLE_HP: Dictionary = {
 	&"tree": 3, &"bush": 1, &"rock": 5,
@@ -1090,18 +1091,44 @@ func _materialize_loot_scatter() -> void:
 
 # --- Dialogue ------------------------------------------------------
 
-func show_dialogue(pid: int, speaker: String, line: String) -> void:
+
+## Mark both participants as in_conversation (freeze + invincible).
+func _begin_conversation(player: PlayerController, npc: Node2D) -> void:
+	# End any prior conversation first.
+	_end_conversation()
+	if player != null:
+		player.in_conversation = true
+		_active_tree_player = player
+	if npc != null and "in_conversation" in npc:
+		npc.in_conversation = true
+	_active_dialogue_npc = npc
+
+
+## Clear in_conversation on the tracked participants.
+func _end_conversation() -> void:
+	if _active_tree_player != null and is_instance_valid(_active_tree_player):
+		_active_tree_player.in_conversation = false
+	if _active_dialogue_npc != null and is_instance_valid(_active_dialogue_npc):
+		if "in_conversation" in _active_dialogue_npc:
+			_active_dialogue_npc.in_conversation = false
+
+
+func show_dialogue(pid: int, speaker: String, line: String, npc: Node2D = null) -> void:
+	var player: PlayerController = get_player(pid)
+	_begin_conversation(player, npc)
 	var box: DialogueBox = _ensure_dialogue_box()
 	box.player_id = pid
 	box.show_line(speaker, line)
 
 
 func hide_dialogue() -> void:
+	_end_conversation()
 	if _dialogue_box != null and is_instance_valid(_dialogue_box):
 		if _dialogue_box.choice_selected.is_connected(_on_choice_selected):
 			_dialogue_box.choice_selected.disconnect(_on_choice_selected)
 		_dialogue_box.hide_line()
 	_active_tree_player = null
+	_active_dialogue_npc = null
 
 
 func dialogue_open() -> bool:
@@ -1122,10 +1149,11 @@ func _ensure_dialogue_box() -> DialogueBox:
 	return _dialogue_box
 
 
-func show_dialogue_tree(player: PlayerController, tree: DialogueTree) -> void:
+func show_dialogue_tree(player: PlayerController, tree: DialogueTree, npc: Node2D = null) -> void:
 	if tree == null or tree.root == null:
 		return
 	_active_tree_player = player
+	_begin_conversation(player, npc)
 	var box: DialogueBox = _ensure_dialogue_box()
 	box.player_id = player.player_id
 	# Disconnect any prior connection so we don't double-fire.
@@ -1199,6 +1227,27 @@ func debug_spawn_monster_for(player: PlayerController) -> void:
 	_spawn_monster(e)
 
 
+
+func debug_spawn_mount_for(player: PlayerController) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	if _interior != null:
+		return  # mounts are outdoor-only for now
+	var centre: Vector2i = Vector2i(
+		int(floor(player.position.x / float(WorldConst.TILE_PX))),
+		int(floor(player.position.y / float(WorldConst.TILE_PX))))
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(2, 0), 6, true)
+	var kinds: Array = CreatureSpriteRegistry.all_mount_kinds()
+	if kinds.is_empty():
+		push_warning("[F8] no mount kinds registered")
+		return
+	var mount := Mount.new()
+	mount.mount_kind = kinds[0]
+	mount.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+	entities.add_child(mount)
+	print("[F8] mount \"%s\" @ %s" % [mount.mount_kind, str(cell)])
+
+
 func debug_spawn_interactables_for(player: PlayerController) -> void:
 	if player == null or not is_instance_valid(player):
 		push_warning("[F9] no player to spawn near")
@@ -1215,7 +1264,92 @@ func debug_spawn_interactables_for(player: PlayerController) -> void:
 			centre, Vector2i(-2, 0), "cave entrance")
 	_debug_place_entrance(&"house", &"house_enter",
 			centre, Vector2i(2, 0), "house entrance")
+	_debug_spawn_encounters(centre)
 	_debug_refresh_labels()
+
+
+
+func _debug_spawn_encounters(centre: Vector2i) -> void:
+	var ids: Array = EncounterRegistry.all_ids()
+	if ids.is_empty():
+		print("[F9] no encounters registered")
+		return
+	var spacing: int = 12  # tile gap between encounter origins
+	var col: int = 0
+	for id in ids:
+		var enc: Dictionary = EncounterRegistry.get_encounter(StringName(id))
+		if enc.is_empty():
+			continue
+		var sz: Vector2i = EncounterRegistry.get_size(enc)
+		# Place in a row to the right of the player, offset down a bit.
+		var origin_offset := Vector2i(4 + col * spacing, 4)
+		var origin: Vector2i = _debug_find_walkable(centre, origin_offset, false)
+		if origin == Vector2i(-9999, -9999):
+			push_warning("[F9] no walkable cell for encounter %s" % id)
+			col += 1
+			continue
+		_debug_stamp_encounter(enc, origin)
+		print("[F9] encounter \"%s\" (%dx%d) @ %s" % [id, sz.x, sz.y, str(origin)])
+		col += 1
+
+
+func _debug_stamp_encounter(enc: Dictionary, origin: Vector2i) -> void:
+	var sz: Vector2i = EncounterRegistry.get_size(enc)
+	var tiles: Array = EncounterRegistry.get_tiles(enc)
+	var size: int = Region.SIZE
+	# Stamp terrain.
+	for y in sz.y:
+		for x in sz.x:
+			var code: int = -1
+			if y < tiles.size() and x < tiles[y].size():
+				code = int(tiles[y][x])
+			if code == -1:
+				continue  # Keep existing terrain.
+			var cell := origin + Vector2i(x, y)
+			if cell.x < 0 or cell.y < 0 or cell.x >= size or cell.y >= size:
+				continue
+			_region.tiles[cell.y * size + cell.x] = code
+			# Re-paint the ground tile.
+			var terrain: StringName = TerrainCodes.to_terrain_type(code)
+			var hash32: int = _region.seed ^ (cell.x * 73856093) ^ (cell.y * 19349663)
+			var atlas_cell: Vector2i = TilesetCatalog.cell_for_variant(
+				&"overworld", terrain, hash32)
+			if atlas_cell.x >= 0:
+				ground.set_cell(cell, 0, atlas_cell, 0)
+	# Stamp decorations.
+	for d in EncounterRegistry.get_decorations(enc):
+		var off: Array = d.get("offset", [0, 0])
+		var cell := origin + Vector2i(int(off[0]), int(off[1]))
+		if cell.x < 0 or cell.y < 0 or cell.x >= size or cell.y >= size:
+			continue
+		var deco_kind: StringName = StringName(d.get("kind", ""))
+		var variant: int = int(d.get("variant", 0))
+		# Add to region data.
+		_region.decorations.append({"kind": deco_kind, "cell": cell, "variant": variant})
+		# Paint on decoration layer.
+		var variants: Variant = TilesetCatalog.OVERWORLD_DECORATION_CELLS.get(deco_kind, null)
+		if variants is Array and not (variants as Array).is_empty():
+			var arr: Array = variants
+			var idx: int = variant % arr.size()
+			decoration.set_cell(cell, 0, arr[idx], 0)
+			if TilesetCatalog.is_tall_decoration(deco_kind):
+				var top_cell := cell + Vector2i(0, -1)
+				if top_cell.y >= 0:
+					decoration.set_cell(top_cell, 0, arr[idx] + Vector2i(0, -1), 0)
+		# Register mineable if applicable.
+		if MINEABLE_HP.has(deco_kind):
+			_mineable[cell] = {"kind": deco_kind, "hp": MINEABLE_HP[deco_kind]}
+	# Spawn entities.
+	for e in EncounterRegistry.get_entities(enc):
+		var off: Array = e.get("offset", [0, 0])
+		var cell := origin + Vector2i(int(off[0]), int(off[1]))
+		var kind: StringName = StringName(e.get("kind", "slime"))
+		var entry: Dictionary = {"cell": cell, "kind": kind, "monster_kind": kind}
+		_region.npcs_scatter.append(entry)
+		if LootTableRegistry.has_table(kind):
+			_spawn_monster(entry)
+		else:
+			push_warning("[F9] unknown entity kind \"%s\" — skipped" % kind)
 
 
 func _debug_place_entrance(kind: StringName, door_kind: StringName,

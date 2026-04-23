@@ -2,7 +2,7 @@
 ##
 ## Maps equipped item IDs to character-sheet atlas cells for the persistent
 ## weapon sprite on the player. Reads from the [TileMappings] resource
-## (editable via SpritePicker); falls back to coded defaults when the
+## (editable via Game Editor); falls back to coded defaults when the
 ## mapping is absent.
 ##
 ## Weapons are 2 tiles tall on the character sheet (16×33 region).

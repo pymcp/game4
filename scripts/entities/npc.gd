@@ -49,6 +49,7 @@ const LEASH_RADIUS_TILES: float = 10.0
 var state: State = State.IDLE
 var target: Node2D = null
 var home_cell: Vector2i = Vector2i.ZERO
+var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
 var _world: WorldRoot = null
 var _state_timer: float = 0.0
 var _attack_cooldown: float = 0.0
@@ -152,6 +153,9 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if state == State.DEAD:
 		return
+	# Freeze while in a conversation.
+	if in_conversation:
+		return
 	_attack_cooldown = max(0.0, _attack_cooldown - delta)
 	_state_timer += delta
 	# Compute decision inputs.
@@ -238,6 +242,9 @@ func _tick_attack(_delta: float) -> void:
 
 func take_hit(damage: int, attacker: Node = null, element: int = 0) -> void:
 	if state == State.DEAD:
+		return
+	# Invincible while in a conversation.
+	if in_conversation:
 		return
 	var effective: int = _apply_resistance(damage, element)
 	health = max(0, health - effective)

@@ -31,6 +31,7 @@ const STUCK_TIMEOUT_SEC: float = 0.8
 ## Optional branching dialogue tree. If null, falls back to one-liner.
 @export var dialogue_tree: DialogueTree = null
 
+var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
 var state: State = State.IDLE
 var _world: WorldRoot = null
 var _sprite_root: Node2D = null
@@ -144,6 +145,9 @@ func _build_appearance() -> void:
 func _physics_process(delta: float) -> void:
 	if _world == null:
 		return
+	# Freeze while in a conversation.
+	if in_conversation:
+		return
 	_state_timer += delta
 	_path_repath_timer -= delta
 	match state:
@@ -226,10 +230,10 @@ func interact(player: PlayerController) -> bool:
 	if _world == null or player == null:
 		return false
 	if dialogue_tree != null:
-		_world.show_dialogue_tree(player, dialogue_tree)
+		_world.show_dialogue_tree(player, dialogue_tree, self)
 		return true
 	# Fallback: one-liner dialogue.
 	var speaker: String = VillagerDialogue.pick_name(npc_seed)
 	var line: String = VillagerDialogue.pick_line(npc_seed)
-	_world.show_dialogue(player.player_id, speaker, line)
+	_world.show_dialogue(player.player_id, speaker, line, self)
 	return true

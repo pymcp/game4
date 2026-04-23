@@ -533,6 +533,8 @@ static func _build(png_path: String, terrain_cells: Dictionary,
 						if blocks:
 							obstacle_cells[s + Vector2i(dx, dy)] = true
 		for cell in obstacle_cells:
+			if cell_to_terrain.has(cell):
+				continue  # Don't override explicitly-tagged terrain tiles (e.g. door).
 			var data: TileData = src.get_tile_data(cell, 0)
 			if data != null:
 				data.set_custom_data(CUSTOM_WALKABLE, false)

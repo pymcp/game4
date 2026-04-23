@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# sprite_tool.sh — launch the SpritePicker with proper Godot initialization.
+# game_editor.sh — launch the Game Editor with proper Godot initialization.
 # Mirrors run.sh: re-imports assets and refreshes the script class cache
-# when needed, then opens the SpritePicker scene.
+# when needed, then opens the GameEditor scene.
 
 set -euo pipefail
 
@@ -15,7 +15,7 @@ for arg in "$@"; do
 		--force|-f) FORCE=1 ;;
 		--help|-h)
 			cat <<EOF
-Usage: ./sprite_tool.sh [--force]
+Usage: ./game_editor.sh [--force]
 
   --force, -f   Re-run import + class cache refresh even if up to date.
   --help,  -h   Show this message.
@@ -46,7 +46,7 @@ if (( ! NEED_IMPORT )); then
 	fi
 fi
 if (( NEED_IMPORT )); then
-	echo "[sprite_tool] importing assets..."
+	echo "[game_editor] importing assets..."
 	"$GODOT_BIN" --headless --import --quit-after 60 --path . >/tmp/godot-import.log 2>&1 || true
 fi
 
@@ -62,11 +62,11 @@ if (( ! NEED_CACHE )); then
 	fi
 fi
 if (( NEED_CACHE )); then
-	echo "[sprite_tool] refreshing script class cache..."
+	echo "[game_editor] refreshing script class cache..."
 	"$GODOT_BIN" --headless --editor --quit-after 60 --path . \
 		>/tmp/godot-scan.log 2>&1 || true
 fi
 
-# ── Step 3: launch SpritePicker ───────────────────────────────────────
-echo "[sprite_tool] launching..."
-exec "$GODOT_BIN" --path . res://scenes/tools/SpritePicker.tscn
+# ── Step 3: launch Game Editor ────────────────────────────────────────
+echo "[game_editor] launching..."
+exec "$GODOT_BIN" --path . res://scenes/tools/GameEditor.tscn

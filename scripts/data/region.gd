@@ -32,6 +32,8 @@ const SIZE: int = 128
 @export var dungeon_entrances: Array = []
 ## Each entry: {cell: Vector2i, source: int (0..2), atlas: Vector2i}.
 @export var runes: Array = []
+## Placed encounter instances: {encounter_id: StringName, cell: Vector2i}.
+@export var encounters: Array = []
 
 
 func _init() -> void:
