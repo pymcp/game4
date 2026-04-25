@@ -80,6 +80,7 @@ if TilesetCatalog.is_tall_decoration(kind):
 | Treating `sprites[0]` as the trunk cell | Foliage at ground, random tile above | `sprites[0]` is top-left (foliage); trunk = `+Vector2i(0,1)` |
 | Clearing foliage from `decoration` on destroy | Foliage lingers after tree is mined | Clear from `canopy` layer |
 | Shake only shaking the trunk `Sprite2D` | Only bottom half of tree shakes | Check `canopy` layer at `cell+(0,-1)` and tween both |
+| Canopy layer has no `tile_set` assigned | Foliage cells are accepted but never render | `_attach_overworld_tilesets()` must set `canopy.tile_set = ts`; `_attach_interior_tilesets()` must set `canopy.tile_set = null` |
 
 ---
 
