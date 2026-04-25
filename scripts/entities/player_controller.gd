@@ -34,6 +34,7 @@ var _face_sprite: Sprite2D = null
 var _boots_sprite: Sprite2D = null
 var _shield_sprite: Sprite2D = null
 var _action_vfx: ActionVFX = null
+var _damage_heart_vfx: DamageHeartVFX = null
 var _default_torso_region: Rect2
 var _default_hair_region: Rect2
 var _bob_t: float = 0.0
@@ -108,6 +109,9 @@ func _ready() -> void:
 	_action_vfx = $ActionVFX as ActionVFX
 	if _action_vfx != null:
 		_action_vfx.setup(self, _weapon_sprite, _world, _sprite_root)
+	_damage_heart_vfx = DamageHeartVFX.new()
+	_damage_heart_vfx.name = "DamageHeartVFX"
+	add_child(_damage_heart_vfx)
 	equipment.contents_changed.connect(_update_weapon_sprite)
 	equipment.contents_changed.connect(_update_armor_sprites)
 	equipment.contents_changed.connect(_update_shield_sprite)
@@ -549,6 +553,8 @@ func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 	var effective: int = max(1, damage - defense)
 	health = max(0, health - effective)
 	ActionParticles.flash_hit(self)
+	if _damage_heart_vfx != null:
+		_damage_heart_vfx.show_damage(effective)
 	if element != 0:
 		apply_status_from_element(element)
 	if health <= 0:
