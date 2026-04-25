@@ -41,8 +41,13 @@ static func plan_region(world_seed: int, region_id: Vector2i, plans: Dictionary)
 	plan.region_id = region_id
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _region_seed(world_seed, region_id)
-	plan.is_ocean = rng.randf() < PURE_OCEAN_CHANCE
-	plan.planned_biome = _pick_biome(rng) if not plan.is_ocean else &"ocean"
+	# Starting region (0,0) is always grass so the player begins on familiar terrain.
+	if region_id == Vector2i.ZERO:
+		plan.is_ocean = false
+		plan.planned_biome = &"grass"
+	else:
+		plan.is_ocean = rng.randf() < PURE_OCEAN_CHANCE
+		plan.planned_biome = _pick_biome(rng) if not plan.is_ocean else &"ocean"
 	plans[region_id] = plan
 	return plan
 
