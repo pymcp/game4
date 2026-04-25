@@ -1,10 +1,87 @@
 # Skill: Equipment & Player Rendering
 
-Use this skill when working on equipping/unequipping items, armor defense calculations, weapon/armor sprite rendering on the player, the inventory UI equip/drop flow, or the atlas mapping systems.
+Use this skill when working on equipping/unequipping items, armor defense calculations, weapon/armor sprite rendering on the player, the inventory UI equip/drop flow, the atlas mapping systems, or world/tile layer rendering order.
 
 ---
 
-## Equipment
+## World Rendering Layer Order
+
+**Scene:** `scenes/world/World.tscn` → `WorldRoot` (`scripts/world/world_root.gd`)
+
+Layers are **siblings under the WorldRoot Node2D** and draw in **scene-tree order** (top = drawn first = behind).
+
+| Draw order | Node name    | Type            | z_index | y_sort | Purpose |
+|-----------|--------------|-----------------|---------|--------|---------|
+| 1 (back)  | `Ground`     | TileMapLayer    | 0       | false  | Terrain: grass, water, roads |
+| 2         | `Patch`      | TileMapLayer    | 0       | false  | Terrain patches (dirt, transitions) |
+| 3         | `Decoration` | TileMapLayer    | 0       | true   | Tree trunks, rocks, walls — player walks **in front** |
+| 4         | `Overlay`    | TileMapLayer    | 0       | false  | Mining cracks, rune marks |
+| 5         | `Entities`   | Node2D          | 0       | true   | Players, NPCs, monsters, loot — Y-sorted |
+| 6 (front) | `Canopy`     | TileMapLayer    | 1       | false  | Tree foliage tops — player walks **behind** |
+
+### The trunk / canopy split (tall decorations)
+
+Tall decorations (e.g. trees, `height_tiles = 2`) are split across **two layers**:
+
+- **Trunk** (ground cell, bottom row of sprite on sheet) → painted on `Decoration` (z=0, in front of player).
+- **Foliage** (cell above on map, top row of sprite on sheet = top-left atlas cell) → painted on `Canopy` (z=1, behind player).
+
+This gives the correct depth illusion: player walks in front of the trunk but disappears behind the canopy.
+
+**The `sprites[]` array in `mineables.json` always stores the TOP-LEFT atlas cell (x1y1 convention).** For a 2-tile-tall resource, that is the foliage cell. The trunk is `top_left + Vector2i(0, 1)` (one row down on the sheet).
+
+```
+Sheet row 10  →  foliage (top-left cell in sprites[])
+Sheet row 11  →  trunk   (top_left + Vector2i(0, 1))
+
+Map cell (x, y-1) on Canopy layer  ← foliage
+Map cell (x, y)   on Decoration    ← trunk  (world_root's "cell" for this mineable)
+```
+
+### Painting tall decorations (`world_root.gd`)
+
+```gdscript
+var top_left_atlas: Vector2i = arr[idx]     # from OVERWORLD_DECORATION_CELLS
+if TilesetCatalog.is_tall_decoration(kind):
+    decoration.set_cell(cell, 0, top_left_atlas + Vector2i(0, 1), 0)  # trunk
+    canopy.set_cell(cell + Vector2i(0, -1), 0, top_left_atlas, 0)     # foliage
+else:
+    decoration.set_cell(cell, 0, top_left_atlas, 0)
+```
+
+### Clearing on mine/destroy (`mine_at`)
+
+```gdscript
+decoration.set_cell(cell, -1)                               # remove trunk
+if TilesetCatalog.is_tall_decoration(kind):
+    canopy.set_cell(cell + Vector2i(0, -1), -1)             # remove foliage
+```
+
+### Tile-shake VFX for tall decorations (`action_vfx.gd _shake_tile`)
+
+`_shake_tile(target_cell)` reads `decoration` at `target_cell` (trunk), **and also** checks `canopy` at `target_cell + Vector2i(0, -1)` (foliage). Both tiles are hidden, replaced with temp `Sprite2D` nodes, and tweened in parallel. `tmp_canopy` uses `z_index = 1` so it stays above Entities during the animation. Both are restored on tween completion.
+
+### WorldRoot `@onready` references
+
+```gdscript
+@onready var ground:     TileMapLayer = $Ground
+@onready var patch:      TileMapLayer = $Patch
+@onready var decoration: TileMapLayer = $Decoration
+@onready var overlay:    TileMapLayer = $Overlay
+@onready var entities:   Node2D       = $Entities
+@onready var canopy:     TileMapLayer = $Canopy
+```
+
+### Common mistakes
+
+| Mistake | Effect | Correct approach |
+|---------|--------|-----------------|
+| Painting foliage on `Decoration` instead of `Canopy` | Player renders on top of tree tops | Use `canopy.set_cell()` for the cell above |
+| Treating `sprites[0]` as the trunk cell | Foliage at ground, random tile above | `sprites[0]` is top-left (foliage); trunk = `+Vector2i(0,1)` |
+| Clearing foliage from `decoration` on destroy | Foliage lingers after tree is mined | Clear from `canopy` layer |
+| Shake only shaking the trunk `Sprite2D` | Only bottom half of tree shakes | Check `canopy` layer at `cell+(0,-1)` and tween both |
+
+---
 
 **File:** `scripts/data/equipment.gd` — `class_name Equipment extends Resource`
 
