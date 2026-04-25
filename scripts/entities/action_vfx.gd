@@ -192,46 +192,76 @@ func _shake_tile(target_cell: Vector2i) -> void:
 	if _world == null:
 		_finish()
 		return
-	# Read the current decoration cell so we can recreate it visually.
 	var deco_layer: TileMapLayer = _world.decoration
 	var source_id: int = deco_layer.get_cell_source_id(target_cell)
 	if source_id < 0:
-		# No tile to shake — just finish.
 		_finish()
 		return
 	var atlas_coords: Vector2i = deco_layer.get_cell_atlas_coords(target_cell)
 	var alt_id: int = deco_layer.get_cell_alternative_tile(target_cell)
-
-	# Create a temp Sprite2D at the tile's position.
-	var tile_pos: Vector2 = _target_world_pos(target_cell)
-	var tmp := Sprite2D.new()
-	# Use the tileset's texture. Get it from the tile source.
 	var ts: TileSet = deco_layer.tile_set
 	var src: TileSetAtlasSource = ts.get_source(source_id) as TileSetAtlasSource
 	if src == null:
 		_finish()
 		return
+
+	# Check for foliage on the Canopy layer one cell above (tall decorations).
+	var canopy_layer: TileMapLayer = _world.canopy
+	var canopy_cell: Vector2i = target_cell + Vector2i(0, -1)
+	var canopy_src_id: int = canopy_layer.get_cell_source_id(canopy_cell) if canopy_layer != null else -1
+	var canopy_atlas: Vector2i = Vector2i(-1, -1)
+	var canopy_alt: int = 0
+	var tmp_canopy: Sprite2D = null
+	if canopy_src_id >= 0:
+		canopy_atlas = canopy_layer.get_cell_atlas_coords(canopy_cell)
+		canopy_alt = canopy_layer.get_cell_alternative_tile(canopy_cell)
+
+	# Create temp Sprite2D for the trunk.
+	var tile_pos: Vector2 = _target_world_pos(target_cell)
+	var tmp := Sprite2D.new()
 	tmp.texture = src.texture
 	tmp.region_enabled = true
-	var tex_region_size: Vector2i = src.get_tile_texture_region(atlas_coords).size
 	tmp.region_rect = src.get_tile_texture_region(atlas_coords)
 	tmp.position = tile_pos
 	tmp.centered = true
-
-	# Hide the real tile temporarily.
 	deco_layer.set_cell(target_cell, -1)
 	_world.entities.add_child(tmp)
 
-	# Oscillate ±2px horizontally for 3 cycles over 0.3s.
+	# Create temp Sprite2D for the foliage if there is one.
+	if canopy_src_id >= 0 and canopy_layer != null:
+		var foliage_pos: Vector2 = _target_world_pos(canopy_cell)
+		tmp_canopy = Sprite2D.new()
+		var csrc: TileSetAtlasSource = ts.get_source(canopy_src_id) as TileSetAtlasSource
+		if csrc != null:
+			tmp_canopy.texture = csrc.texture
+			tmp_canopy.region_enabled = true
+			tmp_canopy.region_rect = csrc.get_tile_texture_region(canopy_atlas)
+		tmp_canopy.position = foliage_pos
+		tmp_canopy.centered = true
+		tmp_canopy.z_index = 1
+		canopy_layer.set_cell(canopy_cell, -1)
+		_world.entities.add_child(tmp_canopy)
+
+	# Oscillate both sprites ±2px for 3 cycles over 0.3s.
 	var tw := create_tween()
 	var base_x: float = tile_pos.x
 	for i in 3:
 		tw.tween_property(tmp, "position:x", base_x + 2.0, 0.05)
 		tw.tween_property(tmp, "position:x", base_x - 2.0, 0.05)
-	tw.tween_property(tmp, "position:x", base_x, 0.05)  # return to center
+	tw.tween_property(tmp, "position:x", base_x, 0.05)
+	# Mirror the same oscillation on the foliage (parallel tween).
+	if tmp_canopy != null:
+		var tw2 := create_tween()
+		var base_cx: float = _target_world_pos(canopy_cell).x
+		for i in 3:
+			tw2.tween_property(tmp_canopy, "position:x", base_cx + 2.0, 0.05)
+			tw2.tween_property(tmp_canopy, "position:x", base_cx - 2.0, 0.05)
+		tw2.tween_property(tmp_canopy, "position:x", base_cx, 0.05)
 	tw.tween_callback(func():
-		# Restore the real tile.
 		deco_layer.set_cell(target_cell, source_id, atlas_coords, alt_id)
+		if tmp_canopy != null and canopy_layer != null and canopy_src_id >= 0:
+			canopy_layer.set_cell(canopy_cell, canopy_src_id, canopy_atlas, canopy_alt)
+			tmp_canopy.queue_free()
 		tmp.queue_free()
 		_finish()
 	)

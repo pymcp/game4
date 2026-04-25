@@ -47,6 +47,10 @@ static func find_from(node: Node) -> WorldRoot:
 @onready var decoration: TileMapLayer = $Decoration
 @onready var overlay: TileMapLayer = $Overlay
 @onready var entities: Node2D = $Entities
+## Canopy layer: sits ABOVE Entities in draw order (z_index 1).
+## Tree foliage and other tall-decoration tops are painted here so the
+## player renders between the trunk (Decoration) and the foliage (Canopy).
+@onready var canopy: TileMapLayer = $Canopy
 
 var _region: Region = null
 var _interior: InteriorMap = null
@@ -273,12 +277,12 @@ func _paint_region(region: Region) -> void:
 		# For 2-tile-tall decorations: top-left = foliage (top), trunk = one row below.
 		var top_left_atlas: Vector2i = arr[idx]
 		if TilesetCatalog.is_tall_decoration(kind):
-			# Paint trunk at ground cell (one row down on sheet).
+			# Paint trunk at ground cell on Decoration (player walks in front of it).
 			decoration.set_cell(cell, 0, top_left_atlas + Vector2i(0, 1), 0)
-			# Paint foliage one cell above on the map (the stored top-left atlas cell).
+			# Paint foliage on Canopy (draws above Entities so player walks behind it).
 			var top_cell: Vector2i = cell + Vector2i(0, -1)
 			if top_cell.y >= 0:
-				decoration.set_cell(top_cell, 0, top_left_atlas, 0)
+				canopy.set_cell(top_cell, 0, top_left_atlas, 0)
 		else:
 			decoration.set_cell(cell, 0, top_left_atlas, 0)
 	# Water-grass border pass.
@@ -935,9 +939,9 @@ func mine_at(cell: Vector2i, damage: int) -> Dictionary:
 		return {"hit": true, "destroyed": false, "kind": e["kind"], "hp": e["hp"]}
 	_mineable.erase(cell)
 	decoration.set_cell(cell, -1)
-	# Clear canopy one cell above for tall decorations.
+	# Clear foliage on Canopy layer for tall decorations.
 	if TilesetCatalog.is_tall_decoration(e["kind"]):
-		decoration.set_cell(cell + Vector2i(0, -1), -1)
+		canopy.set_cell(cell + Vector2i(0, -1), -1)
 	overlay.set_cell(cell, -1)
 	var drops: Array = MINEABLE_DROPS.get(e["kind"], [])
 	return {"hit": true, "destroyed": true, "kind": e["kind"], "drops": drops}
@@ -1361,12 +1365,12 @@ func _debug_stamp_encounter(enc: Dictionary, origin: Vector2i) -> void:
 			# sprites[] stores the TOP-LEFT atlas cell (x1y1 convention).
 			var top_left_atlas: Vector2i = arr[idx]
 			if TilesetCatalog.is_tall_decoration(deco_kind):
-				# Paint trunk at ground cell (one row down on sheet).
+				# Paint trunk at ground cell on Decoration.
 				decoration.set_cell(cell, 0, top_left_atlas + Vector2i(0, 1), 0)
-				# Paint foliage one cell above on the map.
+				# Paint foliage on Canopy above Entities.
 				var top_cell := cell + Vector2i(0, -1)
 				if top_cell.y >= 0:
-					decoration.set_cell(top_cell, 0, top_left_atlas, 0)
+					canopy.set_cell(top_cell, 0, top_left_atlas, 0)
 			else:
 				decoration.set_cell(cell, 0, top_left_atlas, 0)
 		# Register mineable if applicable.
