@@ -33,6 +33,8 @@ var _hearts_p2: HeartDisplay = null
 var _player_p1: PlayerController = null
 var _player_p2: PlayerController = null
 var _math_death: MathDeathScreen = null
+var _map_p1: WorldMapView = null
+var _map_p2: WorldMapView = null
 
 
 func _ready() -> void:
@@ -57,6 +59,8 @@ func _ready() -> void:
 	_math_death.name = "MathDeathScreen"
 	_math_death.answered_correctly.connect(_on_math_answer_correct)
 	add_child(_math_death)
+	_map_p1 = _build_worldmap_view(_container_p1)
+	_map_p2 = _build_worldmap_view(_container_p2)
 	call_deferred("_wire_hud_and_cameras")
 
 
@@ -138,6 +142,9 @@ func _wire_hud_and_cameras() -> void:
 			_inv_p1.set_player(p1)
 		if _controls_p1 != null:
 			_controls_p1.set_player(0, p1)
+		if _map_p1 != null:
+			_map_p1.set_player(p1)
+			p1.world_map = _map_p1
 		_camera_p1 = _make_camera(p1, _vp_p1)
 	if p2 != null:
 		p2.apply_appearance(GameSession.get_appearance(1))
@@ -148,6 +155,9 @@ func _wire_hud_and_cameras() -> void:
 			_inv_p2.set_player(p2)
 		if _controls_p2 != null:
 			_controls_p2.set_player(1, p2)
+		if _map_p2 != null:
+			_map_p2.set_player(p2)
+			p2.world_map = _map_p2
 		_camera_p2 = _make_camera(p2, _vp_p2)
 
 
@@ -183,6 +193,18 @@ func _build_controls_hud(container: Control, pid: int) -> ControlsHud:
 	hud.offset_top = 36.0
 	container.add_child(hud)
 	return hud
+
+
+func _build_worldmap_view(container: Control) -> WorldMapView:
+	var map := WorldMapView.new()
+	map.name = "WorldMap"
+	map.anchor_left = 0.0
+	map.anchor_right = 1.0
+	map.anchor_top = 0.0
+	map.anchor_bottom = 1.0
+	map.mouse_filter = Control.MOUSE_FILTER_STOP
+	container.add_child(map)
+	return map
 
 
 func _build_heart_display(container: Control) -> HeartDisplay:
