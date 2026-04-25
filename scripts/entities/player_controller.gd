@@ -423,23 +423,20 @@ func _try_interact() -> void:
 # --- Auto-mine / auto-attack ------------------------------------
 
 func _tick_auto_mine() -> void:
-	var my_cell: Vector2i = _cell_of(position)
+	# Find nearest mineable within reach — no facing filter for auto-mine.
+	var reach: float = _MELEE_REACH_PX + WorldConst.MINEABLE_HITBOX_RADIUS
 	var best_cell: Vector2i = Vector2i(-1, -1)
-	var best_d2: int = 999
-	for dy in range(-_AUTO_MINE_RADIUS, _AUTO_MINE_RADIUS + 1):
-		for dx in range(-_AUTO_MINE_RADIUS, _AUTO_MINE_RADIUS + 1):
-			if dx == 0 and dy == 0:
-				continue
-			var c := my_cell + Vector2i(dx, dy)
-			if _world._mineable.has(c):
-				var d2: int = abs(dx) + abs(dy)
-				if d2 < best_d2:
-					best_d2 = d2
-					best_cell = c
+	var best_d2: float = reach * reach + 1.0
+	for cell: Vector2i in _world._mineable.keys():
+		var tile_center: Vector2 = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+		var d2: float = position.distance_squared_to(tile_center)
+		if d2 < best_d2:
+			best_d2 = d2
+			best_cell = cell
 	if best_cell == Vector2i(-1, -1):
 		return
 	# Face the target cell.
-	var diff: Vector2i = best_cell - my_cell
+	var diff: Vector2 = (Vector2(best_cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX) - position
 	if abs(diff.y) > abs(diff.x):
 		_facing_dir = Vector2i(0, signi(diff.y))
 	else:
@@ -604,8 +601,6 @@ func _compute_mine_damage(target_cell: Vector2i) -> int:
 
 
 func try_attack() -> Dictionary:
-	var my_cell: Vector2i = _cell_of(position)
-	var target: Vector2i = my_cell + _facing_dir
 	var res: Dictionary = {}
 
 	# --- Entity hit scan first (melee / punch) ---
@@ -619,10 +614,12 @@ func try_attack() -> Dictionary:
 		if wdef != null and wdef.knockback > 0:
 			_apply_knockback(hit_entity, wdef.knockback)
 		res["hit_entity"] = true
-		_play_action_vfx(target, false, res)
+		var dummy_target: Vector2i = _cell_of(hit_entity.position)
+		_play_action_vfx(dummy_target, false, res)
 		return res
 
-	# --- No hostile in range — try mining the tile ---
+	# --- No hostile in range — find nearest mineable in facing cone ---
+	var target: Vector2i = _find_facing_mineable()
 	var damage: int = _compute_mine_damage(target)
 	res = _world.mine_at(target, damage)
 
@@ -635,6 +632,32 @@ func try_attack() -> Dictionary:
 		for d in res.get("drops", []):
 			inventory.add(d["id"], d["count"])
 	return res
+
+
+## Find the nearest mineable tile whose centre falls within melee reach and
+## inside a ~60° cone in the facing direction (dot > 0.5).
+## Falls back to [code]my_cell + _facing_dir[/code] when nothing is in range
+## so the player still swings in a sensible direction on empty ground.
+func _find_facing_mineable() -> Vector2i:
+	if _world == null:
+		return _cell_of(position) + _facing_dir
+	var dir := Vector2(_facing_dir).normalized()
+	var reach: float = _MELEE_REACH_PX + WorldConst.MINEABLE_HITBOX_RADIUS
+	var best_cell: Vector2i = Vector2i(-1, -1)
+	var best_d2: float = reach * reach + 1.0
+	for cell: Vector2i in _world._mineable.keys():
+		var tile_center: Vector2 = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+		var to: Vector2 = tile_center - position
+		if to.length_squared() > best_d2:
+			continue
+		# Facing cone: dot > 0.5 means within ~60° of facing direction.
+		if to.normalized().dot(dir) < 0.5:
+			continue
+		best_d2 = to.length_squared()
+		best_cell = cell
+	if best_cell == Vector2i(-1, -1):
+		return _cell_of(position) + _facing_dir
+	return best_cell
 
 
 ## Find the nearest hostile entity in the facing direction within melee reach.

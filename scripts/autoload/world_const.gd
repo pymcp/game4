@@ -18,6 +18,10 @@ const RENDER_ZOOM: int = 4
 ## viewport math.
 const TILE_SCREEN_PX: int = TILE_PX * RENDER_ZOOM
 
+## Radius of the virtual hitbox used for mineable tiles (native px).
+## Tiles are 16×16, so 8px is a circle inscribed in the tile.
+const MINEABLE_HITBOX_RADIUS: float = 8.0
+
 ## Side length (in tiles) of an overworld region.
 const REGION_SIZE: int = 128
 
