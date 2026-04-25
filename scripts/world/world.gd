@@ -235,6 +235,15 @@ func debug_spawn_mount() -> void:
 			inst.debug_spawn_mount_for(_players[pid])
 
 
+func debug_god_mode() -> void:
+	for pid in range(2):
+		var p: PlayerController = _players[pid] as PlayerController
+		if p != null:
+			p.max_health = 1000
+			p.health = 1000
+			print("[F8] god mode — P%d health set to 1000" % (pid + 1))
+
+
 func debug_spawn_shop_villager() -> void:
 	for pid in range(2):
 		var inst: WorldRoot = get_player_world(pid)
