@@ -58,6 +58,8 @@ var stats: Dictionary = {
 	&"charisma": 3, &"wisdom": 3, &"strength": 3,
 	&"speed": 0, &"defense": 0, &"dexterity": 0,
 }
+var fog_of_war: FogOfWarData = FogOfWarData.new()
+var world_map: WorldMapView = null
 ## Active status effects: Array of {effect_id: StringName, remaining: float, tick_timer: float}
 var active_effects: Array = []
 
@@ -109,6 +111,13 @@ func _ready() -> void:
 	equipment.contents_changed.connect(_update_weapon_sprite)
 	equipment.contents_changed.connect(_update_armor_sprites)
 	equipment.contents_changed.connect(_update_shield_sprite)
+	var fog_timer := Timer.new()
+	fog_timer.name = "FogRevealTimer"
+	fog_timer.wait_time = 0.3
+	fog_timer.autostart = true
+	fog_timer.one_shot = false
+	fog_timer.timeout.connect(_on_fog_reveal_timer_timeout)
+	add_child(fog_timer)
 
 
 ## Update the WorldRoot reference. Called by [World] after re-parenting
@@ -310,6 +319,21 @@ func _physics_process(delta: float) -> void:
 		if _action_vfx == null or not _action_vfx.is_playing():
 			_bob_t = 0.0
 			_sprite_root.position = Vector2.ZERO
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	var map_action: StringName = &"p1_worldmap" if player_id == 0 else &"p2_worldmap"
+	if event.is_action_pressed(map_action) and world_map != null:
+		world_map.toggle()
+		get_viewport().set_input_as_handled()
+
+
+func _on_fog_reveal_timer_timeout() -> void:
+	if _world == null or _world._region == null:
+		return
+	fog_of_war.reveal(_world._region.region_id, _cell_of(position), 10)
+	if world_map != null and world_map.visible:
+		world_map.mark_dirty()
 
 
 func _step(delta_pos: Vector2) -> void:

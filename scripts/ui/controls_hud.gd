@@ -27,6 +27,7 @@ var _player: PlayerController = null
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	focus_mode = Control.FOCUS_NONE
 	_label = RichTextLabel.new()
 	_label.bbcode_enabled = true
 	_label.fit_content = true

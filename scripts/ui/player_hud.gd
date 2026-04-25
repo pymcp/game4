@@ -23,6 +23,7 @@ var _clock_label: Label = null
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	focus_mode = Control.FOCUS_NONE
 	_build()
 	_refresh_all()
 	# Phase 9c: refresh the interior badge whenever players enter/exit one.

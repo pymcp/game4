@@ -18,6 +18,7 @@ const _DEFAULT_BORDER := Color(0.62, 0.42, 0.22)
 
 
 func _ready() -> void:
+	focus_mode = Control.FOCUS_NONE
 	custom_minimum_size = Vector2(SLOT_SIZE, SLOT_SIZE)
 	_apply_polish()
 	_refresh()

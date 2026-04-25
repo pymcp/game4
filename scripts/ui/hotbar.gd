@@ -33,6 +33,7 @@ static func build_view(inv: Inventory, n: int) -> Array:
 
 
 func _ready() -> void:
+	focus_mode = Control.FOCUS_NONE
 	_ensure_slot_nodes()
 	_refresh()
 
