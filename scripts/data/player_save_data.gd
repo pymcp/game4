@@ -15,3 +15,6 @@ extends Resource
 @export var inventory_data: Dictionary = {}
 @export var equipment_data: Dictionary = {}
 @export var stats: Dictionary = {}
+## Serialized FogOfWarData for this player. Keys are "x,y" region strings;
+## values are PackedByteArray (2048 bytes per region).
+@export var fog_data: Dictionary = {}

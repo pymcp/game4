@@ -75,6 +75,7 @@ static func snapshot(world: WorldRoot) -> SaveGame:
 			if p.equipment != null:
 				psd.equipment_data = p.equipment.to_dict()
 			psd.stats = p.stats.duplicate()
+			psd.fog_data = p.fog_of_war.to_dict()
 			save.players.append(psd)
 	save.game_state_flags = GameState.to_dict()
 	return save
@@ -116,6 +117,8 @@ func apply(world: WorldRoot = null) -> void:
 			p.equipment.from_dict(psd.equipment_data)
 		if not psd.stats.is_empty():
 			p.stats = psd.stats.duplicate()
+		if not psd.fog_data.is_empty():
+			p.fog_of_war.from_dict(psd.fog_data)
 	# Phase 9a: enter active interior in the live world (Game.gd's signal
 	# handler will repaint the WorldRoot).
 	if active_interior_id != &"" and MapManager.interiors.has(active_interior_id) \
