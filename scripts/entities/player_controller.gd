@@ -305,11 +305,9 @@ func _physics_process(delta: float) -> void:
 			_facing_x = 1
 		elif input.x < -0.05:
 			_facing_x = -1
-		# Track 4-direction facing for attack target selection.
-		if abs(input.y) > abs(input.x):
-			_facing_dir = Vector2i(0, signi(input.y))
-		else:
-			_facing_dir = Vector2i(signi(input.x), 0)
+		# Track 8-direction facing for attack/mine target selection.
+		# Both components are preserved for diagonal movement.
+		_facing_dir = Vector2i(signi(input.x), signi(input.y))
 		_sprite_root.scale = Vector2(_facing_x, 1)
 		if _action_vfx == null or not _action_vfx.is_playing():
 			_bob_t += delta
@@ -437,10 +435,10 @@ func _tick_auto_mine() -> void:
 		return
 	# Face the target cell.
 	var diff: Vector2 = (Vector2(best_cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX) - position
-	if abs(diff.y) > abs(diff.x):
-		_facing_dir = Vector2i(0, signi(diff.y))
+	if diff.x == 0 and diff.y == 0:
+		pass
 	else:
-		_facing_dir = Vector2i(signi(diff.x), 0)
+		_facing_dir = Vector2i(signi(diff.x), signi(diff.y))
 	var damage: int = _compute_mine_damage(best_cell)
 	var res: Dictionary = _world.mine_at(best_cell, damage)
 	var is_mineable: bool = _world._mineable.has(best_cell) or res.get("hit", false)
@@ -484,10 +482,10 @@ func _auto_attack_melee(weapon_id: StringName, def: ItemDefinition) -> void:
 		return
 	# Face the target.
 	var diff: Vector2 = best.position - position
-	if abs(diff.y) > abs(diff.x):
-		_facing_dir = Vector2i(0, signi(diff.y))
+	if diff.x == 0 and diff.y == 0:
+		pass
 	else:
-		_facing_dir = Vector2i(signi(diff.x), 0)
+		_facing_dir = Vector2i(signi(diff.x), signi(diff.y))
 	var target_cell: Vector2i = _cell_of(best.position)
 	if best.has_method("take_hit"):
 		var power: int = max(1, get_effective_stat(&"strength")) if def == null else max(1, def.power + get_effective_stat(&"strength"))
