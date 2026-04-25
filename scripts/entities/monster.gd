@@ -1,10 +1,9 @@
 ## Monster
 ##
-## Training-dummy creature. One per F8 press, spawned a few tiles from
-## a player in their current [WorldRoot] instance. Chases the nearest
-## [PlayerController] in the same instance when within
-## [SIGHT_RADIUS_TILES], otherwise stands still. Never deals damage —
-## walks up to the player and overlaps. Useful as a visible AI target.
+## Hostile creature. Chases the nearest [PlayerController] within
+## [SIGHT_RADIUS_TILES] and attacks when within range. Combat stats
+## (damage, speed, range, style) are read from
+## [code]creature_sprites.json[/code] via [CreatureSpriteRegistry].
 ##
 ## Coordinate system mirrors [PlayerController]: positions are native
 ## pixels, [WorldConst.TILE_PX] per tile. Pathing is naive — step
@@ -24,7 +23,7 @@ const _BOB_AMP_PX: float = 1.0
 @export var health: int = 3
 @export var drops: Array = []  ## [{id: StringName, count: int}]
 @export var resistances: Dictionary = {}  ## Element enum → float multiplier (0.0=immune, 2.0=weak)
-@export var monster_kind: StringName = &"slime"  ## Loot table key
+@export var monster_kind: StringName = &"slime"  ## Creature type key
 
 var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
 var active_effects: Array = []  ## [{effect_id, remaining, tick_timer}]
@@ -33,6 +32,17 @@ var _sprite: Sprite2D = null
 var _facing_right: bool = false
 var _bob_t: float = 0.0
 var _last_position: Vector2 = Vector2.ZERO
+
+# --- Combat stats (loaded from creature data in _ready) ---
+var _attack_damage: int = 1
+var _attack_speed: float = 1.0
+var _attack_range_tiles: float = 1.25
+var _attack_style: StringName = &"slam"
+var _attack_element: int = 0
+var _attack_cooldown: float = 0.0
+var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
+var _heart_display: HeartDisplay = null
+var _action_vfx: ActionVFX = null
 
 
 func _ready() -> void:
@@ -47,6 +57,27 @@ func _ready() -> void:
 	add_to_group(&"monsters")
 	add_to_group(&"scattered_npcs")
 	_last_position = position
+	# Load combat stats from creature data.
+	_attack_damage = CreatureSpriteRegistry.get_attack_damage(monster_kind)
+	_attack_speed = CreatureSpriteRegistry.get_attack_speed(monster_kind)
+	_attack_range_tiles = CreatureSpriteRegistry.get_attack_range_tiles(monster_kind)
+	_attack_style = CreatureSpriteRegistry.get_attack_style(monster_kind)
+	_attack_element = CreatureSpriteRegistry.get_element(monster_kind)
+	# Hitbox radius: explicit JSON override → auto-calc from sprite → default.
+	var explicit_hb: float = CreatureSpriteRegistry.get_hitbox_radius(monster_kind)
+	if explicit_hb >= 0.0:
+		hitbox_radius = explicit_hb
+	else:
+		hitbox_radius = HitboxCalc.radius_from_sprite(_sprite)
+	# Overhead heart display — visible only when damaged.
+	_heart_display = HeartDisplay.new(6.0)
+	_heart_display.position = Vector2(-10, -14)
+	_heart_display.visible = false
+	add_child(_heart_display)
+	# Attack VFX — lunges the sprite toward the target.
+	_action_vfx = ActionVFX.new()
+	add_child(_action_vfx)
+	_action_vfx.setup(self, null, _world, _sprite)
 
 
 ## Pure helper: nearest [PlayerController] to [param from] within
@@ -63,6 +94,9 @@ static func nearest_player(from: Vector2, candidates: Array,
 		var p := n as PlayerController
 		if p == null:
 			continue
+		# Skip dead or disabled players.
+		if p.health <= 0 or not p.visible:
+			continue
 		var d2: float = from.distance_squared_to(p.position)
 		if d2 < best_d2 and d2 <= max_d2:
 			best_d2 = d2
@@ -73,6 +107,10 @@ static func nearest_player(from: Vector2, candidates: Array,
 func _process(delta: float) -> void:
 	if _world == null:
 		return
+	# Update overhead hearts.
+	if _heart_display != null:
+		_heart_display.update(health, max_health)
+		_heart_display.visible = health > 0 and health < max_health
 	_tick_effects(delta)
 	if health <= 0:
 		return
@@ -81,12 +119,19 @@ func _process(delta: float) -> void:
 		return
 	if _is_stunned():
 		return
+	if _attack_cooldown > 0.0:
+		_attack_cooldown -= delta
 	var target: PlayerController = nearest_player(position,
 			_world.entities.get_children(), SIGHT_RADIUS_TILES)
 	if target == null:
 		return
 	var to: Vector2 = target.position - position
 	var dist: float = to.length()
+	var attack_range_px: float = _attack_range_tiles * float(WorldConst.TILE_PX) + target.hitbox_radius
+	# Attack if in range.
+	if dist <= attack_range_px and _attack_style != &"none":
+		_tick_attack(target, to)
+		return
 	if dist <= 1.0:
 		return
 	var step: float = _MOVE_SPEED_PX_PER_S * _get_speed_multiplier() * delta
@@ -107,12 +152,35 @@ func _process(delta: float) -> void:
 	# Bob while moving.
 	var moved: bool = position.distance_squared_to(_last_position) > 0.01
 	_last_position = position
-	if moved:
+	if _action_vfx != null and _action_vfx.is_playing():
+		pass  # Skip bob during lunge.
+	elif moved:
 		_bob_t += delta
 		_sprite.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
 	else:
 		_bob_t = 0.0
 		_sprite.position.y = 0.0
+
+
+func _tick_attack(target: PlayerController, to_target: Vector2) -> void:
+	# Face the target.
+	if to_target.x != 0.0:
+		if _facing_right:
+			_sprite.flip_h = (to_target.x < 0.0)
+		else:
+			_sprite.flip_h = (to_target.x > 0.0)
+	if _attack_cooldown > 0.0:
+		return
+	_attack_cooldown = _attack_speed
+	if target.has_method("take_hit"):
+		target.call("take_hit", _attack_damage, self, _attack_element)
+	# Lunge + particle VFX.
+	if _action_vfx != null:
+		var to_norm: Vector2 = to_target.normalized() if to_target.length() > 0.01 else Vector2(1, 0)
+		var target_cell := Vector2i(
+				int(floor(target.position.x / float(WorldConst.TILE_PX))),
+				int(floor(target.position.y / float(WorldConst.TILE_PX))))
+		_action_vfx.play_creature_attack(target_cell, to_norm, _attack_style, _attack_element)
 
 
 func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
@@ -121,6 +189,7 @@ func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 		return
 	var effective: int = _apply_resistance(damage, element)
 	health = max(0, health - effective)
+	ActionParticles.flash_hit(self)
 	if element != 0:
 		_apply_status_from_element(element)
 	if health <= 0:

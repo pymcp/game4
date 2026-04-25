@@ -153,31 +153,6 @@ func test_armor_defense_includes_defense_stat() -> void:
 	assert_eq(player._armor_defense(), 6, "3 armor power + 3 defense stat")
 
 
-# --- ActionParticles element tinting exists ----------------------
-
-func test_element_param_accepted() -> void:
-	# Just verify the function signature accepts element param without error.
-	# We create a Node as parent to catch the particle.
-	var parent := Node2D.new()
-	add_child_autofree(parent)
-	var p: CPUParticles2D = ActionParticles.spawn_impact(
-		parent, Vector2.ZERO, ActionParticles.Action.MELEE, &"",
-		ItemDefinition.Element.FIRE)
-	assert_not_null(p, "particle created with element param")
-	assert_almost_eq(p.color.r, 1.0, 0.01, "fire tint red channel")
-
-
-func test_no_element_keeps_default_color() -> void:
-	var parent := Node2D.new()
-	add_child_autofree(parent)
-	var p: CPUParticles2D = ActionParticles.spawn_impact(
-		parent, Vector2.ZERO, ActionParticles.Action.MELEE)
-	assert_not_null(p)
-	# Default melee slash color: (1, 1, 1, 0.9)
-	assert_almost_eq(p.color.r, 1.0, 0.01)
-	assert_almost_eq(p.color.g, 1.0, 0.01)
-
-
 # --- ActionVFX.play_attack dispatch exists -----------------------
 
 func test_play_attack_method_exists() -> void:

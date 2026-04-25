@@ -49,12 +49,17 @@ func _ready() -> void:
 	label.name = "Label"
 	label.text = "%s x%d" % [display_name, count]
 	label.position = Vector2(-30, -38)
-	label.add_theme_font_size_override("font_size", 10)
+	label.add_theme_font_size_override("font_size", 7)
 	# Tint label by rarity.
 	if def != null and def.rarity != ItemDefinition.Rarity.COMMON:
 		var rc: Color = ItemDefinition.RARITY_COLORS.get(def.rarity, Color.WHITE)
 		label.add_theme_color_override("font_color", rc)
 	add_child(label)
+	# Scroll label up and fade it out over 2 seconds.
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(label, "position:y", label.position.y - 20.0, 2.0)
+	tw.tween_property(label, "modulate:a", 0.0, 2.0)
 
 
 func _process(delta: float) -> void:

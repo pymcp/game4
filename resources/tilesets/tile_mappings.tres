@@ -22,7 +22,7 @@ overworld_decoration = {
 "iron_vein": [],
 "lilypad": [Vector2i(28, 10), Vector2i(28, 11), Vector2i(26, 11), Vector2i(25, 11), Vector2i(28, 9), Vector2i(29, 9), Vector2i(30, 9), Vector2i(31, 9)],
 "rock": [],
-"tree": [Vector2i(27, 10)]
+"tree": []
 }
 overworld_terrain_patches_3x3 = {
 "clay": [Vector2i(12, 25), Vector2i(13, 25), Vector2i(14, 25), Vector2i(12, 26), Vector2i(13, 26), Vector2i(14, 26), Vector2i(12, 27), Vector2i(13, 27), Vector2i(14, 27)],

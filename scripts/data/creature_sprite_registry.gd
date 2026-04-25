@@ -157,6 +157,50 @@ static func get_rider_offset(kind: StringName) -> Vector2:
 	return Vector2(float(ro[0]), float(ro[1]))
 
 
+# ─── Combat data ───────────────────────────────────────────────────
+
+## Attack style as StringName: &"swing", &"thrust", &"projectile", &"slam", &"none".
+static func get_attack_style(kind: StringName) -> StringName:
+	return StringName(get_entry(kind).get("attack_style", "none"))
+
+
+## Base attack damage for this creature. Defaults to 1.
+static func get_attack_damage(kind: StringName) -> int:
+	return int(get_entry(kind).get("attack_damage", 1))
+
+
+## Attack cooldown in seconds. Defaults to 1.0.
+static func get_attack_speed(kind: StringName) -> float:
+	return float(get_entry(kind).get("attack_speed", 1.0))
+
+
+## Attack range in tiles. Defaults to 1.25.
+static func get_attack_range_tiles(kind: StringName) -> float:
+	return float(get_entry(kind).get("attack_range_tiles", 1.25))
+
+
+## Explicit hitbox radius override in native px, or -1.0 when not set.
+## Entities should fall back to [method HitboxCalc.radius_from_sprite]
+## when this returns -1.
+static func get_hitbox_radius(kind: StringName) -> float:
+	var entry: Dictionary = get_entry(kind)
+	if entry.has("hitbox_radius"):
+		return float(entry["hitbox_radius"])
+	return -1.0
+
+
+## Element enum value. Reads a string ("fire", "ice", etc.) and maps to
+## [member ItemDefinition.Element]. Defaults to NONE.
+static func get_element(kind: StringName) -> int:
+	var name: String = get_entry(kind).get("element", "none")
+	match name:
+		"fire": return ItemDefinition.Element.FIRE
+		"ice": return ItemDefinition.Element.ICE
+		"lightning": return ItemDefinition.Element.LIGHTNING
+		"poison": return ItemDefinition.Element.POISON
+		_: return ItemDefinition.Element.NONE
+
+
 ## All creature kinds that are mounts.
 static func all_mount_kinds() -> Array:
 	_ensure_loaded()

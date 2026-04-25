@@ -1,7 +1,7 @@
 ## PlayerHUD
 ##
 ## Per-player overlay shown over a SubViewport in the split-screen Game scene.
-## Wires a [HealthBar] and a [Hotbar] to a [PlayerController]'s health and
+## Wires a [HeartDisplay] and a [Hotbar] to a [PlayerController]'s health and
 ## inventory so they refresh automatically.
 ##
 ## Built programmatically so we don't need a packed scene per HUD; that keeps
@@ -12,7 +12,7 @@ class_name PlayerHUD
 const MARGIN: float = 12.0
 
 var _player: PlayerController = null
-var _health_bar: HealthBar = null
+var _health_bar: HeartDisplay = null
 var _hotbar: Hotbar = null
 var _interior_label: Label = null
 var _biome_label: Label = null
@@ -49,35 +49,16 @@ func _process(_delta: float) -> void:
 
 
 func _build() -> void:
-	# Health bar in top-left corner.
-	_health_bar = HealthBar.new()
-	_health_bar.name = "HealthBar"
+	# Heart-based health display in top-left corner.
+	_health_bar = HeartDisplay.new(18.0)
+	_health_bar.name = "HeartDisplay"
 	_health_bar.position = Vector2(MARGIN, MARGIN)
-	_health_bar.size = Vector2(HealthBar.BAR_WIDTH, HealthBar.BAR_HEIGHT + 14)
-	var bg := ColorRect.new()
-	bg.name = "Bg"
-	bg.color = Color(0, 0, 0, 0.4)
-	bg.size = Vector2(HealthBar.BAR_WIDTH, HealthBar.BAR_HEIGHT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_health_bar.add_child(bg)
-	var fill := ColorRect.new()
-	fill.name = "Fill"
-	fill.color = Color(0.30, 0.78, 0.30)
-	fill.size = Vector2(HealthBar.BAR_WIDTH, HealthBar.BAR_HEIGHT)
-	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_health_bar.add_child(fill)
-	var label := Label.new()
-	label.name = "Label"
-	label.position = Vector2(0, HealthBar.BAR_HEIGHT)
-	label.add_theme_font_size_override("font_size", 13)
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_health_bar.add_child(label)
 	add_child(_health_bar)
 
-	# Status effect icons below health bar.
+	# Status effect icons below hearts.
 	_status_container = HBoxContainer.new()
 	_status_container.name = "StatusEffects"
-	_status_container.position = Vector2(MARGIN, MARGIN + HealthBar.BAR_HEIGHT + 18)
+	_status_container.position = Vector2(MARGIN, MARGIN + 16)
 	_status_container.add_theme_constant_override("separation", 6)
 	_status_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_status_container)

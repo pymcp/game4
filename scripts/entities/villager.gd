@@ -1,10 +1,13 @@
 ## Villager
 ##
-## Peaceful NPC built from a deterministic CharacterBuilder paper-doll.
+## NPC built from a deterministic CharacterBuilder paper-doll.
 ## Wanders within `wander_radius` tiles of `home_cell`, picking a fresh
 ## random walkable cell every few seconds and pathing there via
 ## [Pathfinder]. On `interact` opens the local player's dialogue box
 ## with one of [VillagerDialogue]'s one-liners (also seed-deterministic).
+##
+## When attacked, cowardly villagers FLEE; brave ones DEFEND by fighting
+## back. Returns to WANDER when the threat is gone.
 ##
 ## Coordinate system mirrors [PlayerController]: positions are native
 ## pixels (16-px tiles), the cell of a position is
@@ -13,10 +16,12 @@
 ## State machine:
 ##   IDLE   — stand still for IDLE_DURATION_SEC, then pick a wander goal
 ##   WANDER — walk along the planned path until reached or stuck
+##   DEFEND — face attacker, fight back on cooldown (brave villagers)
+##   FLEE   — run away from attacker (cowardly villagers)
 extends Node2D
 class_name Villager
 
-enum State { IDLE, WANDER }
+enum State { IDLE, WANDER, DEFEND, FLEE }
 
 const IDLE_DURATION_SEC: float = 2.5
 const WANDER_DURATION_SEC: float = 4.0
@@ -26,6 +31,10 @@ const STUCK_EPSILON: float = 0.5
 const STUCK_TIMEOUT_SEC: float = 0.8
 const _BOB_HZ: float = 4.0
 const _BOB_AMP_PX: float = 1.0
+const _DEFEND_ATTACK_DAMAGE: int = 1
+const _DEFEND_COOLDOWN_SEC: float = 1.0
+const _THREAT_FORGET_TILES: float = 8.0
+const _FLEE_SPEED_MULT: float = 1.5
 
 @export var npc_seed: int = 0
 @export var home_cell: Vector2i = Vector2i.ZERO
@@ -34,8 +43,13 @@ const _BOB_AMP_PX: float = 1.0
 @export var dialogue_tree: DialogueTree = null
 ## Optional shop ID. If set, interaction opens the shop screen instead of dialogue.
 @export var shop_id: StringName = &""
+## If true, this villager flees when attacked instead of fighting back.
+@export var is_cowardly: bool = false
+@export var max_health: int = 5
+@export var health: int = 5
 
 var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
+var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
 var state: State = State.IDLE
 var _world: WorldRoot = null
 var _sprite_root: Node2D = null
@@ -46,6 +60,10 @@ var _path_repath_timer: float = 0.0
 var _last_pos: Vector2 = Vector2.ZERO
 var _stuck_timer: float = 0.0
 var _bob_t: float = 0.0
+var _threat_target: Node2D = null
+var _attack_cooldown: float = 0.0
+var _heart_display: HeartDisplay = null
+var _action_vfx: ActionVFX = null
 
 
 # ---------- Pure helpers (testable without a scene) ----------
@@ -131,6 +149,15 @@ func _ready() -> void:
 		add_child(_sprite_root)
 	_build_appearance()
 	_last_pos = position
+	# Overhead heart display — visible only when damaged.
+	_heart_display = HeartDisplay.new(6.0)
+	_heart_display.position = Vector2(-10, -18)
+	_heart_display.visible = false
+	add_child(_heart_display)
+	# Attack VFX — lunges the sprite root toward the target.
+	_action_vfx = ActionVFX.new()
+	add_child(_action_vfx)
+	_action_vfx.setup(self, null, _world, _sprite_root)
 
 
 func _build_appearance() -> void:
@@ -150,9 +177,17 @@ func _build_appearance() -> void:
 func _physics_process(delta: float) -> void:
 	if _world == null:
 		return
+	# Update overhead hearts.
+	if _heart_display != null:
+		_heart_display.update(health, max_health)
+		_heart_display.visible = health > 0 and health < max_health
+	if health <= 0:
+		return
 	# Freeze while in a conversation.
 	if in_conversation:
 		return
+	if _attack_cooldown > 0.0:
+		_attack_cooldown -= delta
 	_state_timer += delta
 	_path_repath_timer -= delta
 	match state:
@@ -161,8 +196,14 @@ func _physics_process(delta: float) -> void:
 				_enter_wander()
 		State.WANDER:
 			_tick_wander(delta)
-	# Bob sprite while wandering.
-	if state == State.WANDER and _sprite_root != null:
+		State.DEFEND:
+			_tick_defend(delta)
+		State.FLEE:
+			_tick_flee(delta)
+	# Bob sprite while moving.
+	if _action_vfx != null and _action_vfx.is_playing():
+		pass  # Skip bob during lunge.
+	elif state in [State.WANDER, State.FLEE] and _sprite_root != null:
 		_bob_t += delta
 		_sprite_root.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
 	elif _sprite_root != null:
@@ -231,6 +272,101 @@ func _current_cell() -> Vector2i:
 	return Vector2i(
 		int(floor(position.x / float(WorldConst.TILE_PX))),
 		int(floor(position.y / float(WorldConst.TILE_PX))))
+
+
+# ---------- Combat ----------
+
+func take_hit(damage: int, attacker: Node = null, _element: int = 0) -> void:
+	if health <= 0:
+		return
+	if in_conversation:
+		return
+	var effective: int = max(1, damage)
+	health = max(0, health - effective)
+	ActionParticles.flash_hit(self)
+	if health <= 0:
+		queue_free()
+		return
+	# Acquire threat.
+	if attacker is Node2D:
+		_threat_target = attacker as Node2D
+		_state_timer = 0.0
+		_path = []
+		if is_cowardly:
+			state = State.FLEE
+		else:
+			state = State.DEFEND
+
+
+func _is_threat_valid() -> bool:
+	if _threat_target == null or not is_instance_valid(_threat_target):
+		return false
+	var dist_tiles: float = position.distance_to(_threat_target.position) / float(WorldConst.TILE_PX)
+	return dist_tiles <= _THREAT_FORGET_TILES
+
+
+func _tick_defend(delta: float) -> void:
+	if not _is_threat_valid():
+		_threat_target = null
+		_enter_idle()
+		return
+	# Face the attacker.
+	var to: Vector2 = _threat_target.position - position
+	if abs(to.x) > 0.05 and _sprite_root != null:
+		_sprite_root.scale.x = -1.0 if to.x < 0.0 else 1.0
+	# Move toward if > 1 tile away.
+	var dist_px: float = to.length()
+	if dist_px > float(WorldConst.TILE_PX):
+		var new_pos: Vector2 = step_toward(position, _threat_target.position,
+				MOVE_SPEED, delta)
+		var new_cell: Vector2i = Vector2i(
+			int(floor(new_pos.x / float(WorldConst.TILE_PX))),
+			int(floor(new_pos.y / float(WorldConst.TILE_PX))))
+		if _world.is_walkable(new_cell):
+			position = new_pos
+	# Attack on cooldown.
+	var melee_range: float = float(WorldConst.TILE_PX) * 1.5 + HitboxCalc.get_radius(_threat_target)
+	if _attack_cooldown <= 0.0 and dist_px <= melee_range:
+		_attack_cooldown = _DEFEND_COOLDOWN_SEC
+		if _threat_target.has_method("take_hit"):
+			_threat_target.call("take_hit", _DEFEND_ATTACK_DAMAGE, self)
+		# Lunge + particle VFX.
+		if _action_vfx != null:
+			var to_norm: Vector2 = to.normalized() if to.length() > 0.01 else Vector2(1, 0)
+			var target_cell := Vector2i(
+					int(floor(_threat_target.position.x / float(WorldConst.TILE_PX))),
+					int(floor(_threat_target.position.y / float(WorldConst.TILE_PX))))
+			_action_vfx.play_creature_attack(target_cell, to_norm, &"swing")
+
+
+func _tick_flee(delta: float) -> void:
+	if not _is_threat_valid():
+		_threat_target = null
+		_enter_idle()
+		return
+	# Run away from the attacker.
+	var away: Vector2 = position - _threat_target.position
+	if away.length() < 0.01:
+		away = Vector2(1, 0)
+	var flee_dir: Vector2 = away.normalized()
+	var flee_speed: float = MOVE_SPEED * _FLEE_SPEED_MULT
+	var new_pos: Vector2 = position + flee_dir * flee_speed * delta
+	var new_cell: Vector2i = Vector2i(
+		int(floor(new_pos.x / float(WorldConst.TILE_PX))),
+		int(floor(new_pos.y / float(WorldConst.TILE_PX))))
+	if _world.is_walkable(new_cell):
+		position = new_pos
+		if abs(flee_dir.x) > 0.05 and _sprite_root != null:
+			_sprite_root.scale.x = -1.0 if flee_dir.x < 0.0 else 1.0
+	else:
+		# Blocked — try perpendicular directions.
+		var perp: Vector2 = Vector2(flee_dir.y, -flee_dir.x)
+		var alt_pos: Vector2 = position + perp * flee_speed * delta
+		var alt_cell: Vector2i = Vector2i(
+			int(floor(alt_pos.x / float(WorldConst.TILE_PX))),
+			int(floor(alt_pos.y / float(WorldConst.TILE_PX))))
+		if _world.is_walkable(alt_cell):
+			position = alt_pos
 
 
 # ---------- Interaction ----------

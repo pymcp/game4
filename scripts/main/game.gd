@@ -28,6 +28,11 @@ var _inv_p1: InventoryScreen = null
 var _inv_p2: InventoryScreen = null
 var _controls_p1: ControlsHud = null
 var _controls_p2: ControlsHud = null
+var _hearts_p1: HeartDisplay = null
+var _hearts_p2: HeartDisplay = null
+var _player_p1: PlayerController = null
+var _player_p2: PlayerController = null
+var _math_death: MathDeathScreen = null
 
 
 func _ready() -> void:
@@ -46,6 +51,12 @@ func _ready() -> void:
 	_inv_p2 = _build_inventory_screen(_container_p2)
 	_controls_p1 = _build_controls_hud(_container_p1, 0)
 	_controls_p2 = _build_controls_hud(_container_p2, 1)
+	_hearts_p1 = _build_heart_display(_container_p1)
+	_hearts_p2 = _build_heart_display(_container_p2)
+	_math_death = MathDeathScreen.new()
+	_math_death.name = "MathDeathScreen"
+	_math_death.answered_correctly.connect(_on_math_answer_correct)
+	add_child(_math_death)
 	call_deferred("_wire_hud_and_cameras")
 
 
@@ -58,8 +69,24 @@ func get_world(player_id: int) -> WorldRoot:
 	return _world.get_player_world(player_id)
 
 
-func _on_player_enabled_changed(_player_id: int, _is_enabled: bool) -> void:
+func _on_player_enabled_changed(player_id: int, is_enabled: bool) -> void:
 	_refresh_overlays()
+	# Hide/show the actual player entity in the shared world.
+	var player: PlayerController = _player_p1 if player_id == 0 else _player_p2
+	if player != null:
+		_set_player_world_active(player, is_enabled)
+
+
+func _set_player_world_active(player: PlayerController, active: bool) -> void:
+	player.visible = active
+	player.process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
+	# Also hide/disable any pet belonging to this player.
+	var wr: WorldRoot = _world.get_player_world(player.player_id) if _world else null
+	if wr != null and wr.entities != null:
+		for child in wr.entities.get_children():
+			if child is Pet and (child as Pet).owner_player == player:
+				child.visible = active
+				child.process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
 
 
 func _refresh_overlays() -> void:
@@ -100,8 +127,11 @@ func _wire_hud_and_cameras() -> void:
 		return
 	var p1: PlayerController = _world.get_player(0)
 	var p2: PlayerController = _world.get_player(1)
+	_player_p1 = p1
+	_player_p2 = p2
 	if p1 != null:
 		p1.apply_appearance(GameSession.get_appearance(0))
+		p1.player_died.connect(_on_player_died)
 		if _hotbar_p1 != null:
 			_hotbar_p1.set_inventory(p1.inventory)
 		if _inv_p1 != null:
@@ -111,6 +141,7 @@ func _wire_hud_and_cameras() -> void:
 		_camera_p1 = _make_camera(p1, _vp_p1)
 	if p2 != null:
 		p2.apply_appearance(GameSession.get_appearance(1))
+		p2.player_died.connect(_on_player_died)
 		if _hotbar_p2 != null:
 			_hotbar_p2.set_inventory(p2.inventory)
 		if _inv_p2 != null:
@@ -149,6 +180,35 @@ func _build_controls_hud(container: Control, pid: int) -> ControlsHud:
 	hud.anchor_left = 0.0
 	hud.anchor_top = 0.0
 	hud.offset_left = 8.0
-	hud.offset_top = 8.0
+	hud.offset_top = 36.0
 	container.add_child(hud)
 	return hud
+
+
+func _build_heart_display(container: Control) -> HeartDisplay:
+	var hd := HeartDisplay.new(12.0)
+	hd.name = "HeartDisplay"
+	hd.position = Vector2(8, 8)
+	hd.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(hd)
+	return hd
+
+
+func _process(_delta: float) -> void:
+	if _player_p1 != null and _hearts_p1 != null:
+		_hearts_p1.update(_player_p1.health, _player_p1.max_health)
+	if _player_p2 != null and _hearts_p2 != null:
+		_hearts_p2.update(_player_p2.health, _player_p2.max_health)
+
+
+func _on_player_died(pid: int) -> void:
+	get_tree().paused = true
+	if _math_death != null:
+		_math_death.show_for_player(pid)
+
+
+func _on_math_answer_correct(pid: int) -> void:
+	var player: PlayerController = _player_p1 if pid == 0 else _player_p2
+	if player != null:
+		player.health = player.max_health
+	get_tree().paused = false

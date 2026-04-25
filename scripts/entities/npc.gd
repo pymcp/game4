@@ -50,6 +50,7 @@ var state: State = State.IDLE
 var target: Node2D = null
 var home_cell: Vector2i = Vector2i.ZERO
 var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
+var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
 var _world: WorldRoot = null
 var _state_timer: float = 0.0
 var _attack_cooldown: float = 0.0
@@ -60,6 +61,8 @@ var _path_target_cell: Vector2i = Vector2i(0x7fffffff, 0x7fffffff)
 var _path_repath_timer: float = 0.0
 var _bob_t: float = 0.0
 var _npc_sprite: Node = null  ## The Sprite child, for bob animation.
+var _heart_display: HeartDisplay = null
+var _action_vfx: ActionVFX = null
 const PATH_REPATH_SEC: float = 0.5
 const _BOB_HZ: float = 4.0
 const _BOB_AMP_PX: float = 1.0
@@ -153,11 +156,30 @@ func _ready() -> void:
 			s.modulate = Color(0.85, 0.4, 0.4)
 			add_child(s)
 	_npc_sprite = get_node_or_null("Sprite")
+	# Hitbox radius: explicit JSON override → auto-calc from sprite → default.
+	var explicit_hb: float = CreatureSpriteRegistry.get_hitbox_radius(kind)
+	if explicit_hb >= 0.0:
+		hitbox_radius = explicit_hb
+	elif _npc_sprite is Sprite2D:
+		hitbox_radius = HitboxCalc.radius_from_sprite(_npc_sprite as Sprite2D)
+	# Overhead heart display — visible only when damaged.
+	_heart_display = HeartDisplay.new(6.0)
+	_heart_display.position = Vector2(-10, -14)
+	_heart_display.visible = false
+	add_child(_heart_display)
+	# Attack VFX — lunges the sprite toward the target.
+	_action_vfx = ActionVFX.new()
+	add_child(_action_vfx)
+	_action_vfx.setup(self, null, _world, _npc_sprite as Node2D)
 
 
 func _physics_process(delta: float) -> void:
 	if state == State.DEAD:
 		return
+	# Update overhead hearts.
+	if _heart_display != null:
+		_heart_display.update(health, max_health)
+		_heart_display.visible = health > 0 and health < max_health
 	# Freeze while in a conversation.
 	if in_conversation:
 		return
@@ -166,7 +188,9 @@ func _physics_process(delta: float) -> void:
 	# Compute decision inputs.
 	var dist_tiles: float = INF
 	if is_instance_valid(target):
-		dist_tiles = position.distance_to(target.position) / IsoUtils.TILE_SIZE.x
+		var dist_px: float = position.distance_to(target.position)
+		var target_hb: float = HitboxCalc.get_radius(target)
+		dist_tiles = max(0.0, dist_px - target_hb) / IsoUtils.TILE_SIZE.x
 	var leash_tiles: float = position.distance_to(IsoUtils.iso_to_world(home_cell)) / IsoUtils.TILE_SIZE.x
 	var next: State = decide_state(state, dist_tiles, health, leash_tiles,
 		sight_radius_tiles, attack_range_tiles, leash_radius_tiles)
@@ -187,7 +211,9 @@ func _physics_process(delta: float) -> void:
 			pass
 	# Bob sprite while moving.
 	if _npc_sprite != null:
-		if state == State.WANDER or state == State.CHASE:
+		if _action_vfx != null and _action_vfx.is_playing():
+			pass  # Skip bob during lunge.
+		elif state == State.WANDER or state == State.CHASE:
 			_bob_t += delta
 			_npc_sprite.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
 		else:
@@ -247,8 +273,18 @@ func _tick_attack(_delta: float) -> void:
 	if _attack_cooldown > 0.0:
 		return
 	_attack_cooldown = ATTACK_COOLDOWN_SEC
+	var attack_element: int = CreatureSpriteRegistry.get_element(kind)
 	if target.has_method("take_hit"):
-		target.call("take_hit", attack_damage, self)
+		target.call("take_hit", attack_damage, self, attack_element)
+	# Lunge + particle VFX.
+	var attack_style: StringName = CreatureSpriteRegistry.get_attack_style(kind)
+	if _action_vfx != null and attack_style != &"none":
+		var to_target: Vector2 = target.position - position
+		var to_norm: Vector2 = to_target.normalized() if to_target.length() > 0.01 else Vector2(1, 0)
+		var target_cell := Vector2i(
+				int(floor(target.position.x / float(WorldConst.TILE_PX))),
+				int(floor(target.position.y / float(WorldConst.TILE_PX))))
+		_action_vfx.play_creature_attack(target_cell, to_norm, attack_style, attack_element)
 
 
 # ---------- Damage / death ----------
@@ -261,6 +297,7 @@ func take_hit(damage: int, attacker: Node = null, element: int = 0) -> void:
 		return
 	var effective: int = _apply_resistance(damage, element)
 	health = max(0, health - effective)
+	ActionParticles.flash_hit(self)
 	if attacker is Node2D and target == null:
 		target = attacker as Node2D
 	if health <= 0:

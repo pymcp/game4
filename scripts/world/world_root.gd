@@ -937,44 +937,6 @@ func mine_at(cell: Vector2i, damage: int) -> Dictionary:
 	return {"hit": true, "destroyed": true, "kind": e["kind"], "drops": drops}
 
 
-func spawn_break_burst(cell: Vector2i) -> void:
-	var p := CPUParticles2D.new()
-	p.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
-	p.amount = 12
-	p.lifetime = 0.4
-	p.one_shot = true
-	p.emitting = true
-	p.spread = 180.0
-	p.initial_velocity_min = 20.0
-	p.initial_velocity_max = 50.0
-	p.gravity = Vector2(0, 100)
-	p.scale_amount_min = 1.5
-	p.scale_amount_max = 2.5
-	entities.add_child(p)
-	await get_tree().create_timer(0.6).timeout
-	if is_instance_valid(p):
-		p.queue_free()
-
-
-func spawn_hit_burst(cell: Vector2i) -> void:
-	var p := CPUParticles2D.new()
-	p.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
-	p.amount = 5
-	p.lifetime = 0.25
-	p.one_shot = true
-	p.emitting = true
-	p.spread = 90.0
-	p.initial_velocity_min = 15.0
-	p.initial_velocity_max = 35.0
-	p.gravity = Vector2(0, 80)
-	p.scale_amount_min = 1.0
-	p.scale_amount_max = 1.5
-	entities.add_child(p)
-	await get_tree().create_timer(0.5).timeout
-	if is_instance_valid(p):
-		p.queue_free()
-
-
 # --- Scattered NPC spawning ----------------------------------------
 
 const _VillagerScene: PackedScene = preload("res://scenes/entities/Villager.tscn")
@@ -1044,6 +1006,7 @@ func _spawn_villager(entry: Dictionary) -> void:
 	var sid: String = entry.get("shop_id", "")
 	if sid != "":
 		v.shop_id = StringName(sid)
+	v.is_cowardly = entry.get("is_cowardly", false)
 	v.add_to_group(&"scattered_npcs")
 	entities.add_child(v)
 
@@ -1445,6 +1408,18 @@ func debug_toggle_tile_labels() -> void:
 	overlay_node.name = "DebugTileLabels"
 	add_child(overlay_node)
 	print("[F10] tile labels ON")
+
+
+func debug_toggle_hitbox_overlay() -> void:
+	var existing: Node = get_node_or_null("DebugHitboxOverlay")
+	if existing != null:
+		existing.queue_free()
+		print("[F10] hitbox overlay OFF")
+		return
+	var overlay := DebugHitboxOverlay.new()
+	overlay.name = "DebugHitboxOverlay"
+	add_child(overlay)
+	print("[F10] hitbox overlay ON")
 
 
 func _debug_find_walkable(centre: Vector2i, offset: Vector2i,

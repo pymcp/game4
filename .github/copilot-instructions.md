@@ -33,7 +33,7 @@ wait; kill %1 2>/dev/null
 | `scripts/entities/` | PlayerController, Villager, NPC (hostile), Monster, Pet, Boat, LootPickup, ActionVFX |
 | `scripts/main/` | `game.gd` (split-screen root), `bootstrap_smoke.gd` |
 | `scripts/tools/` | SpritePicker, MineableEditor |
-| `scripts/ui/` | InventoryScreen, CraftingPanel, Hotbar, DialogueBox, HealthBar, PlayerHud, ControlsHud |
+| `scripts/ui/` | InventoryScreen, CraftingPanel, Hotbar, DialogueBox, HeartDisplay, PlayerHud, ControlsHud |
 | `scripts/world/` | World, WorldRoot, WorldGenerator, city/dungeon/house/island generators, TilesetCatalog |
 | `resources/` | Game data: `biomes/`, `dialogue/`, `items/`, `quests/`, `save/`, `tilesets/`, `mineables.json` |
 | `scenes/` | `.tscn` files: `main/`, `entities/`, `world/`, `tools/`, `ui/` |
@@ -75,15 +75,29 @@ See [docs/conventions.md](docs/conventions.md) for full details. Critical points
 ## Entity System
 | Class | Extends | Role |
 |-------|---------|------|
-| `PlayerController` | Node2D | Movement, attack, mining, inventory, equipment, stats, sailing |
-| `Villager` | Node2D | Peaceful NPC — dialogue tree, `CharacterBuilder` paper-doll, wander AI |
+| `PlayerController` | Node2D | Movement, attack, mining, inventory, equipment, stats, sailing. Emits `player_died(pid)` at 0 HP |
+| `Villager` | Node2D | NPC — dialogue, paper-doll, wander AI. DEFEND/FLEE states, `is_cowardly` flag |
 | `NPC` | Node2D | Hostile mob — 5-state FSM (IDLE/WANDER/CHASE/ATTACK/DEAD), drops |
-| `Monster` | Node2D | Training-dummy hostile, chases nearest player |
+| `Monster` | Node2D | Hostile creature — chases player, attacks with combat stats from `CreatureSpriteRegistry` |
 | `Pet` | Node2D | Cat/dog companion, follows owner, attacks hostiles. `PetState` FSM |
 | `Boat` | Node2D | Dockable water transport |
 | `LootPickup` | Node2D | Auto-pickup item entity |
-| `ActionVFX` | Node2D | Tween-driven attack/mine/gather/ranged animations |
+| `ActionVFX` | Node2D | Tween-driven VFX: armed=weapon flash+rotate/thrust, unarmed/creature=body lunge, mine/gather/ranged. Used by Player, Monster, NPC, Villager |
 | `CharacterBuilder` | RefCounted | Paper-doll sprite stack from [character-atlas.md](docs/character-atlas.md) |
+
+### Creature Combat Data
+- `resources/creature_sprites.json` — each creature entry has optional combat fields: `attack_style` (swing/thrust/slam/projectile/none), `attack_damage`, `attack_speed`, `attack_range_tiles`, `element` (fire/ice/none).
+- `CreatureSpriteRegistry` — static accessors: `get_attack_style()`, `get_attack_damage()`, `get_attack_speed()`, `get_attack_range_tiles()`, `get_element()`. All have sensible defaults for missing data.
+- `Monster._ready()` loads combat stats from the registry. `_tick_attack()` deals damage and spawns VFX via `ActionVFX.play_creature_attack()`.
+- `NPC._tick_attack()` uses `ActionVFX.play_creature_attack()` for attack VFX.
+- `Villager` has 4 states: `IDLE`, `WANDER`, `DEFEND`, `FLEE`. `is_cowardly` export (30% random for generated NPCs) determines fight-or-flight. `take_hit()` triggers threat response. `_tick_defend()` uses `ActionVFX.play_creature_attack()`.
+- All damageable entities (`PlayerController`, `Villager`, `NPC`, `Monster`, `Pet`) flash white on hit via `ActionParticles.flash_hit()`.
+
+## Death & Revival
+- `PlayerController` emits `signal player_died(player_id)` when `health` reaches 0.
+- `Game` connects the signal → pauses via `PauseManager.set_paused(true)` → shows `MathDeathScreen`.
+- `MathDeathScreen` (`scripts/ui/math_death_screen.gd`) — `CanvasLayer` (layer 50), `process_mode = ALWAYS`. Generates a simple addition or subtraction problem (operands 1–99, subtraction always non-negative).
+- On correct answer: emits `answered_correctly(pid)` → `Game` restores player to `max_health` and unpauses.
 
 ## Items & Equipment
 - `ItemDefinition` (`scripts/data/item_definition.gd`) — Resource: `id`, `display_name`, `icon`, `stack_size`, `slot`, `power`, `description`. `enum Slot { NONE, WEAPON, TOOL, HEAD, BODY, FEET }`.
@@ -114,10 +128,11 @@ Mining is **tile-based** — decorations on `TileMapLayer`, not `Sprite2D` nodes
 5. VFX via `ActionVFX` + `ActionParticles`
 
 ## Action Animations (VFX)
-- `ActionVFX` — tween-driven temporary sprites + particles. 4 types: melee swing, mine swing, gather rustle, ranged shot.
-- `ActionParticles` — static helper, spawns `CPUParticles2D` with themed texture (slash, spark, dirt, smoke, star).
+- `ActionVFX` — tween-driven VFX for all entity attacks. Armed=weapon flash+rotate/thrust, unarmed/creature=body lunge, mine/gather/ranged.
+- `ActionParticles` — static helper with `flash_hit()` for white damage flash on any `CanvasItem`.
 - Persistent weapon `Sprite2D` on `SpriteRoot/Weapon` — shows equipped weapon/tool, updated via `Equipment.contents_changed`.
-- All animation durations (0.15–0.3s) fit within the 0.35s attack cooldown.
+- All entities (Player, Monster, NPC, Villager) have an `ActionVFX` child. Bob animation is guarded during lunge to prevent conflicts.
+- All animation durations (0.06–0.3s) fit within the 0.35s attack cooldown.
 
 ## Auto-Mine & Auto-Attack
 Toggle inputs: `p*_auto_mine` (C / Numpad7), `p*_auto_attack` (V / Numpad8).
@@ -160,10 +175,11 @@ Every quest has a `requires` block with `status: "NOT_IMPLEMENTED"` or `"IMPLEME
 | `InventoryScreen` | Paperdoll (5 equipment slots over silhouette) + 4×6 inventory grid + crafting tab |
 | `CraftingPanel` | Recipe list inside InventoryScreen |
 | `Hotbar` / `HotbarSlot` | Bottom-of-screen row showing first 8 inventory slots |
-| `PlayerHud` | HealthBar + Hotbar + biome label |
+| `PlayerHud` | HeartDisplay + Hotbar + biome label |
 | `DialogueBox` | Branching dialogue overlay (CanvasLayer 40) |
 | `ControlsHud` | Dynamic control hints, auto-mine/auto-attack status |
 | `MainMenu` / `PauseMenu` | Title screen and pause overlay |
+| `MathDeathScreen` | Death overlay (CanvasLayer 50): math problem to revive |
 
 ## Sprite/Asset Pipeline
 1. **Generate**: Use the Roguelike Sprite Artist Gemini Gem ([tools/gemini-sprite-gen.gem.md](tools/gemini-sprite-gen.gem.md)) — 16×16 px, `#FF00FF` magenta background.
@@ -259,7 +275,6 @@ Mining is **tile-based** — decorations are painted on a `TileMapLayer` (`Decor
 2. `PlayerController._physics_process` checks attack input, enforces a **0.35 s cooldown** (`ATTACK_COOLDOWN_SEC`), then calls `try_attack()`.
 3. `try_attack()` calls `_compute_mine_damage(target_cell)` — base damage is 1; doubles to 2 if the player has a pickaxe equipped (`ItemDefinition.Slot.TOOL`) and the target kind is in `PICKAXE_BONUS_KINDS`.
 4. `WorldRoot.mine_at(cell, damage)` decrements HP. On destruction it erases the tile (plus canopy tile above for tall decorations), clears the overlay, and returns drop info.
-5. `spawn_break_burst()` / `spawn_hit_burst()` create short-lived `CPUParticles2D` for visual feedback.
 
 ### Important: Hittable.gd is deleted
 The old `Hittable` component (Sprite2D-child, HP + signals) has been removed. All mining goes through the tile-based `mine_at()` path.
@@ -273,19 +288,22 @@ The old `Hittable` component (Sprite2D-child, HP + signals) has been removed. Al
 - `WeaponAtlas` (`scripts/data/weapon_atlas.gd`) — maps item ID → character-sheet atlas cell for the persistent weapon sprite. Reads from `TileMappings.weapon_sprites` (SpritePicker-editable), falls back to coded defaults.
 
 ## Action Animations (VFX)
-Visual feedback for attacks and gathering. Implemented as tween-driven temporary sprites + particles.
+Visual feedback for attacks and gathering. All entities use `ActionVFX` for consistent attack animations.
 
 ### Architecture
-- `ActionVFX` (`scripts/entities/action_vfx.gd`) — Node2D child of Player root (not under SpriteRoot, so it doesn't h-flip). Plays four action types: melee swing, mine swing, gather rustle, ranged shot. Prevents overlapping animations via `_is_playing`.
-- `ActionParticles` (`scripts/entities/action_particles.gd`) — static helper that spawns themed `CPUParticles2D` with texture from `assets/particles/pack/` (slash, spark, dirt, smoke, star). Selects texture by action type + target kind.
+- `ActionVFX` (`scripts/entities/action_vfx.gd`) — Node2D child of every attackable entity (Player, Monster, NPC, Villager). Prevents overlapping animations via `_is_playing`. `setup(owner, weapon_spr, world, visual_root)` accepts an optional `visual_root` node for body lunges.
+- **Armed attacks** (player with weapon): Flash the persistent weapon sprite white (modulate `Color(3,3,3,1)`) + scale 1.3x + category-appropriate motion: rotation arc for sword/axe/dagger, forward push for spear. Called via `play_attack()` or `play_melee_swing()`/`play_mine_swing()`.
+- **Unarmed attacks** (player bare-hands): 4px body lunge of `visual_root` toward target in 0.06s, snap back 0.06s. Called via `play_unarmed_lunge()`.
+- **Creature attacks** (Monster/NPC/Villager): Same body lunge as unarmed, dispatched by `play_creature_attack(target_cell, facing, attack_style, element)`. Melee styles (swing/thrust/slam) lunge; projectile fires visual arrow.
+- `ActionParticles` (`scripts/entities/action_particles.gd`) — static helper with `flash_hit()` for white damage flash on any `CanvasItem`.
+- **Bob guard**: All entities skip bob animation (walk-bounce) while `ActionVFX.is_playing()` to prevent position conflicts with lunge tweens.
 - Persistent weapon `Sprite2D` on `SpriteRoot/Weapon` — shows equipped weapon/tool at all times. Updated via `_update_weapon_sprite()` connected to `Equipment.contents_changed`. Display priority: WEAPON > TOOL.
-- `TileMappings.weapon_sprites` — SpritePicker-editable field mapping item IDs to character-sheet cells. Registered in SpritePicker `_MAPPINGS` as "Weapon / tool sprites".
+- `TileMappings.weapon_sprites` — SpritePicker-editable field mapping item IDs to character-sheet cells.
 
 ### Action flow in `try_attack()`
 1. Damage applied instantly (frame 0) — animation is purely cosmetic.
-2. Action type determined: mineable + pickaxe → `play_mine_swing()`; mineable + bare hands → `play_gather()`; weapon + bow → `play_ranged()`; weapon + melee → `play_melee_swing()`; nothing → particle-only punch.
-3. Destruction triggers `ActionParticles.Action.BREAK` burst (replaces old `spawn_break_burst()`).
-4. All animation durations (0.15–0.3s) fit within the 0.35s attack cooldown.
+2. Action type determined: mineable + pickaxe → `play_mine_swing()`; mineable + bare hands → `play_gather()`; weapon + bow → `play_ranged()`; weapon + melee → `play_attack()`; nothing → `play_unarmed_lunge()`.
+3. All animation durations (0.06–0.3s) fit within the 0.35s attack cooldown.
 
 ### Gather tile-shake
 - Copies the decoration tile to a temp `Sprite2D`, hides the real tile, oscillates ±2px for 3 cycles, then restores. `TileMapLayer` doesn't support per-cell transforms, so this swap technique is necessary.

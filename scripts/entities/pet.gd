@@ -45,6 +45,7 @@ const _HOP_HEIGHT_PX: float = 4.0
 @export var max_health: int = 3
 @export var health: int = 3
 
+var hitbox_radius: float = 3.0  ## Gungeon-style body-core radius (native px).
 var state: int = PetState.State.IDLE  ## see [PetState.State]
 var _world: WorldRoot = null
 var _sprite: Sprite2D = null
@@ -63,6 +64,7 @@ func _ready() -> void:
 	_sprite.texture = _DOG_TEX if species == PET_SPECIES_DOG else _CAT_TEX
 	_sprite.centered = true
 	add_child(_sprite)
+	hitbox_radius = HitboxCalc.radius_from_sprite(_sprite)
 	# Heart popup (drawn above the sprite when HAPPY).
 	_heart = Sprite2D.new()
 	_heart.texture = _make_heart_texture()
@@ -205,7 +207,8 @@ func _do_attack(delta: float) -> void:
 		_do_bark()
 		return
 	var to_t: Vector2 = _attack_target.position - position
-	if to_t.length() > float(WorldConst.TILE_PX):
+	var target_hb: float = HitboxCalc.get_radius(_attack_target)
+	if to_t.length() > float(WorldConst.TILE_PX) + target_hb:
 		# Close in.
 		_step_toward(_attack_target.position, delta)
 		return
@@ -229,7 +232,8 @@ func _do_bark() -> void:
 	if _world != null:
 		for n in _world.entities.get_children():
 			if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
-				if position.distance_squared_to((n as NPC).position) <= range_d2:
+				var eff_range: float = range_px + (n as NPC).hitbox_radius
+				if position.distance_squared_to((n as NPC).position) <= eff_range * eff_range:
 					if (n as NPC).has_method("take_hit"):
 						(n as NPC).call("take_hit", BARK_DAMAGE, self)
 	_spawn_bark_visual(range_px)
@@ -260,6 +264,7 @@ func interact(by: Node) -> void:
 # the pet can't actually die — `take_hit` just refreshes hp.
 func take_hit(damage: int, _attacker: Node = null) -> void:
 	health = max(1, health - damage)
+	ActionParticles.flash_hit(self)
 
 
 # ─── Heart particle texture ────────────────────────────────────────────

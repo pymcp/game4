@@ -16,6 +16,8 @@
 extends Node2D
 class_name PlayerController
 
+signal player_died(player_id: int)
+
 const _MOVE_SPEED_NATIVE: float = 60.0  ## native px/sec (≈3.75 tiles/s)
 const _BOB_AMP_PX: float = 1.0
 const _BOB_HZ: float = 6.0
@@ -44,6 +46,7 @@ var auto_attack: bool = false
 const _AUTO_MINE_RADIUS: int = 1       ## tiles around player to scan
 const _MELEE_REACH_PX: float = 24.0    ## native-px radius for melee auto-attack
 const _RANGED_REACH_PX: float = 80.0   ## native-px max range for ranged auto-attack
+var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
 var inventory: Inventory = Inventory.new()
 var equipment: Equipment = Equipment.new()
 var max_health: int = 10
@@ -102,7 +105,7 @@ func _ready() -> void:
 	_default_hair_region = _hair_sprite.region_rect
 	_action_vfx = $ActionVFX as ActionVFX
 	if _action_vfx != null:
-		_action_vfx.setup(self, _weapon_sprite, _world)
+		_action_vfx.setup(self, _weapon_sprite, _world, _sprite_root)
 	equipment.contents_changed.connect(_update_weapon_sprite)
 	equipment.contents_changed.connect(_update_armor_sprites)
 	equipment.contents_changed.connect(_update_shield_sprite)
@@ -299,12 +302,14 @@ func _physics_process(delta: float) -> void:
 		else:
 			_facing_dir = Vector2i(signi(input.x), 0)
 		_sprite_root.scale = Vector2(_facing_x, 1)
-		_bob_t += delta
-		var bob: float = sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
-		_sprite_root.position = Vector2(0, -bob)
+		if _action_vfx == null or not _action_vfx.is_playing():
+			_bob_t += delta
+			var bob: float = sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
+			_sprite_root.position = Vector2(0, -bob)
 	else:
-		_bob_t = 0.0
-		_sprite_root.position = Vector2.ZERO
+		if _action_vfx == null or not _action_vfx.is_playing():
+			_bob_t = 0.0
+			_sprite_root.position = Vector2.ZERO
 
 
 func _step(delta_pos: Vector2) -> void:
@@ -438,7 +443,6 @@ func _auto_attack_melee(weapon_id: StringName, def: ItemDefinition) -> void:
 	var reach: float = def.reach if def != null and def.reach > 0 else _MELEE_REACH_PX
 	var best: Node2D = null
 	var best_d2: float = INF
-	var reach2: float = reach * reach
 	for n in _world.entities.get_children():
 		if n == self:
 			continue
@@ -449,8 +453,10 @@ func _auto_attack_melee(weapon_id: StringName, def: ItemDefinition) -> void:
 			is_hostile = true
 		if not is_hostile:
 			continue
+		var eff_reach: float = reach + HitboxCalc.get_radius(n)
+		var eff_reach2: float = eff_reach * eff_reach
 		var d2: float = position.distance_squared_to((n as Node2D).position)
-		if d2 < best_d2 and d2 <= reach2:
+		if d2 < best_d2 and d2 <= eff_reach2:
 			best_d2 = d2
 			best = n as Node2D
 	if best == null:
@@ -463,9 +469,7 @@ func _auto_attack_melee(weapon_id: StringName, def: ItemDefinition) -> void:
 		_facing_dir = Vector2i(signi(diff.x), 0)
 	var target_cell: Vector2i = _cell_of(best.position)
 	if best.has_method("take_hit"):
-		var power: int = 1
-		if def != null:
-			power = max(1, def.power + get_effective_stat(&"strength"))
+		var power: int = max(1, get_effective_stat(&"strength")) if def == null else max(1, def.power + get_effective_stat(&"strength"))
 		var elem: int = def.element if def != null else 0
 		best.call("take_hit", power, self, elem)
 	if def != null and def.knockback > 0:
@@ -481,7 +485,6 @@ func _auto_attack_ranged(weapon_id: StringName, def: ItemDefinition) -> void:
 	_play_action_vfx(target_cell, false, {})
 	# Check if any hostile is roughly in the facing direction within range.
 	var reach: float = def.reach if def != null and def.reach > 0 else _RANGED_REACH_PX
-	var reach2: float = reach * reach
 	var dir := Vector2(_facing_dir).normalized()
 	for n in _world.entities.get_children():
 		if n == self:
@@ -494,7 +497,8 @@ func _auto_attack_ranged(weapon_id: StringName, def: ItemDefinition) -> void:
 		if not is_hostile:
 			continue
 		var to: Vector2 = (n as Node2D).position - position
-		if to.length_squared() > reach2:
+		var eff_reach: float = reach + HitboxCalc.get_radius(n)
+		if to.length_squared() > eff_reach * eff_reach:
 			continue
 		# Check alignment with facing direction (dot > 0.7 ≈ within ~45°).
 		if to.normalized().dot(dir) < 0.7:
@@ -525,8 +529,11 @@ func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 	var defense: int = _armor_defense()
 	var effective: int = max(1, damage - defense)
 	health = max(0, health - effective)
+	ActionParticles.flash_hit(self)
 	if element != 0:
 		apply_status_from_element(element)
+	if health <= 0:
+		player_died.emit(player_id)
 
 
 ## Restore health, clamped to max_health.
@@ -575,10 +582,26 @@ func _compute_mine_damage(target_cell: Vector2i) -> int:
 func try_attack() -> Dictionary:
 	var my_cell: Vector2i = _cell_of(position)
 	var target: Vector2i = my_cell + _facing_dir
-	var damage: int = _compute_mine_damage(target)
-	var res: Dictionary = _world.mine_at(target, damage)
+	var res: Dictionary = {}
 
-	# Determine and play the appropriate VFX.
+	# --- Entity hit scan first (melee / punch) ---
+	var hit_entity: Node2D = _find_facing_hostile()
+	if hit_entity != null and hit_entity.has_method("take_hit"):
+		var weapon_id: StringName = equipment.get_equipped(ItemDefinition.Slot.WEAPON)
+		var wdef: ItemDefinition = ItemRegistry.get_item(weapon_id) if weapon_id != &"" else null
+		var power: int = max(1, get_effective_stat(&"strength")) if wdef == null else max(1, wdef.power + get_effective_stat(&"strength"))
+		var elem: int = wdef.element if wdef != null else 0
+		hit_entity.call("take_hit", power, self, elem)
+		if wdef != null and wdef.knockback > 0:
+			_apply_knockback(hit_entity, wdef.knockback)
+		res["hit_entity"] = true
+		_play_action_vfx(target, false, res)
+		return res
+
+	# --- No hostile in range — try mining the tile ---
+	var damage: int = _compute_mine_damage(target)
+	res = _world.mine_at(target, damage)
+
 	var is_mineable: bool = _world._mineable.has(target) or res.get("hit", false)
 	_play_action_vfx(target, is_mineable, res)
 
@@ -590,41 +613,64 @@ func try_attack() -> Dictionary:
 	return res
 
 
+## Find the nearest hostile entity in the facing direction within melee reach.
+func _find_facing_hostile() -> Node2D:
+	var weapon_id: StringName = equipment.get_equipped(ItemDefinition.Slot.WEAPON)
+	var wdef: ItemDefinition = ItemRegistry.get_item(weapon_id) if weapon_id != &"" else null
+	var reach: float = wdef.reach if wdef != null and wdef.reach > 0 else _MELEE_REACH_PX
+	var dir := Vector2(_facing_dir).normalized()
+	var best: Node2D = null
+	var best_d2: float = INF
+	for n in _world.entities.get_children():
+		if n == self:
+			continue
+		var is_hostile: bool = false
+		if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
+			is_hostile = true
+		elif n is Monster and (n as Monster).health > 0:
+			is_hostile = true
+		if not is_hostile:
+			continue
+		var to: Vector2 = (n as Node2D).position - position
+		var eff_reach: float = reach + HitboxCalc.get_radius(n)
+		if to.length_squared() > eff_reach * eff_reach:
+			continue
+		# Must be roughly in the facing direction (dot > 0.3 ≈ ~73° cone).
+		if to.length_squared() > 0.01 and to.normalized().dot(dir) < 0.3:
+			continue
+		var d2: float = to.length_squared()
+		if d2 < best_d2:
+			best_d2 = d2
+			best = n as Node2D
+	return best
+
+
 func _play_action_vfx(target: Vector2i, is_mineable: bool, res: Dictionary) -> void:
 	if _action_vfx == null:
-		# Fallback to old particle-only bursts.
-		if res.get("destroyed", false):
-			_world.spawn_break_burst(target)
-		elif res.get("hit", false):
-			_world.spawn_hit_burst(target)
 		return
 
 	var kind: StringName = res.get("kind", &"")
 
-	if res.get("destroyed", false):
-		# Destruction burst (big particles, replaces spawn_break_burst).
-		var pos: Vector2 = (Vector2(target) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
-		ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.BREAK, kind)
-
 	if is_mineable:
 		var tool_id: StringName = equipment.get_equipped(ItemDefinition.Slot.TOOL)
+		var facing := Vector2(_facing_dir)
 		if tool_id != &"":
-			_action_vfx.play_mine_swing(target, kind)
+			_action_vfx.play_mine_swing(target, kind, facing, tool_id)
 		else:
-			_action_vfx.play_gather(target)
+			_action_vfx.play_gather(target, facing)
 	else:
 		var weapon_id: StringName = equipment.get_equipped(ItemDefinition.Slot.WEAPON)
 		if weapon_id != &"":
 			var wdef: ItemDefinition = ItemRegistry.get_item(weapon_id)
 			if wdef != null:
 				var spd: float = wdef.attack_speed if wdef.attack_speed > 0 else ATTACK_COOLDOWN_SEC
-				_action_vfx.play_attack(target, wdef.weapon_category, wdef.element, spd)
+				var facing := Vector2(_facing_dir)
+				_action_vfx.play_attack(target, wdef.weapon_category, wdef.element, spd, facing, weapon_id)
 			else:
-				_action_vfx.play_melee_swing(target)
+				_action_vfx.play_melee_swing(target, Vector2(_facing_dir), weapon_id)
 		else:
-			# Bare-hands punch — just particles, no swing sprite.
-			var pos: Vector2 = (Vector2(target) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
-			ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.MELEE)
+			# Bare-hands punch — body lunge toward target.
+			_action_vfx.play_unarmed_lunge(target, Vector2(_facing_dir))
 
 
 # --- Status effects -------------------------------------------------
@@ -692,6 +738,7 @@ func tick_effects(delta: float) -> void:
 				health = max(0, health - eff.damage_per_tick)
 				if health <= 0:
 					clear_effects()
+					player_died.emit(player_id)
 					return
 		i -= 1
 

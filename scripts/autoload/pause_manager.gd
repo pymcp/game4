@@ -43,7 +43,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_dispatch_debug(&"debug_spawn_shop_villager")
 				get_viewport().set_input_as_handled()
 			KEY_F10:
-				_dispatch_debug(&"debug_toggle_tile_labels")
+				_dispatch_debug(&"debug_toggle_hitbox_overlay")
 				get_viewport().set_input_as_handled()
 
 

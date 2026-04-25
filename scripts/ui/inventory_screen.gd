@@ -685,8 +685,8 @@ func _refresh_cursor() -> void:
 		if _cursor >= 0 and _cursor < _eq_slots.size():
 			var slot: HotbarSlot = _eq_slots[_cursor]
 			_cursor_panel.visible = true
-			_cursor_panel.global_position = slot.global_position
-			_cursor_panel.size = slot.size
+			_cursor_panel.global_position = slot.global_position - Vector2(2, 2)
+			_cursor_panel.size = slot.size + Vector2(4, 4)
 		_update_detail_equipment()
 		return
 
@@ -706,8 +706,9 @@ func _refresh_cursor() -> void:
 		if slot.is_inside_tree():
 			_cursor_panel.visible = true
 			# Position relative to grid_page so it overlays correctly.
-			_cursor_panel.global_position = slot.global_position
-			_cursor_panel.size = slot.size
+			# Offset outward by 2px so the cursor ring wraps around the slot border.
+			_cursor_panel.global_position = slot.global_position - Vector2(2, 2)
+			_cursor_panel.size = slot.size + Vector2(4, 4)
 			# Scroll the cursor slot into view.
 			if _grid_scroll != null:
 				_grid_scroll.ensure_control_visible(slot)
@@ -1255,14 +1256,14 @@ func _make_cursor_style() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0, 0, 0, 0)
 	sb.border_color = COL_CURSOR
-	sb.border_width_left = 2
-	sb.border_width_right = 2
-	sb.border_width_top = 2
-	sb.border_width_bottom = 2
-	sb.corner_radius_top_left = 3
-	sb.corner_radius_top_right = 3
-	sb.corner_radius_bottom_left = 3
-	sb.corner_radius_bottom_right = 3
+	sb.border_width_left = 3
+	sb.border_width_right = 3
+	sb.border_width_top = 3
+	sb.border_width_bottom = 3
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
 	return sb
 
 

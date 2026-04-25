@@ -253,3 +253,9 @@ func debug_toggle_tile_labels() -> void:
 	for inst in _instances.values():
 		if inst.has_method("debug_toggle_tile_labels"):
 			inst.debug_toggle_tile_labels()
+
+
+func debug_toggle_hitbox_overlay() -> void:
+	for inst in _instances.values():
+		if inst.has_method("debug_toggle_hitbox_overlay"):
+			inst.debug_toggle_hitbox_overlay()

@@ -283,11 +283,15 @@ static func _scatter_npcs(region: Region) -> void:
 				continue
 			if rng.randf() < density:
 				var kind: StringName = kinds[rng.randi() % kinds.size()]
-				region.npcs_scatter.append({
+				var entry: Dictionary = {
 					"kind": kind,
 					"cell": cell,
 					"variant": rng.randi(),
-				})
+				}
+				# ~30% of generated villagers are cowardly.
+				if kind == &"villager":
+					entry["is_cowardly"] = rng.randf() < 0.3
+				region.npcs_scatter.append(entry)
 
 
 static func _pick_spawn_points(region: Region) -> void:

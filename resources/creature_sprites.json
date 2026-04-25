@@ -24,7 +24,11 @@
 			0.3,
 			0.5,
 			1
-		]
+		],
+		"attack_style": "thrust",
+		"attack_damage": 1,
+		"attack_speed": 0.8,
+		"attack_range_tiles": 1.25
 	},
 	"fire_elemental": {
 		"anchor": [
@@ -52,7 +56,12 @@
 			0.4,
 			0.1,
 			1
-		]
+		],
+		"attack_style": "projectile",
+		"attack_damage": 3,
+		"attack_speed": 1.5,
+		"attack_range_tiles": 5.0,
+		"element": "fire"
 	},
 	"goblin": {
 		"anchor": [
@@ -79,7 +88,11 @@
 			0.8,
 			0.3,
 			1
-		]
+		],
+		"attack_style": "swing",
+		"attack_damage": 2,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 1.25
 	},
 	"grasshopper": {
 		"anchor_ratio": [
@@ -111,7 +124,8 @@
 			1,
 			1,
 			1
-		]
+		],
+		"attack_style": "none"
 	},
 	"ice_elemental": {
 		"anchor": [
@@ -139,7 +153,12 @@
 			0.7,
 			1,
 			1
-		]
+		],
+		"attack_style": "projectile",
+		"attack_damage": 3,
+		"attack_speed": 1.5,
+		"attack_range_tiles": 5.0,
+		"element": "ice"
 	},
 	"ogre": {
 		"anchor": [
@@ -167,7 +186,11 @@
 			0.5,
 			0.3,
 			1
-		]
+		],
+		"attack_style": "swing",
+		"attack_damage": 4,
+		"attack_speed": 1.5,
+		"attack_range_tiles": 1.5
 	},
 	"skeleton": {
 		"anchor": [
@@ -194,7 +217,11 @@
 			0.9,
 			0.85,
 			1
-		]
+		],
+		"attack_style": "swing",
+		"attack_damage": 2,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 1.25
 	},
 	"slime": {
 		"anchor": [
@@ -221,7 +248,11 @@
 			0.9,
 			0.3,
 			1
-		]
+		],
+		"attack_style": "slam",
+		"attack_damage": 1,
+		"attack_speed": 1.2,
+		"attack_range_tiles": 1.0
 	},
 	"wolf": {
 		"anchor": [
@@ -249,6 +280,10 @@
 			0.55,
 			0.5,
 			1
-		]
+		],
+		"attack_style": "thrust",
+		"attack_damage": 2,
+		"attack_speed": 0.7,
+		"attack_range_tiles": 1.25
 	}
 }

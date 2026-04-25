@@ -67,3 +67,22 @@ func test_roll_appearance_has_required_keys() -> void:
 	var opts := Villager.roll_appearance(123)
 	for k in ["torso_color", "torso_style", "hair_color", "hair_style"]:
 		assert_true(opts.has(k), "missing key: %s" % k)
+
+
+# --- Combat states -------------------------------------------------
+
+func test_villager_has_health() -> void:
+	var v := Villager.new()
+	assert_eq(v.max_health, 5, "default max_health should be 5")
+	assert_eq(v.health, 5, "default health should be 5")
+
+
+func test_villager_is_cowardly_default_false() -> void:
+	var v := Villager.new()
+	assert_false(v.is_cowardly, "default is_cowardly should be false")
+
+
+func test_villager_state_enum_has_defend_and_flee() -> void:
+	# Verify the new states exist.
+	assert_eq(Villager.State.DEFEND, 2, "DEFEND should be state 2")
+	assert_eq(Villager.State.FLEE, 3, "FLEE should be state 3")

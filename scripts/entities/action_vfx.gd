@@ -1,13 +1,14 @@
 ## ActionVFX
 ##
-## Tween-driven visual effects for player actions: melee swing, mine swing,
-## gather rustle, and ranged shot. Spawns temporary sprites that animate
-## via [Tween] and self-free, plus themed [CPUParticles2D] via
-## [ActionParticles].
+## Tween-driven visual effects for entity actions: melee swing, mine swing,
+## gather rustle, ranged shot, and creature attacks.
 ##
-## Attached as a direct child of the Player root (NOT under SpriteRoot)
-## so it doesn't h-flip with the character. Reads facing direction and
-## position from the parent [PlayerController].
+## Armed attacks animate the persistent weapon sprite (flash + scale +
+## category motion). Unarmed and creature attacks do a quick body lunge
+## toward the target.
+##
+## Attached as a direct child of any entity root (NOT under SpriteRoot)
+## so it doesn't h-flip with the character.
 extends Node2D
 class_name ActionVFX
 
@@ -17,8 +18,11 @@ var _is_playing: bool = false
 ## Pixel size of one tile (matches WorldConst.TILE_PX).
 const _TILE_PX: float = 16.0
 
-## Icon scale for the enlarged swing sprite (100-140px icons → ~16px).
-const _ICON_SCALE: float = 0.12
+## Lunge distance in pixels for unarmed / creature attacks.
+const _LUNGE_PX: float = 4.0
+
+## Weapon flash scale multiplier.
+const _FLASH_SCALE: float = 1.3
 
 ## Arrow/projectile texture.
 const _ARROW_TEXTURE_PATH: String = "res://assets/particles/pack/trace_05.png"
@@ -26,16 +30,19 @@ const _ARROW_TEXTURE_PATH: String = "res://assets/particles/pack/trace_05.png"
 ## Spell orb texture.
 const _SPELL_TEXTURE_PATH: String = "res://assets/particles/pack/star_06.png"
 
-# References set by PlayerController after instancing.
+# References set by the owning entity after instancing.
 var _weapon_sprite: Sprite2D = null
 var _world: WorldRoot = null
-var _player: PlayerController = null
+var _owner: Node2D = null
+var _visual_root: Node2D = null  ## Node to lunge (SpriteRoot or creature Sprite).
 
 
-func setup(player: PlayerController, weapon_spr: Sprite2D, world: WorldRoot) -> void:
-	_player = player
+func setup(owner: Node2D, weapon_spr: Sprite2D, world: WorldRoot,
+		visual_root: Node2D = null) -> void:
+	_owner = owner
 	_weapon_sprite = weapon_spr
 	_world = world
+	_visual_root = visual_root
 
 
 ## True while a VFX tween is playing.
@@ -49,10 +56,11 @@ func _target_world_pos(target_cell: Vector2i) -> Vector2:
 	return (Vector2(target_cell) + Vector2(0.5, 0.5)) * _TILE_PX
 
 
+## Cached facing direction, set by callers via play methods.
+var _last_facing: Vector2 = Vector2(1, 0)
+
 func _facing_offset() -> Vector2:
-	if _player == null:
-		return Vector2(8, 0)
-	return Vector2(_player._facing_dir) * 8.0
+	return _last_facing * 8.0
 
 
 # --- Combat dispatcher -------------------------------------------
@@ -60,9 +68,11 @@ func _facing_offset() -> Vector2:
 ## Main entry point for weapon-based attacks. Dispatches VFX based on
 ## weapon_category and tints particles by element.
 func play_attack(target_cell: Vector2i, category: int, element: int,
-		attack_speed: float) -> void:
+		attack_speed: float, facing: Vector2 = Vector2(1, 0),
+		weapon_id: StringName = &"") -> void:
 	if _is_playing:
 		return
+	_last_facing = facing if facing != Vector2.ZERO else Vector2(1, 0)
 	var dur: float = clampf(attack_speed * 0.6, 0.1, 0.4)
 	match category:
 		ItemDefinition.WeaponCategory.SWORD:
@@ -74,7 +84,7 @@ func play_attack(target_cell: Vector2i, category: int, element: int,
 		ItemDefinition.WeaponCategory.SPEAR:
 			_play_thrust(target_cell, dur, element)
 		ItemDefinition.WeaponCategory.BOW:
-			play_ranged(target_cell, dur, element)
+			play_ranged(target_cell, dur, element, facing)
 		ItemDefinition.WeaponCategory.STAFF:
 			_play_spell(target_cell, dur, element)
 		_:
@@ -82,55 +92,24 @@ func play_attack(target_cell: Vector2i, category: int, element: int,
 
 
 ## Parameterized arc swing: SWORD, AXE, DAGGER with different arcs.
+## Animates the persistent weapon sprite instead of spawning a copy.
 func _play_swing(target_cell: Vector2i, from_deg: float, to_deg: float,
 		duration: float, element: int) -> void:
 	_is_playing = true
-	var target_pos: Vector2 = _target_world_pos(target_cell) - _player.position
-	var swing_spr := _create_icon_sprite(_get_weapon_id(), target_pos)
-	if swing_spr == null:
-		_spawn_combat_particles(target_cell, element)
-		_finish()
-		return
-	add_child(swing_spr)
-	swing_spr.rotation_degrees = from_deg
-	var tw := create_tween()
-	tw.tween_property(swing_spr, "rotation_degrees", to_deg, duration)\
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	tw.tween_callback(func():
-		swing_spr.queue_free()
-		_finish()
-	)
-	_sympathetic_tilt()
-	_spawn_combat_particles(target_cell, element)
+	_weapon_flash_and_rotate(from_deg, to_deg, duration)
 
 
-## Spear / polearm thrust: linear forward motion, no arc.
+## Spear / polearm thrust: brief forward push on the weapon sprite.
 func _play_thrust(target_cell: Vector2i, duration: float, element: int) -> void:
 	_is_playing = true
-	var target_pos: Vector2 = _target_world_pos(target_cell) - _player.position
-	var spr := _create_icon_sprite(_get_weapon_id(), _facing_offset())
-	if spr == null:
-		_spawn_combat_particles(target_cell, element)
-		_finish()
-		return
-	add_child(spr)
-	spr.rotation = Vector2(_player._facing_dir).angle()
-	var tw := create_tween()
-	tw.tween_property(spr, "position", target_pos, duration)\
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	tw.tween_callback(func():
-		spr.queue_free()
-		_finish()
-	)
-	_sympathetic_tilt()
-	_spawn_combat_particles(target_cell, element)
+	_weapon_flash_and_thrust(duration)
 
 
 ## Staff / magic spell: colored orb projectile.
 func _play_spell(target_cell: Vector2i, duration: float, element: int) -> void:
 	_is_playing = true
 	var start_pos: Vector2 = _facing_offset()
-	var end_pos: Vector2 = _target_world_pos(target_cell) - _player.position
+	var end_pos: Vector2 = _target_world_pos(target_cell) - _owner.position
 	var orb := Sprite2D.new()
 	var tex: Texture2D = load(_SPELL_TEXTURE_PATH)
 	orb.texture = tex
@@ -153,103 +132,60 @@ func _play_spell(target_cell: Vector2i, duration: float, element: int) -> void:
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(func():
 		orb.queue_free()
-		_spawn_combat_particles(target_cell, element)
 		_finish()
 	)
 
 
-func _spawn_combat_particles(target_cell: Vector2i, element: int) -> void:
-	if _world == null:
+# --- Creature attack dispatcher -----------------------------------
+
+## Entry point for creature (Monster/NPC/Villager) attacks. Maps the
+## creature's attack_style string to the appropriate VFX.
+func play_creature_attack(target_cell: Vector2i, facing: Vector2,
+		attack_style: StringName, element: int = 0) -> void:
+	if _is_playing:
 		return
-	var pos: Vector2 = _target_world_pos(target_cell)
-	ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.MELEE, &"", element)
+	_last_facing = facing if facing != Vector2.ZERO else Vector2(1, 0)
+	match attack_style:
+		&"swing", &"thrust", &"slam":
+			_do_lunge()
+		&"projectile":
+			play_ranged(target_cell, 0.2, element, _last_facing)
+		_:
+			pass  # "none" or unknown — no VFX
 
 
 # --- Melee swing ---------------------------------------------------
 
-func play_melee_swing(target_cell: Vector2i) -> void:
+func play_melee_swing(target_cell: Vector2i, facing: Vector2 = Vector2(1, 0),
+		_weapon_id: StringName = &"sword") -> void:
 	if _is_playing:
 		return
 	_is_playing = true
-
-	var target_pos: Vector2 = _target_world_pos(target_cell) - _player.position
-	var swing_spr := _create_icon_sprite(
-		equipment_get(&"sword"), target_pos)
-	if swing_spr == null:
-		# No icon — just do particles.
-		_spawn_melee_particles(target_cell)
-		_finish()
-		return
-
-	add_child(swing_spr)
-	swing_spr.rotation_degrees = -60.0
-
-	var tw := create_tween()
-	tw.tween_property(swing_spr, "rotation_degrees", 60.0, 0.2)\
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	tw.tween_callback(func():
-		swing_spr.queue_free()
-		_finish()
-	)
-
-	# Sympathetic tilt on persistent weapon.
-	_sympathetic_tilt()
-	_spawn_melee_particles(target_cell)
-
-
-func _spawn_melee_particles(target_cell: Vector2i) -> void:
-	if _world == null:
-		return
-	var pos: Vector2 = _target_world_pos(target_cell)
-	ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.MELEE)
+	_last_facing = facing if facing != Vector2.ZERO else Vector2(1, 0)
+	_weapon_flash_and_rotate(-45.0, 45.0, 0.15)
 
 
 # --- Mine swing ----------------------------------------------------
 
-func play_mine_swing(target_cell: Vector2i, kind: StringName = &"") -> void:
+func play_mine_swing(target_cell: Vector2i, kind: StringName = &"",
+		facing: Vector2 = Vector2(1, 0),
+		_tool_id: StringName = &"pickaxe") -> void:
 	if _is_playing:
 		return
 	_is_playing = true
-
-	var target_pos: Vector2 = _target_world_pos(target_cell) - _player.position
-	var swing_spr := _create_icon_sprite(
-		equipment_get(&"pickaxe"), target_pos)
-	if swing_spr == null:
-		_spawn_mine_particles(target_cell, kind)
-		_finish()
-		return
-
-	add_child(swing_spr)
-	swing_spr.rotation_degrees = -90.0
-
-	var tw := create_tween()
-	tw.tween_property(swing_spr, "rotation_degrees", 20.0, 0.25)\
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	tw.tween_callback(func():
-		swing_spr.queue_free()
-		_finish()
-	)
-
-	_sympathetic_tilt()
-	_spawn_mine_particles(target_cell, kind)
-
-
-func _spawn_mine_particles(target_cell: Vector2i, kind: StringName) -> void:
-	if _world == null:
-		return
-	var pos: Vector2 = _target_world_pos(target_cell)
-	ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.MINE, kind)
+	_last_facing = facing if facing != Vector2.ZERO else Vector2(1, 0)
+	_weapon_flash_and_rotate(-90.0, 20.0, 0.2)
 
 
 # --- Gather rustle -------------------------------------------------
 
-func play_gather(target_cell: Vector2i) -> void:
+func play_gather(target_cell: Vector2i, facing: Vector2 = Vector2(1, 0)) -> void:
 	if _is_playing:
 		return
 	_is_playing = true
+	_last_facing = facing if facing != Vector2.ZERO else Vector2(1, 0)
 
 	_shake_tile(target_cell)
-	_spawn_gather_particles(target_cell)
 
 
 func _shake_tile(target_cell: Vector2i) -> void:
@@ -301,23 +237,17 @@ func _shake_tile(target_cell: Vector2i) -> void:
 	)
 
 
-func _spawn_gather_particles(target_cell: Vector2i) -> void:
-	if _world == null:
-		return
-	var pos: Vector2 = _target_world_pos(target_cell)
-	ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.GATHER)
-
-
 # --- Ranged shot ---------------------------------------------------
 
 func play_ranged(target_cell: Vector2i, duration: float = 0.15,
-		element: int = 0) -> void:
+		element: int = 0, facing: Vector2 = Vector2(1, 0)) -> void:
 	if _is_playing:
 		return
 	_is_playing = true
+	_last_facing = facing if facing != Vector2.ZERO else Vector2(1, 0)
 
-	var start_pos: Vector2 = _facing_offset()  # relative to player
-	var end_pos: Vector2 = _target_world_pos(target_cell) - _player.position
+	var start_pos: Vector2 = _facing_offset()
+	var end_pos: Vector2 = _target_world_pos(target_cell) - _owner.position
 
 	var arrow := Sprite2D.new()
 	var tex: Texture2D = load(_ARROW_TEXTURE_PATH)
@@ -334,7 +264,6 @@ func play_ranged(target_cell: Vector2i, duration: float = 0.15,
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(func():
 		arrow.queue_free()
-		_spawn_ranged_particles(target_cell, element)
 		_finish()
 	)
 
@@ -342,57 +271,75 @@ func play_ranged(target_cell: Vector2i, duration: float = 0.15,
 	_bow_pullback()
 
 
-func _spawn_ranged_particles(target_cell: Vector2i,
-		element: int = 0) -> void:
-	if _world == null:
+# --- Unarmed lunge -------------------------------------------------
+
+## Quick body lunge toward the target for unarmed attacks.
+func play_unarmed_lunge(target_cell: Vector2i, facing: Vector2 = Vector2(1, 0)) -> void:
+	if _is_playing:
 		return
-	var pos: Vector2 = _target_world_pos(target_cell)
-	ActionParticles.spawn_impact(_world.entities, pos, ActionParticles.Action.RANGED, &"", element)
+	_last_facing = facing if facing != Vector2.ZERO else Vector2(1, 0)
+	_do_lunge()
 
 
 # --- Shared helpers ------------------------------------------------
 
-func _create_icon_sprite(item_id: StringName, local_pos: Vector2) -> Sprite2D:
-	if item_id == &"":
-		return null
-	var def: ItemDefinition = ItemRegistry.get_item(item_id)
-	if def == null or def.icon == null:
-		return null
-	var spr := Sprite2D.new()
-	spr.texture = def.icon
-	spr.scale = Vector2(_ICON_SCALE, _ICON_SCALE)
-	spr.position = local_pos
-	return spr
-
-
-func _get_weapon_id() -> StringName:
-	if _player == null:
-		return &""
-	var wid: StringName = _player.equipment.get_equipped(ItemDefinition.Slot.WEAPON)
-	if wid != &"":
-		return wid
-	return _player.equipment.get_equipped(ItemDefinition.Slot.TOOL)
-
-
-func equipment_get(fallback_id: StringName) -> StringName:
-	if _player == null:
-		return fallback_id
-	# For mine swing: check TOOL slot. For melee: check WEAPON slot.
-	var tool_id: StringName = _player.equipment.get_equipped(ItemDefinition.Slot.TOOL)
-	if tool_id != &"":
-		return tool_id
-	var weapon_id: StringName = _player.equipment.get_equipped(ItemDefinition.Slot.WEAPON)
-	if weapon_id != &"":
-		return weapon_id
-	return fallback_id
-
-
-func _sympathetic_tilt() -> void:
+## Flash the persistent weapon sprite white + scale up, with a rotation arc.
+func _weapon_flash_and_rotate(from_deg: float, to_deg: float, duration: float) -> void:
 	if _weapon_sprite == null or not _weapon_sprite.visible:
+		_finish()
 		return
 	var tw := create_tween()
-	tw.tween_property(_weapon_sprite, "rotation_degrees", 15.0, 0.1)
-	tw.tween_property(_weapon_sprite, "rotation_degrees", 0.0, 0.1)
+	tw.set_parallel(true)
+	tw.tween_property(_weapon_sprite, "modulate", Color(3, 3, 3, 1), 0.05)
+	tw.tween_property(_weapon_sprite, "scale", Vector2(_FLASH_SCALE, _FLASH_SCALE), 0.05)
+	_weapon_sprite.rotation_degrees = from_deg
+	tw.tween_property(_weapon_sprite, "rotation_degrees", to_deg, duration)\
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.chain()
+	tw.set_parallel(true)
+	tw.tween_property(_weapon_sprite, "modulate", Color(1, 1, 1, 1), 0.08)
+	tw.tween_property(_weapon_sprite, "scale", Vector2(1.0, 1.0), 0.08)
+	tw.tween_property(_weapon_sprite, "rotation_degrees", 0.0, 0.06)
+	tw.chain()
+	tw.tween_callback(_finish)
+
+
+## Flash the persistent weapon sprite white + thrust forward, then retract.
+func _weapon_flash_and_thrust(duration: float) -> void:
+	if _weapon_sprite == null or not _weapon_sprite.visible:
+		_finish()
+		return
+	var base_pos: Vector2 = _weapon_sprite.position
+	var push: Vector2 = _last_facing * _LUNGE_PX
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(_weapon_sprite, "modulate", Color(3, 3, 3, 1), 0.05)
+	tw.tween_property(_weapon_sprite, "scale", Vector2(_FLASH_SCALE, _FLASH_SCALE), 0.05)
+	tw.tween_property(_weapon_sprite, "position", base_pos + push, duration * 0.5)\
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.chain()
+	tw.set_parallel(true)
+	tw.tween_property(_weapon_sprite, "modulate", Color(1, 1, 1, 1), 0.08)
+	tw.tween_property(_weapon_sprite, "scale", Vector2(1.0, 1.0), 0.08)
+	tw.tween_property(_weapon_sprite, "position", base_pos, duration * 0.5)\
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.chain()
+	tw.tween_callback(_finish)
+
+
+## Lunge the visual root toward the facing direction and snap back.
+func _do_lunge() -> void:
+	_is_playing = true
+	if _visual_root == null:
+		_finish()
+		return
+	var push: Vector2 = _last_facing * _LUNGE_PX
+	var tw := create_tween()
+	tw.tween_property(_visual_root, "position", push, 0.06)\
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(_visual_root, "position", Vector2.ZERO, 0.06)\
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.tween_callback(_finish)
 
 
 func _bow_pullback() -> void:

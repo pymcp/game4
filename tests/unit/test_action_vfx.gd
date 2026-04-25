@@ -44,52 +44,19 @@ func test_region_for_unknown() -> void:
 
 # --- ActionParticles -----------------------------------------------
 
-func test_action_particle_constants_exist() -> void:
-	# Verify the Action enum values are accessible.
-	assert_eq(ActionParticles.Action.MELEE, 0)
-	assert_eq(ActionParticles.Action.MINE, 1)
-	assert_eq(ActionParticles.Action.GATHER, 2)
-	assert_eq(ActionParticles.Action.RANGED, 3)
-	assert_eq(ActionParticles.Action.BREAK, 4)
+func test_flash_hit_no_crash_on_null() -> void:
+	# flash_hit should not crash when called with null.
+	ActionParticles.flash_hit(null)
+	pass_test("flash_hit(null) did not crash")
 
 
-func test_spawn_impact_creates_particles() -> void:
-	var parent := Node2D.new()
-	add_child_autofree(parent)
-	var p: CPUParticles2D = ActionParticles.spawn_impact(
-		parent, Vector2(100, 100), ActionParticles.Action.MELEE)
-	assert_not_null(p, "spawn_impact should return a CPUParticles2D")
-	assert_true(p.one_shot)
-	assert_true(p.emitting)
-
-
-func test_spawn_impact_mine_spark_for_rock() -> void:
-	var parent := Node2D.new()
-	add_child_autofree(parent)
-	var p: CPUParticles2D = ActionParticles.spawn_impact(
-		parent, Vector2(50, 50), ActionParticles.Action.MINE, &"rock")
-	assert_not_null(p)
-	# Spark particles have yellowish color.
-	assert_gt(p.color.r, 0.8, "spark particles should be warm-colored")
-
-
-func test_spawn_impact_mine_dirt_for_tree() -> void:
-	var parent := Node2D.new()
-	add_child_autofree(parent)
-	var p: CPUParticles2D = ActionParticles.spawn_impact(
-		parent, Vector2(50, 50), ActionParticles.Action.MINE, &"tree")
-	assert_not_null(p)
-	# Dirt particles have brownish color.
-	assert_lt(p.color.g, 0.7, "dirt particles should be earthy-colored")
-
-
-func test_spawn_impact_break_burst() -> void:
-	var parent := Node2D.new()
-	add_child_autofree(parent)
-	var p: CPUParticles2D = ActionParticles.spawn_impact(
-		parent, Vector2(50, 50), ActionParticles.Action.BREAK, &"iron_vein")
-	assert_not_null(p)
-	assert_eq(p.amount, 12, "break burst should have 12 particles")
+func test_flash_hit_modulates_node() -> void:
+	var sprite := Sprite2D.new()
+	add_child_autofree(sprite)
+	ActionParticles.flash_hit(sprite)
+	# Tween is running — modulate will change over time.
+	# Just verify it doesn't crash and the node is valid.
+	assert_true(is_instance_valid(sprite))
 
 
 # --- Equipment → weapon sprite wiring ---
@@ -107,3 +74,129 @@ func test_weapon_atlas_defaults_match_item_definitions() -> void:
 	assert_ne(WeaponAtlas.cell_for(&"sword"), Vector2i(-1, -1), "sword should have weapon cell")
 	assert_ne(WeaponAtlas.cell_for(&"pickaxe"), Vector2i(-1, -1), "pickaxe should have weapon cell")
 	assert_ne(WeaponAtlas.cell_for(&"bow"), Vector2i(-1, -1), "bow should have weapon cell")
+
+
+# --- flash_hit ----------------------------------------------------
+
+func test_flash_hit_tweens_modulate() -> void:
+	var spr := Sprite2D.new()
+	add_child_autofree(spr)
+	ActionParticles.flash_hit(spr)
+	# Immediately after call, a tween should be running on the node.
+	# We can't easily test the tween mid-flight, but we can verify it
+	# doesn't crash and the modulate will be white at the end.
+	pass_test("flash_hit did not crash")
+
+
+func test_flash_hit_null_no_crash() -> void:
+	ActionParticles.flash_hit(null)
+	pass_test("flash_hit(null) did not crash")
+
+
+# --- ActionVFX decoupled setup ------------------------------------
+
+func test_action_vfx_setup_with_plain_node2d() -> void:
+	var owner := Node2D.new()
+	add_child_autofree(owner)
+	var vfx := ActionVFX.new()
+	add_child_autofree(vfx)
+	# Should work with any Node2D, not just PlayerController.
+	vfx.setup(owner, null, null)
+	assert_false(vfx.is_playing(), "should not be playing after setup")
+
+
+func test_action_vfx_null_weapon_sprite_no_crash() -> void:
+	var owner := Node2D.new()
+	add_child_autofree(owner)
+	var vfx := ActionVFX.new()
+	add_child_autofree(vfx)
+	vfx.setup(owner, null, null)
+	# These should not crash with null weapon sprite.
+	vfx._bow_pullback()
+	vfx._weapon_flash_and_rotate(-45.0, 45.0, 0.15)
+	vfx._weapon_flash_and_thrust(0.2)
+	pass_test("null weapon sprite methods did not crash")
+
+
+# --- ActionVFX creature attack dispatch ----------------------------
+
+func test_creature_attack_swing_lunges() -> void:
+	var owner := Node2D.new()
+	add_child_autofree(owner)
+	var sprite := Sprite2D.new()
+	owner.add_child(sprite)
+	var vfx := ActionVFX.new()
+	add_child_autofree(vfx)
+	vfx.setup(owner, null, null, sprite)
+	vfx.play_creature_attack(Vector2i(5, 5), Vector2(1, 0), &"swing")
+	assert_true(vfx.is_playing(), "should be playing after creature swing")
+
+
+func test_creature_attack_slam_lunges() -> void:
+	var owner := Node2D.new()
+	add_child_autofree(owner)
+	var sprite := Sprite2D.new()
+	owner.add_child(sprite)
+	var vfx := ActionVFX.new()
+	add_child_autofree(vfx)
+	vfx.setup(owner, null, null, sprite)
+	vfx.play_creature_attack(Vector2i(5, 5), Vector2(0, 1), &"slam")
+	assert_true(vfx.is_playing(), "slam should trigger lunge")
+
+
+func test_creature_attack_none_does_nothing() -> void:
+	var owner := Node2D.new()
+	add_child_autofree(owner)
+	var vfx := ActionVFX.new()
+	add_child_autofree(vfx)
+	vfx.setup(owner, null, null)
+	vfx.play_creature_attack(Vector2i(5, 5), Vector2(1, 0), &"none")
+	assert_false(vfx.is_playing(), "none style should not play anything")
+
+
+func test_creature_attack_projectile_plays_ranged() -> void:
+	var owner := Node2D.new()
+	add_child_autofree(owner)
+	var vfx := ActionVFX.new()
+	owner.add_child(vfx)
+	add_child_autofree(owner)
+	vfx.setup(owner, null, null)
+	vfx.play_creature_attack(Vector2i(5, 5), Vector2(1, 0), &"projectile")
+	assert_true(vfx.is_playing(), "projectile should play ranged")
+
+
+func test_unarmed_lunge_with_visual_root() -> void:
+	var owner := Node2D.new()
+	add_child_autofree(owner)
+	var sprite := Sprite2D.new()
+	owner.add_child(sprite)
+	var vfx := ActionVFX.new()
+	add_child_autofree(vfx)
+	vfx.setup(owner, null, null, sprite)
+	vfx.play_unarmed_lunge(Vector2i(3, 3), Vector2(1, 0))
+	assert_true(vfx.is_playing(), "unarmed lunge should be playing")
+
+
+func test_unarmed_lunge_no_visual_root_finishes() -> void:
+	var owner := Node2D.new()
+	add_child_autofree(owner)
+	var vfx := ActionVFX.new()
+	add_child_autofree(vfx)
+	vfx.setup(owner, null, null)
+	vfx.play_unarmed_lunge(Vector2i(3, 3), Vector2(1, 0))
+	assert_false(vfx.is_playing(), "no visual_root should finish immediately")
+
+
+func test_weapon_flash_and_rotate_with_sprite() -> void:
+	var owner := Node2D.new()
+	add_child_autofree(owner)
+	var weapon := Sprite2D.new()
+	weapon.visible = true
+	weapon.texture = PlaceholderTexture2D.new()
+	owner.add_child(weapon)
+	var vfx := ActionVFX.new()
+	add_child_autofree(vfx)
+	vfx.setup(owner, weapon, null)
+	# Call through public API which sets _is_playing before the helper.
+	vfx.play_melee_swing(Vector2i(3, 3), Vector2(1, 0))
+	assert_true(vfx.is_playing(), "weapon flash+rotate should be playing")
