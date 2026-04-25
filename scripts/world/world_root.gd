@@ -180,6 +180,7 @@ func _attach_overworld_tilesets() -> void:
 	ground.tile_set = ts
 	patch.tile_set = ts
 	decoration.tile_set = ts
+	canopy.tile_set = ts
 	overlay.tile_set = TilesetCatalog.runes()
 
 
@@ -195,6 +196,7 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 	# any leftover overworld patch cells aren't rendered over interior
 	# tile coords with mismatched atlas data.
 	patch.tile_set = null
+	canopy.tile_set = null
 	overlay.tile_set = TilesetCatalog.runes()
 
 
