@@ -19,7 +19,11 @@ const BIOME_COLORS: Dictionary = {
 	&"ocean":  Color(0.08, 0.25, 0.60),
 }
 const BIOME_COLOR_FALLBACK: Color = Color(0.25, 0.25, 0.25)
-const SKY_COLOR: Color = Color(0.05, 0.08, 0.15, 1.0)
+## Background fill: deep ocean (darker than the ocean biome color).
+const SKY_COLOR: Color = Color(0.04, 0.10, 0.25, 1.0)
+## Edge-of-world / no-plan fallback: slightly lighter than SKY_COLOR so
+## a visited region with an unknown biome reads as "something is here".
+const VOID_COLOR: Color = Color(0.06, 0.14, 0.32, 1.0)
 const LANDMARK_COLOR: Color = Color(0.8, 0.3, 0.3)
 ## Opacity of the black fog overlay on unexplored tiles (0=clear, 1=solid black).
 const FOG_ALPHA: float = 0.65
@@ -135,7 +139,23 @@ func _draw() -> void:
 	if bbox.size.x == 0 or bbox.size.y == 0:
 		return
 	var tile_px: float = _compute_tile_px(bbox)
-	var map_origin: Vector2 = _compute_map_origin(bbox, tile_px)
+	# Center map on the player's current position.
+	var map_origin: Vector2
+	var player_map_pos: Vector2 = Vector2.ZERO
+	if _player._world != null and _player._world._region != null:
+		var rid: Vector2i = _player._world._region.region_id
+		var cx: int = int(floor(_player.position.x / float(WorldConst.TILE_PX)))
+		var cy: int = int(floor(_player.position.y / float(WorldConst.TILE_PX)))
+		player_map_pos = Vector2(rid.x * 128 + cx, rid.y * 128 + cy)
+		map_origin = size / 2.0 - player_map_pos * tile_px
+	else:
+		# Fallback: center the visited bbox.
+		var total_w: float = float(bbox.size.x * 128) * tile_px
+		var total_h: float = float(bbox.size.y * 128) * tile_px
+		map_origin = Vector2(
+			(size.x - total_w) * 0.5 - float(bbox.position.x * 128) * tile_px,
+			(size.y - total_h) * 0.5 - float(bbox.position.y * 128) * tile_px
+		)
 	# Draw each visited region: biome fill via draw_rect (no sRGB issues),
 	# then fog alpha-mask texture on top.
 	for region_id: Vector2i in _fog_textures.keys():
@@ -156,14 +176,10 @@ func _draw() -> void:
 				continue
 			var spos: Vector2 = map_origin + Vector2(rid.x * 128 + cell.x, rid.y * 128 + cell.y) * tile_px
 			draw_circle(spos, 3.0, LANDMARK_COLOR)
-	# Draw player marker (pulsing white dot).
+	# Draw player marker (pulsing white dot) — always at screen centre.
 	if _player._world != null and _player._world._region != null:
-		var rid: Vector2i = _player._world._region.region_id
-		var cx: int = int(floor(_player.position.x / float(WorldConst.TILE_PX)))
-		var cy: int = int(floor(_player.position.y / float(WorldConst.TILE_PX)))
 		var pulse: float = sin(Time.get_ticks_msec() * 0.004) * 0.25 + 0.75
-		var mpos: Vector2 = map_origin + Vector2(rid.x * 128 + cx, rid.y * 128 + cy) * tile_px
-		draw_circle(mpos, 4.0, Color(1.0, 1.0, 1.0, pulse))
+		draw_circle(size / 2.0, 4.0, Color(1.0, 1.0, 1.0, pulse))
 
 
 func _rebuild_fog_textures() -> void:
@@ -193,8 +209,8 @@ func _build_fog_texture(region_id: Vector2i) -> ImageTexture:
 func _biome_color_for(region_id: Vector2i) -> Color:
 	if WorldManager.plans.has(region_id):
 		var plan: RegionPlan = WorldManager.plans[region_id]
-		return BIOME_COLORS.get(plan.planned_biome, BIOME_COLOR_FALLBACK)
-	return BIOME_COLOR_FALLBACK
+		return BIOME_COLORS.get(plan.planned_biome, VOID_COLOR)
+	return VOID_COLOR
 
 
 func _compute_bbox() -> Rect2i:
@@ -218,12 +234,3 @@ func _compute_tile_px(bbox: Rect2i) -> float:
 	var px_wide: float = avail / float(bbox.size.x * 128)
 	var px_tall: float = avail / float(bbox.size.y * 128)
 	return clampf(minf(px_wide, px_tall), 1.0, 6.0)
-
-
-func _compute_map_origin(bbox: Rect2i, tile_px: float) -> Vector2:
-	var total_w: float = float(bbox.size.x * 128) * tile_px
-	var total_h: float = float(bbox.size.y * 128) * tile_px
-	return Vector2(
-		(size.x - total_w) * 0.5 - float(bbox.position.x * 128) * tile_px,
-		(size.y - total_h) * 0.5 - float(bbox.position.y * 128) * tile_px
-	)
