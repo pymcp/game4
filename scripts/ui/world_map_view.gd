@@ -1,7 +1,9 @@
 ## WorldMapView
 ##
 ## Per-player worldmap overlay. Fills the player's viewport pane.
-## Renders one ImageTexture per discovered region (rebuilt when fog changes).
+## Biome colors drawn via draw_rect() — avoids sRGB texture color-space issues
+## on GL Compatibility. Fog is a separate pure-black alpha-mask ImageTexture
+## overlaid on top (black is sRGB-safe: 0^gamma = 0).
 ## Open/close animation: scale zoom-in from center + alpha fade.
 ## Vignette TextureRect overlaid for altitude effect.
 extends Control
@@ -17,14 +19,15 @@ const BIOME_COLORS: Dictionary = {
 	&"ocean":  Color(0.08, 0.25, 0.60),
 }
 const BIOME_COLOR_FALLBACK: Color = Color(0.25, 0.25, 0.25)
-const FOG_COLOR: Color = Color(0.0, 0.0, 0.0, 0.75)
 const SKY_COLOR: Color = Color(0.05, 0.08, 0.15, 1.0)
 const LANDMARK_COLOR: Color = Color(0.8, 0.3, 0.3)
+## Opacity of the black fog overlay on unexplored tiles (0=clear, 1=solid black).
+const FOG_ALPHA: float = 0.65
 
 var _player: PlayerController = null
 var _player_id: int = 0
-## Cached ImageTexture per region. Rebuilt by _rebuild_all_textures().
-var _region_textures: Dictionary = {}  # Vector2i → ImageTexture
+## Fog alpha-mask textures per region: black pixels, alpha=0 revealed / FOG_ALPHA fogged.
+var _fog_textures: Dictionary = {}  # Vector2i → ImageTexture
 var _textures_dirty: bool = true
 var _is_animating: bool = false
 
@@ -87,7 +90,8 @@ func _open() -> void:
 	_is_animating = true
 	_textures_dirty = true
 	visible = true
-	pivot_offset = size / 2.0
+	# Set pivot after layout so size is valid (not Vector2.ZERO).
+	pivot_offset = size / 2.0 if size != Vector2.ZERO else Vector2(size.x * 0.5, size.y * 0.5)
 	scale = Vector2(0.05, 0.05)
 	modulate.a = 0.0
 	InputContext.set_context(_player_id, InputContext.Context.MENU)
@@ -113,6 +117,8 @@ func _on_close_finished() -> void:
 
 func _process(_delta: float) -> void:
 	if visible:
+		# Keep pivot centred even if size changes (e.g. first frame after open).
+		pivot_offset = size / 2.0
 		queue_redraw()
 
 
@@ -121,24 +127,25 @@ func _draw() -> void:
 	if _player == null:
 		return
 	if _textures_dirty:
-		_rebuild_all_textures()
+		_rebuild_fog_textures()
 		_textures_dirty = false
-	if _region_textures.is_empty():
+	if _fog_textures.is_empty():
 		return
 	var bbox: Rect2i = _compute_bbox()
 	if bbox.size.x == 0 or bbox.size.y == 0:
 		return
 	var tile_px: float = _compute_tile_px(bbox)
 	var map_origin: Vector2 = _compute_map_origin(bbox, tile_px)
-	# Draw region textures.
-	for region_id: Vector2i in _region_textures.keys():
-		var tex: ImageTexture = _region_textures[region_id]
+	# Draw each visited region: biome fill via draw_rect (no sRGB issues),
+	# then fog alpha-mask texture on top.
+	for region_id: Vector2i in _fog_textures.keys():
 		var rpos: Vector2 = map_origin + Vector2(region_id.x * 128, region_id.y * 128) * tile_px
 		var rsz: Vector2 = Vector2(128.0, 128.0) * tile_px
-		draw_texture_rect(tex, Rect2(rpos, rsz), false)
-	# Draw dungeon landmark icons.
+		draw_rect(Rect2(rpos, rsz), _biome_color_for(region_id))
+		draw_texture_rect(_fog_textures[region_id], Rect2(rpos, rsz), false)
+	# Draw dungeon landmark icons (red circles at revealed entrance cells).
 	for rid: Vector2i in WorldManager.regions.keys():
-		if not _region_textures.has(rid):
+		if not _fog_textures.has(rid):
 			continue
 		var region: Region = WorldManager.regions[rid]
 		for entry: Dictionary in region.dungeon_entrances:
@@ -149,38 +156,45 @@ func _draw() -> void:
 				continue
 			var spos: Vector2 = map_origin + Vector2(rid.x * 128 + cell.x, rid.y * 128 + cell.y) * tile_px
 			draw_circle(spos, 3.0, LANDMARK_COLOR)
-	# Draw player marker (pulsing).
+	# Draw player marker (pulsing white dot).
 	if _player._world != null and _player._world._region != null:
 		var rid: Vector2i = _player._world._region.region_id
 		var cx: int = int(floor(_player.position.x / float(WorldConst.TILE_PX)))
 		var cy: int = int(floor(_player.position.y / float(WorldConst.TILE_PX)))
 		var pulse: float = sin(Time.get_ticks_msec() * 0.004) * 0.25 + 0.75
 		var mpos: Vector2 = map_origin + Vector2(rid.x * 128 + cx, rid.y * 128 + cy) * tile_px
-		draw_circle(mpos, 3.0, Color(1.0, 1.0, 1.0, pulse))
+		draw_circle(mpos, 4.0, Color(1.0, 1.0, 1.0, pulse))
 
 
-func _rebuild_all_textures() -> void:
-	_region_textures.clear()
+func _rebuild_fog_textures() -> void:
+	_fog_textures.clear()
 	if _player == null:
 		return
 	for region_id: Vector2i in _player.fog_of_war.get_all_region_ids():
-		_region_textures[region_id] = _build_region_texture(region_id)
+		_fog_textures[region_id] = _build_fog_texture(region_id)
 
 
-func _build_region_texture(region_id: Vector2i) -> ImageTexture:
-	var biome_color: Color = BIOME_COLOR_FALLBACK
-	if WorldManager.plans.has(region_id):
-		var plan: RegionPlan = WorldManager.plans[region_id]
-		biome_color = BIOME_COLORS.get(plan.planned_biome, BIOME_COLOR_FALLBACK)
+## Builds a 128×128 pure-black alpha-mask Image: transparent where revealed,
+## FOG_ALPHA opaque where unexplored. Drawn over the biome draw_rect().
+## Pure black is sRGB-safe (0^gamma = 0) so no color-space distortion.
+func _build_fog_texture(region_id: Vector2i) -> ImageTexture:
 	var img: Image = Image.create(128, 128, false, Image.FORMAT_RGBA8)
+	var fog_pixel := Color(0.0, 0.0, 0.0, FOG_ALPHA)
+	var clear_pixel := Color(0.0, 0.0, 0.0, 0.0)
 	for y in 128:
 		for x in 128:
-			var cell := Vector2i(x, y)
-			if _player.fog_of_war.is_revealed(region_id, cell):
-				img.set_pixel(x, y, biome_color)
+			if _player.fog_of_war.is_revealed(region_id, Vector2i(x, y)):
+				img.set_pixel(x, y, clear_pixel)
 			else:
-				img.set_pixel(x, y, biome_color.lerp(Color(0.0, 0.0, 0.0, 1.0), 0.75))
+				img.set_pixel(x, y, fog_pixel)
 	return ImageTexture.create_from_image(img)
+
+
+func _biome_color_for(region_id: Vector2i) -> Color:
+	if WorldManager.plans.has(region_id):
+		var plan: RegionPlan = WorldManager.plans[region_id]
+		return BIOME_COLORS.get(plan.planned_biome, BIOME_COLOR_FALLBACK)
+	return BIOME_COLOR_FALLBACK
 
 
 func _compute_bbox() -> Rect2i:
