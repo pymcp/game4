@@ -268,13 +268,19 @@ func _paint_region(region: Region) -> void:
 		if arr.is_empty():
 			continue
 		var idx: int = int(entry.get("variant", 0)) % arr.size()
-		var bottom_atlas: Vector2i = arr[idx]
-		decoration.set_cell(cell, 0, bottom_atlas, 0)
-		# 2-tile-tall decorations: paint the canopy on the cell above.
+		# sprites[] stores the TOP-LEFT atlas cell (x1y1 convention).
+		# For 1×1 decorations this is the only cell.
+		# For 2-tile-tall decorations: top-left = foliage (top), trunk = one row below.
+		var top_left_atlas: Vector2i = arr[idx]
 		if TilesetCatalog.is_tall_decoration(kind):
+			# Paint trunk at ground cell (one row down on sheet).
+			decoration.set_cell(cell, 0, top_left_atlas + Vector2i(0, 1), 0)
+			# Paint foliage one cell above on the map (the stored top-left atlas cell).
 			var top_cell: Vector2i = cell + Vector2i(0, -1)
 			if top_cell.y >= 0:
-				decoration.set_cell(top_cell, 0, bottom_atlas + Vector2i(0, -1), 0)
+				decoration.set_cell(top_cell, 0, top_left_atlas, 0)
+		else:
+			decoration.set_cell(cell, 0, top_left_atlas, 0)
 	# Water-grass border pass.
 	var border_set: Array = TilesetCatalog.OVERWORLD_WATER_BORDER_GRASS_3X3
 	for y2 in size:
@@ -1352,11 +1358,17 @@ func _debug_stamp_encounter(enc: Dictionary, origin: Vector2i) -> void:
 		if variants is Array and not (variants as Array).is_empty():
 			var arr: Array = variants
 			var idx: int = variant % arr.size()
-			decoration.set_cell(cell, 0, arr[idx], 0)
+			# sprites[] stores the TOP-LEFT atlas cell (x1y1 convention).
+			var top_left_atlas: Vector2i = arr[idx]
 			if TilesetCatalog.is_tall_decoration(deco_kind):
+				# Paint trunk at ground cell (one row down on sheet).
+				decoration.set_cell(cell, 0, top_left_atlas + Vector2i(0, 1), 0)
+				# Paint foliage one cell above on the map.
 				var top_cell := cell + Vector2i(0, -1)
 				if top_cell.y >= 0:
-					decoration.set_cell(top_cell, 0, arr[idx] + Vector2i(0, -1), 0)
+					decoration.set_cell(top_cell, 0, top_left_atlas, 0)
+			else:
+				decoration.set_cell(cell, 0, top_left_atlas, 0)
 		# Register mineable if applicable.
 		if MINEABLE_HP.has(deco_kind):
 			_mineable[cell] = {"kind": deco_kind, "hp": MINEABLE_HP[deco_kind]}
