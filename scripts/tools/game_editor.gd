@@ -232,12 +232,15 @@ class SheetView extends Control:
 			var fits_gutter_h: bool = ((h + 1) % step == 0) or (h % step == 0)
 			var fits_no_gutter_w: bool = (w % tile_px) == 0
 			var fits_no_gutter_h: bool = (h % tile_px) == 0
-			if fits_gutter_w and fits_gutter_h:
+			# Width is a stronger signal than height (more tiles = more constraints).
+			# If width cleanly fits the gutter pattern, trust it regardless of height,
+			# so a sheet with a slightly-off height doesn't revert everything to step=16.
+			if fits_gutter_w:
 				gutter = 1
 			elif fits_no_gutter_w and fits_no_gutter_h:
 				gutter = 0
 			else:
-				gutter = 0  # fallback for odd sizes
+				gutter = 1  # default: Kenney roguelike sheets always use 1-px gutter
 		_resize_to_texture()
 		queue_redraw()
 
