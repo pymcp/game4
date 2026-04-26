@@ -411,6 +411,11 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 			var flip_v: bool = arr[1]
 			var alt: int = TileSetAtlasSource.TRANSFORM_FLIP_V if flip_v else 0
 			decoration.set_cell(cell, 0, atlas, alt)
+	# Floor border pass — overwrites Ground with edge/corner tiles where
+	# floor meets wall. No-op when border_cells are all the plain floor cell.
+	var floor_border: Array = (TilesetCatalog.LABYRINTH_FLOOR_BORDER_3X3
+			if view_kind == &"labyrinth" else TilesetCatalog.DUNGEON_FLOOR_BORDER_3X3)
+	_paint_dungeon_floor_border(interior, floor_border)
 	_paint_dungeon_corridor_frames(interior)
 	_paint_dungeon_stair_markers(interior)
 
@@ -425,6 +430,30 @@ func _paint_boss_room_overlay(interior: InteriorMap) -> void:
 		var cell: Vector2i = cell_var
 		if (cell.x + cell.y) % 2 == 0:
 			decoration.set_cell(cell, 0, boss_tile, 0)
+
+
+## Overwrite the Ground layer for every floor-like cell with the
+## matching 3×3 border cell so floors that meet walls get edge art.
+## Cells whose border resolves to index 4 (open centre) keep the plain
+## floor cell — the border and floor cell are the same when no 3×3 is
+## configured, so this is always safe to call.
+func _paint_dungeon_floor_border(interior: InteriorMap,
+		border_cells: Array) -> void:
+	if border_cells.size() < 9:
+		return
+	for y in interior.height:
+		for x in interior.width:
+			var cell := Vector2i(x, y)
+			var code: int = interior.at(cell)
+			var is_floor_like: bool = (
+					code == TerrainCodes.INTERIOR_FLOOR
+					or code == TerrainCodes.INTERIOR_STAIRS_UP
+					or code == TerrainCodes.INTERIOR_STAIRS_DOWN)
+			if not is_floor_like:
+				continue
+			var bidx: int = _dungeon_floor_border_index(interior, cell)
+			var atlas: Vector2i = border_cells[bidx]
+			ground.set_cell(cell, 0, atlas, 0)
 
 
 func _paint_dungeon_corridor_frames(interior: InteriorMap) -> void:
@@ -563,6 +592,27 @@ static func _dungeon_neighbour_is_floor(interior: InteriorMap, c: Vector2i) -> b
 	return (code == TerrainCodes.INTERIOR_FLOOR
 			or code == TerrainCodes.INTERIOR_STAIRS_UP
 			or code == TerrainCodes.INTERIOR_STAIRS_DOWN)
+
+
+## Returns the NW…SE index (0..8) into the floor-border 3×3 for a floor
+## cell, based on which orthogonal neighbours are wall (not floor-like).
+static func _dungeon_floor_border_index(interior: InteriorMap,
+		cell: Vector2i) -> int:
+	var n_floor: bool = _dungeon_neighbour_is_floor(interior, cell + Vector2i(0, -1))
+	var s_floor: bool = _dungeon_neighbour_is_floor(interior, cell + Vector2i(0,  1))
+	var w_floor: bool = _dungeon_neighbour_is_floor(interior, cell + Vector2i(-1, 0))
+	var e_floor: bool = _dungeon_neighbour_is_floor(interior, cell + Vector2i( 1, 0))
+	# Corner cases first (two open sides meeting a wall corner).
+	if not n_floor and not w_floor: return 0  # NW
+	if not n_floor and not e_floor: return 2  # NE
+	if not s_floor and not w_floor: return 6  # SW
+	if not s_floor and not e_floor: return 8  # SE
+	# Edge cases (one open side).
+	if not n_floor: return 1  # N
+	if not s_floor: return 7  # S
+	if not w_floor: return 3  # W
+	if not e_floor: return 5  # E
+	return 4  # fully surrounded by floor — open centre
 
 
 func _ensure_dungeon_dim_layer(ts: TileSet) -> TileMapLayer:
