@@ -190,7 +190,8 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 	match view_kind:
 		&"city": ts = TilesetCatalog.city()
 		&"house": ts = TilesetCatalog.interior()
-		&"dungeon", &"labyrinth": ts = TilesetCatalog.dungeon()
+		&"dungeon":   ts = TilesetCatalog.dungeon()
+		&"labyrinth": ts = TilesetCatalog.labyrinth()
 		_: ts = TilesetCatalog.dungeon()
 	ground.tile_set = ts
 	decoration.tile_set = ts
@@ -323,7 +324,7 @@ func _paint_region(region: Region) -> void:
 
 func _paint_interior(interior: InteriorMap, view_kind: StringName) -> void:
 	if view_kind == &"dungeon" or view_kind == &"labyrinth":
-		_paint_dungeon_interior(interior)
+		_paint_dungeon_interior(interior, view_kind)
 		if view_kind == &"labyrinth" and not interior.boss_room_cells.is_empty():
 			_paint_boss_room_overlay(interior)
 		return
@@ -364,13 +365,17 @@ static func _view_kind_from_interior(interior: InteriorMap) -> StringName:
 
 # --- Cave (dungeon) painting --------------------------------------
 
-func _paint_dungeon_interior(interior: InteriorMap) -> void:
-	var ts: TileSet = TilesetCatalog.dungeon()
+func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"dungeon") -> void:
+	var ts: TileSet = TilesetCatalog.labyrinth() if view_kind == &"labyrinth" else TilesetCatalog.dungeon()
 	var dim_layer: TileMapLayer = _ensure_dungeon_dim_layer(ts)
 	dim_layer.clear()
-	var floor_cell: Vector2i = TilesetCatalog.cell_for(&"dungeon", &"floor")
+	var floor_cell: Vector2i = TilesetCatalog.cell_for(view_kind, &"floor")
 	var dim_seed: int = interior.map_id.hash()
-	var decor_count: int = TilesetCatalog.DUNGEON_FLOOR_DECOR_CELLS.size()
+	var floor_decor: Array = (TilesetCatalog.LABYRINTH_FLOOR_DECOR_CELLS
+			if view_kind == &"labyrinth" else TilesetCatalog.DUNGEON_FLOOR_DECOR_CELLS)
+	var wall_autotile: Dictionary = (TilesetCatalog.LABYRINTH_WALL_AUTOTILE
+			if view_kind == &"labyrinth" else TilesetCatalog.DUNGEON_WALL_AUTOTILE)
+	var decor_count: int = floor_decor.size()
 	for y in interior.height:
 		for x in interior.width:
 			var cell := Vector2i(x, y)
@@ -382,10 +387,9 @@ func _paint_dungeon_interior(interior: InteriorMap) -> void:
 			if is_floor_like:
 				ground.set_cell(cell, 0, floor_cell, 0)
 				var h: int = (dim_seed ^ (x * 73856093) ^ (y * 19349663)) & 0x7fffffff
-				if (h % 100) < 10:
+				if (h % 100) < 10 and decor_count > 0:
 					var didx: int = (h >> 8) % decor_count
-					decoration.set_cell(cell, 0,
-						TilesetCatalog.DUNGEON_FLOOR_DECOR_CELLS[didx], 0)
+					decoration.set_cell(cell, 0, floor_decor[didx], 0)
 				continue
 			var mask: int = 0
 			if _dungeon_neighbour_is_floor(interior, cell + Vector2i(0, -1)):
@@ -399,7 +403,7 @@ func _paint_dungeon_interior(interior: InteriorMap) -> void:
 			if mask == 0:
 				dim_layer.set_cell(cell, 0, floor_cell, 0)
 				continue
-			var entry: Variant = TilesetCatalog.DUNGEON_WALL_AUTOTILE.get(mask, null)
+			var entry: Variant = wall_autotile.get(mask, null)
 			if entry == null:
 				continue
 			var arr: Array = entry
@@ -413,7 +417,7 @@ func _paint_dungeon_interior(interior: InteriorMap) -> void:
 
 ## Paint a distinct floor decor pattern over boss room cells.
 func _paint_boss_room_overlay(interior: InteriorMap) -> void:
-	var decor: Array = TilesetCatalog.DUNGEON_FLOOR_DECOR_CELLS
+	var decor: Array = TilesetCatalog.LABYRINTH_FLOOR_DECOR_CELLS
 	if decor.is_empty():
 		return
 	var boss_tile: Vector2i = decor[decor.size() - 1]

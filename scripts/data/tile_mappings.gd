@@ -79,6 +79,17 @@ extends Resource
 ## Painted on the overworld to mark labyrinth entrances with a tint.
 @export var labyrinth_entrance_pair: Array[Vector2i] = []
 
+## Single-cell labyrinth terrains (floor / door / water).
+## `StringName → Array[Vector2i]` (element [0] is canonical).
+## Defaults to dungeon tiles until overridden via the Game Editor.
+@export var labyrinth_terrain: Dictionary = {}
+
+## Wall autotile lookup for the labyrinth (same schema as dungeon_wall_autotile).
+@export var labyrinth_wall_autotile: Array[Dictionary] = []
+
+## Decorative floor overlay cells for the labyrinth (~10% on floor tiles).
+@export var labyrinth_floor_decor: Array[Vector2i] = []
+
 ## Wooden doorframe cells for dungeon corridor exits, addressed by named
 ## slot. Slots: `&"TL"`, `&"TOP"`, `&"TR"`, `&"LW"`, `&"LW2"`, `&"RW"`,
 ## `&"RW2"`. `StringName → Vector2i`.
@@ -224,6 +235,40 @@ static func default_mappings() -> TileMappings:
 
 	m.dungeon_entrance_pair = [Vector2i(24, 4), Vector2i(25, 4)]
 
+	# Labyrinth terrain defaults — same tiles as dungeon until the user
+	# overrides them in the Game Editor → Labyrinth sections.
+	m.labyrinth_terrain = {
+		&"floor": [Vector2i(9, 7)],
+		&"door":  [Vector2i(2, 8)],
+		&"water": [Vector2i(2, 12)],
+	}
+
+	m.labyrinth_wall_autotile = [
+		{"mask": 2,  "cell": Vector2i(8, 7),  "flip": 0},
+		{"mask": 1,  "cell": Vector2i(10, 7), "flip": 0},
+		{"mask": 8,  "cell": Vector2i(9, 9),  "flip": 0},
+		{"mask": 10, "cell": Vector2i(8, 9),  "flip": 0},
+		{"mask": 9,  "cell": Vector2i(10, 9), "flip": 0},
+		{"mask": 11, "cell": Vector2i(9, 9),  "flip": 0},
+		{"mask": 4,  "cell": Vector2i(9, 9),  "flip": 1},
+		{"mask": 6,  "cell": Vector2i(8, 9),  "flip": 1},
+		{"mask": 5,  "cell": Vector2i(10, 9), "flip": 1},
+		{"mask": 7,  "cell": Vector2i(9, 9),  "flip": 1},
+		{"mask": 3,  "cell": Vector2i(9, 9),  "flip": 0},
+		{"mask": 12, "cell": Vector2i(9, 9),  "flip": 0},
+		{"mask": 13, "cell": Vector2i(10, 7), "flip": 0},
+		{"mask": 14, "cell": Vector2i(8, 7),  "flip": 0},
+		{"mask": 15, "cell": Vector2i(9, 9),  "flip": 0},
+	]
+
+	m.labyrinth_floor_decor = [
+		Vector2i(12, 10), Vector2i(13, 10),
+		Vector2i(12, 11), Vector2i(13, 11),
+		Vector2i(12, 12), Vector2i(13, 12),
+		Vector2i(12, 13), Vector2i(13, 13),
+		Vector2i(12, 14), Vector2i(13, 14),
+	]
+
 	m.dungeon_doorframe = {
 		&"TL":  Vector2i(5, 8),
 		&"TOP": Vector2i(6, 9),
@@ -252,6 +297,19 @@ static func default_mappings() -> TileMappings:
 func build_dungeon_wall_autotile_dict() -> Dictionary:
 	var out: Dictionary = {}
 	for entry in dungeon_wall_autotile:
+		var mask: int = int(entry.get("mask", -1))
+		if mask < 0:
+			continue
+		var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
+		var flip_v: bool = int(entry.get("flip", 0)) != 0
+		out[mask] = [cell, flip_v]
+	return out
+
+
+## Same as build_dungeon_wall_autotile_dict but for labyrinth_wall_autotile.
+func build_labyrinth_wall_autotile_dict() -> Dictionary:
+	var out: Dictionary = {}
+	for entry in labyrinth_wall_autotile:
 		var mask: int = int(entry.get("mask", -1))
 		if mask < 0:
 			continue

@@ -29,6 +29,9 @@ const _DEFAULT_SHEETS: Dictionary = {
 	&"dungeon_floor_decor": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_entrance_pair": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"labyrinth_entrance_pair": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"labyrinth_terrain":       "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"labyrinth_wall_autotile": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"labyrinth_floor_decor":   "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_doorframe": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"interior_terrain": "res://assets/tiles/roguelike/interior_sheet.png",
 }
@@ -284,6 +287,47 @@ const _DEFAULT_LABYRINTH_ENTRANCE: Array = [
 ]
 static var LABYRINTH_OVERWORLD_ENTRANCE_CELLS: Array = _DEFAULT_LABYRINTH_ENTRANCE
 
+# Labyrinth interior terrain. Same schema as DUNGEON_TERRAIN_CELLS.
+# Defaults to the dungeon tiles; overridden by TileMappings.
+const _DEFAULT_LABYRINTH_TERRAIN: Dictionary = {
+	&"floor": [Vector2i(9, 7)],
+	&"wall":  [
+		Vector2i(8, 7), Vector2i(10, 7),
+		Vector2i(9, 9), Vector2i(10, 9), Vector2i(11, 9),
+	],
+	&"door":  [Vector2i(2, 8)],
+	&"water": [Vector2i(2, 12)],
+}
+static var LABYRINTH_TERRAIN_CELLS: Dictionary = _DEFAULT_LABYRINTH_TERRAIN
+
+const _DEFAULT_LABYRINTH_WALL_AUTOTILE: Dictionary = {
+	2:  [Vector2i(8, 7),  false],
+	1:  [Vector2i(10, 7), false],
+	8:  [Vector2i(9, 9),  false],
+	10: [Vector2i(8, 9),  false],
+	9:  [Vector2i(10, 9), false],
+	11: [Vector2i(9, 9),  false],
+	4:  [Vector2i(9, 9),  true],
+	6:  [Vector2i(8, 9),  true],
+	5:  [Vector2i(10, 9), true],
+	7:  [Vector2i(9, 9),  true],
+	3:  [Vector2i(9, 9),  false],
+	12: [Vector2i(9, 9),  false],
+	13: [Vector2i(10, 7), false],
+	14: [Vector2i(8, 7),  false],
+	15: [Vector2i(9, 9),  false],
+}
+static var LABYRINTH_WALL_AUTOTILE: Dictionary = _DEFAULT_LABYRINTH_WALL_AUTOTILE
+
+const _DEFAULT_LABYRINTH_FLOOR_DECOR: Array = [
+	Vector2i(12, 10), Vector2i(13, 10),
+	Vector2i(12, 11), Vector2i(13, 11),
+	Vector2i(12, 12), Vector2i(13, 12),
+	Vector2i(12, 13), Vector2i(13, 13),
+	Vector2i(12, 14), Vector2i(13, 14),
+]
+static var LABYRINTH_FLOOR_DECOR_CELLS: Array = _DEFAULT_LABYRINTH_FLOOR_DECOR
+
 # Wooden doorframe drawn at the south end of a north-south cave corridor
 # where it opens into a room. Purely decorative — placed as Sprite2D
 # children, so they do not affect walkability or terrain queries.
@@ -393,6 +437,14 @@ static func _ensure_loaded() -> void:
 		DUNGEON_OVERWORLD_ENTRANCE_CELLS = m.dungeon_entrance_pair
 	if not m.labyrinth_entrance_pair.is_empty():
 		LABYRINTH_OVERWORLD_ENTRANCE_CELLS = m.labyrinth_entrance_pair
+	# Labyrinth terrain
+	if not m.labyrinth_terrain.is_empty():
+		LABYRINTH_TERRAIN_CELLS = m.labyrinth_terrain
+	var lab_autotile: Dictionary = m.build_labyrinth_wall_autotile_dict()
+	if not lab_autotile.is_empty():
+		LABYRINTH_WALL_AUTOTILE = lab_autotile
+	if not m.labyrinth_floor_decor.is_empty():
+		LABYRINTH_FLOOR_DECOR_CELLS = m.labyrinth_floor_decor
 	if not m.dungeon_doorframe.is_empty():
 		DUNGEON_DOORFRAME = m.dungeon_doorframe
 	# Interior
@@ -405,6 +457,7 @@ static func _ensure_loaded() -> void:
 static var _overworld_ts: TileSet = null
 static var _city_ts: TileSet = null
 static var _dungeon_ts: TileSet = null
+static var _labyrinth_ts: TileSet = null
 static var _interior_ts: TileSet = null
 static var _runes_ts: TileSet = null
 
@@ -428,6 +481,13 @@ static func dungeon() -> TileSet:
 	if _dungeon_ts == null:
 		_dungeon_ts = _build(_sheet_for_view(&"dungeon"), DUNGEON_TERRAIN_CELLS, true)
 	return _dungeon_ts
+
+
+static func labyrinth() -> TileSet:
+	_ensure_loaded()
+	if _labyrinth_ts == null:
+		_labyrinth_ts = _build(_sheet_for_view(&"labyrinth_terrain"), LABYRINTH_TERRAIN_CELLS, true)
+	return _labyrinth_ts
 
 
 static func interior() -> TileSet:
@@ -610,6 +670,7 @@ static func cell_for(view_kind: StringName, terrain: StringName) -> Vector2i:
 		&"overworld": d = OVERWORLD_TERRAIN_CELLS
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
+		&"labyrinth": d = LABYRINTH_TERRAIN_CELLS
 		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
@@ -634,6 +695,7 @@ static func cell_for_variant(view_kind: StringName, terrain: StringName, hash32:
 		&"overworld": d = OVERWORLD_TERRAIN_CELLS
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
+		&"labyrinth": d = LABYRINTH_TERRAIN_CELLS
 		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
