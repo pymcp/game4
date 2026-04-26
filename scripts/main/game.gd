@@ -12,6 +12,14 @@ extends Node
 class_name Game
 
 
+## Singleton-style accessor — returns the active [Game] from the scene tree.
+static func instance() -> Game:
+	var t: SceneTree = Engine.get_main_loop() as SceneTree
+	if t == null:
+		return null
+	return t.get_first_node_in_group(&"game") as Game
+
+
 @onready var _vp_p1: SubViewport = $Split/P1Container/P1ViewportContainer/P1Viewport
 @onready var _vp_p2: SubViewport = $Split/P2Container/P2ViewportContainer/P2Viewport
 @onready var _container_p1: Control = $Split/P1Container
@@ -35,9 +43,14 @@ var _player_p2: PlayerController = null
 var _math_death: MathDeathScreen = null
 var _map_p1: WorldMapView = null
 var _map_p2: WorldMapView = null
+var _dungeon_map_p1: DungeonMapView = null
+var _dungeon_map_p2: DungeonMapView = null
+var _confirm_menu_p1: FloorConfirmMenu = null
+var _confirm_menu_p2: FloorConfirmMenu = null
 
 
 func _ready() -> void:
+	add_to_group(&"game")
 	# Spawn the ONE shared world under P1's viewport.
 	_world = World.new()
 	_world.name = "World"
@@ -61,6 +74,10 @@ func _ready() -> void:
 	add_child(_math_death)
 	_map_p1 = _build_worldmap_view(_container_p1)
 	_map_p2 = _build_worldmap_view(_container_p2)
+	_dungeon_map_p1 = _build_dungeon_map_view(_container_p1)
+	_dungeon_map_p2 = _build_dungeon_map_view(_container_p2)
+	_confirm_menu_p1 = _build_floor_confirm_menu(_container_p1)
+	_confirm_menu_p2 = _build_floor_confirm_menu(_container_p2)
 	call_deferred("_wire_hud_and_cameras")
 
 
@@ -145,6 +162,9 @@ func _wire_hud_and_cameras() -> void:
 		if _map_p1 != null:
 			_map_p1.set_player(p1)
 			p1.world_map = _map_p1
+		if _dungeon_map_p1 != null:
+			_dungeon_map_p1.set_player(p1)
+			p1.dungeon_map = _dungeon_map_p1
 		_camera_p1 = _make_camera(p1, _vp_p1)
 	if p2 != null:
 		p2.apply_appearance(GameSession.get_appearance(1))
@@ -158,6 +178,9 @@ func _wire_hud_and_cameras() -> void:
 		if _map_p2 != null:
 			_map_p2.set_player(p2)
 			p2.world_map = _map_p2
+		if _dungeon_map_p2 != null:
+			_dungeon_map_p2.set_player(p2)
+			p2.dungeon_map = _dungeon_map_p2
 		_camera_p2 = _make_camera(p2, _vp_p2)
 
 
@@ -207,6 +230,35 @@ func _build_worldmap_view(container: Control) -> WorldMapView:
 	return map
 
 
+func _build_dungeon_map_view(container: Control) -> DungeonMapView:
+	var map := DungeonMapView.new()
+	map.name = "DungeonMap"
+	map.anchor_left = 0.0
+	map.anchor_right = 1.0
+	map.anchor_top = 0.0
+	map.anchor_bottom = 1.0
+	map.mouse_filter = Control.MOUSE_FILTER_STOP
+	container.add_child(map)
+	return map
+
+
+func _build_floor_confirm_menu(container: Control) -> FloorConfirmMenu:
+	var menu := FloorConfirmMenu.new()
+	menu.name = "FloorConfirmMenu"
+	container.add_child(menu)
+	return menu
+
+
+## Show a [FloorConfirmMenu] in [param pid]'s pane with [param title],
+## [param options] (Array[String]), and [param callback] receiving the
+## chosen index (0-based). Called by [WorldRoot] on stair/entrance events.
+func show_floor_confirm_menu(pid: int, title: String, options: Array,
+		callback: Callable) -> void:
+	var menu: FloorConfirmMenu = _confirm_menu_p1 if pid == 0 else _confirm_menu_p2
+	if menu != null:
+		menu.show_menu(pid, title, options, callback)
+
+
 func _build_heart_display(container: Control) -> HeartDisplay:
 	var hd := HeartDisplay.new(12.0)
 	hd.name = "HeartDisplay"
@@ -234,3 +286,66 @@ func _on_math_answer_correct(pid: int) -> void:
 	if player != null:
 		player.health = player.max_health
 	get_tree().paused = false
+
+
+# --- Floor transition overlay ----------------------------------------
+
+## Plays a fade-to-black transition in [param pid]'s viewport pane.
+## If [param floor_label] is non-empty, a centred label is shown while
+## fully faded. [param switch_fn] is invoked at peak darkness (the
+## point where the world actually swaps underneath the screen).
+func play_floor_transition(pid: int, floor_label: String,
+		switch_fn: Callable) -> void:
+	var container: Control = _container_p1 if pid == 0 else _container_p2
+	var overlay: Control = _ensure_floor_overlay(container)
+	var fade_rect: ColorRect = overlay.get_node("Fade") as ColorRect
+	var label: Label = overlay.get_node("FloorLabel") as Label
+	fade_rect.color.a = 0.0
+	label.text = floor_label
+	label.visible = false
+	overlay.visible = true
+	var t_in := create_tween()
+	t_in.tween_property(fade_rect, "color:a", 1.0, 0.18)
+	await t_in.finished
+	if floor_label != "":
+		label.visible = true
+		await get_tree().create_timer(0.45).timeout
+	else:
+		await get_tree().create_timer(0.05).timeout
+	switch_fn.call()
+	var t_out := create_tween()
+	t_out.tween_property(fade_rect, "color:a", 0.0, 0.28)
+	await t_out.finished
+	label.visible = false
+	overlay.visible = false
+
+
+func _ensure_floor_overlay(container: Control) -> Control:
+	var existing: Node = container.get_node_or_null("FloorOverlay")
+	if existing is Control:
+		return existing as Control
+	var overlay := Control.new()
+	overlay.name = "FloorOverlay"
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = 90
+	overlay.visible = false
+	var fade := ColorRect.new()
+	fade.name = "Fade"
+	fade.color = Color(0.0, 0.0, 0.0, 0.0)
+	fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(fade)
+	var label := Label.new()
+	label.name = "FloorLabel"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_constant_override("outline_size", 2)
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.visible = false
+	overlay.add_child(label)
+	container.add_child(overlay)
+	return overlay

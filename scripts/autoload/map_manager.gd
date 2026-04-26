@@ -126,6 +126,24 @@ func reset() -> void:
 	active_interior = null
 
 
+## Returns the [InteriorMap] with the highest [code]floor_num[/code] cached
+## for the given entrance, or [code]null[/code] if only floor 1 (or nothing)
+## has been visited. Used by [WorldRoot] to offer a "Resume at Floor N" option
+## when the player re-enters a dungeon or labyrinth from the overworld.
+func get_deepest_cached_interior(region_id: Vector2i, cell: Vector2i,
+		kind: StringName = &"dungeon") -> InteriorMap:
+	var prefix: String = "%s@%d:%d:%d:%d:" % [
+		String(kind), region_id.x, region_id.y, cell.x, cell.y]
+	var deepest: InteriorMap = null
+	for key: StringName in interiors.keys():
+		if not String(key).begins_with(prefix):
+			continue
+		var m: InteriorMap = interiors[key]
+		if deepest == null or m.floor_num > deepest.floor_num:
+			deepest = m
+	return deepest
+
+
 # ─── Internals ────────────────────────────────────────────────────────
 
 ## Extract the kind prefix from a map_id (e.g. "labyrinth@1:2:3:4:1" → &"labyrinth").

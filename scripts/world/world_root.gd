@@ -1034,11 +1034,7 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 			last_rune_message = "Player %d touched an ancient symbol (color=%d)" % [player.player_id + 1, int(door["source"])]
 			print(last_rune_message)
 		&"dungeon_enter":
-			Sfx.play(&"dungeon_enter")
-			var rid: Vector2i = _region.region_id
-			var mid: StringName = MapManager.make_id(rid, cell, 1)
-			var interior: InteriorMap = MapManager.get_or_generate(mid, rid, cell, 1)
-			World.instance().transition_player(player.player_id, &"dungeon", _region, interior)
+			_handle_enter_interior(player, cell, &"dungeon")
 		&"house_enter":
 			Sfx.play(&"dungeon_enter")
 			var hrid: Vector2i = _region.region_id
@@ -1048,14 +1044,7 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 					MapManager.DEFAULT_FLOOR_SIZE, &"house")
 			World.instance().transition_player(player.player_id, &"house", _region, house)
 		&"labyrinth_enter":
-			Sfx.play(&"dungeon_enter")
-			var lrid: Vector2i = _region.region_id
-			var lsize: int = randi_range(64, 96)
-			var lmid: StringName = MapManager.make_id(lrid, cell, 1, &"labyrinth")
-			var labyrinth: InteriorMap = MapManager.get_or_generate(
-					lmid, lrid, cell, 1, lsize, &"labyrinth")
-			World.instance().transition_player(
-					player.player_id, &"labyrinth", _region, labyrinth)
+			_handle_enter_interior(player, cell, &"labyrinth")
 		&"interior_exit":
 			if _interior != null:
 				Sfx.play(&"dungeon_exit")
@@ -1065,25 +1054,63 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 		&"stairs_up":
 			if _interior == null:
 				return
+			var pid_up: int = player.player_id
+			var exit_origin: Vector2i = _interior.origin_cell
+			var exit_rid: Vector2i = _interior.origin_region_id
 			if _interior.parent_map_id == &"":
-				var exit_origin: Vector2i = _interior.origin_cell
-				var exit_region_id: Vector2i = _interior.origin_region_id
-				var pid: int = player.player_id
-				_play_cave_transition(func() -> void:
-					Sfx.play(&"dungeon_exit")
-					var r: Region = WorldManager.get_or_generate(exit_region_id)
-					World.instance().transition_player(pid, &"overworld", r, null, exit_origin))
+				# Floor 1 stairs up → exit to surface. Offer cancel.
+				var game_up: Game = Game.instance()
+				if game_up != null:
+					game_up.show_floor_confirm_menu(pid_up,
+							"Stairs leading up...",
+							["Exit to Surface", "Stay on Floor %d" % _interior.floor_num],
+							func(idx: int) -> void:
+								if idx == 0:
+									_play_cave_transition(pid_up,
+											func() -> void:
+												Sfx.play(&"dungeon_exit")
+												var r: Region = WorldManager.get_or_generate(exit_rid)
+												World.instance().transition_player(
+														pid_up, &"overworld", r, null, exit_origin)))
+				else:
+					# Headless / no Game fallback.
+					_play_cave_transition(pid_up, func() -> void:
+						Sfx.play(&"dungeon_exit")
+						var r: Region = WorldManager.get_or_generate(exit_rid)
+						World.instance().transition_player(pid_up, &"overworld", r, null, exit_origin))
 			else:
 				var parent: InteriorMap = MapManager.get_parent_interior(_interior)
 				if parent == null:
 					return
 				var parent_cell: Vector2i = _interior.parent_entrance_cell
-				var pid2: int = player.player_id
 				var origin_r: Region = WorldManager.get_or_generate(_interior.origin_region_id)
 				var parent_kind: StringName = WorldRoot._view_kind_from_interior(parent)
-				_play_cave_transition(func() -> void:
-					Sfx.play(&"dungeon_exit")
-					World.instance().transition_player(pid2, parent_kind, origin_r, parent, parent_cell))
+				var game_up2: Game = Game.instance()
+				if game_up2 != null:
+					game_up2.show_floor_confirm_menu(pid_up,
+							"Stairs leading up...",
+							["Ascend to Floor %d" % parent.floor_num,
+							"Exit to Surface"],
+							func(idx: int) -> void:
+								if idx == 0:
+									_play_cave_transition(pid_up,
+											func() -> void:
+												Sfx.play(&"dungeon_exit")
+												World.instance().transition_player(
+														pid_up, parent_kind, origin_r, parent, parent_cell),
+											"Floor %d" % parent.floor_num)
+								else:
+									_play_cave_transition(pid_up,
+											func() -> void:
+												Sfx.play(&"dungeon_exit")
+												var r: Region = WorldManager.get_or_generate(exit_rid)
+												World.instance().transition_player(
+														pid_up, &"overworld", r, null, exit_origin)))
+				else:
+					_play_cave_transition(pid_up, func() -> void:
+						Sfx.play(&"dungeon_exit")
+						World.instance().transition_player(pid_up, parent_kind, origin_r, parent, parent_cell),
+						"Floor %d" % parent.floor_num)
 		&"stairs_down":
 			if _interior == null:
 				return
@@ -1093,13 +1120,85 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 			var entry_cell: Vector2i = deeper.entry_cell
 			var pid3: int = player.player_id
 			var deeper_kind: StringName = WorldRoot._view_kind_from_interior(deeper)
-			var origin_r: Region = WorldManager.get_or_generate(_interior.origin_region_id)
-			_play_cave_transition(func() -> void:
-				Sfx.play(&"dungeon_enter")
-				World.instance().transition_player(pid3, deeper_kind, origin_r, deeper, entry_cell))
+			var origin_r3: Region = WorldManager.get_or_generate(_interior.origin_region_id)
+			var exit_origin3: Vector2i = _interior.origin_cell
+			var exit_rid3: Vector2i = _interior.origin_region_id
+			var game3: Game = Game.instance()
+			if game3 != null:
+				game3.show_floor_confirm_menu(pid3,
+						"Stairs leading down...",
+						["Descend to Floor %d" % deeper.floor_num,
+						"Exit to Surface"],
+						func(idx: int) -> void:
+							if idx == 0:
+								_play_cave_transition(pid3,
+										func() -> void:
+											Sfx.play(&"dungeon_enter")
+											World.instance().transition_player(
+													pid3, deeper_kind, origin_r3, deeper, entry_cell),
+										"Floor %d" % deeper.floor_num)
+							else:
+								_play_cave_transition(pid3,
+										func() -> void:
+											Sfx.play(&"dungeon_exit")
+											var r3: Region = WorldManager.get_or_generate(exit_rid3)
+											World.instance().transition_player(
+													pid3, &"overworld", r3, null, exit_origin3)))
+			else:
+				_play_cave_transition(pid3, func() -> void:
+					Sfx.play(&"dungeon_enter")
+					World.instance().transition_player(pid3, deeper_kind, origin_r3, deeper, entry_cell),
+					"Floor %d" % deeper.floor_num)
 
 
-func _play_cave_transition(switch_fn: Callable) -> void:
+## Common handler for dungeon/labyrinth overworld entrances. Checks if the
+## player has been here before and offers a resume prompt if so.
+func _handle_enter_interior(player: PlayerController, cell: Vector2i,
+		kind: StringName) -> void:
+	var rid: Vector2i = _region.region_id
+	# Deterministic size for labyrinths derived from the entrance seed.
+	var lsize: int = MapManager.DEFAULT_FLOOR_SIZE
+	if kind == &"labyrinth":
+		var rng := RandomNumberGenerator.new()
+		rng.seed = MapManager.make_id(rid, cell, 1, kind).hash()
+		lsize = rng.randi_range(64, 96)
+	var mid: StringName = MapManager.make_id(rid, cell, 1, kind)
+	var floor1: InteriorMap = MapManager.get_or_generate(mid, rid, cell, 1, lsize, kind)
+	var pid_e: int = player.player_id
+	var deepest: InteriorMap = MapManager.get_deepest_cached_interior(rid, cell, kind)
+	if deepest != null and deepest.floor_num > 1:
+		# Player has explored beyond floor 1 — offer resume.
+		var game_e: Game = Game.instance()
+		if game_e != null:
+			game_e.show_floor_confirm_menu(pid_e,
+					"Return to %s?" % String(kind).capitalize(),
+					["Resume at Floor %d" % deepest.floor_num,
+					"Start from Floor 1"],
+					func(idx: int) -> void:
+						var target: InteriorMap = deepest if idx == 0 else floor1
+						var target_kind: StringName = WorldRoot._view_kind_from_interior(target)
+						_play_cave_transition(pid_e,
+								func() -> void:
+									Sfx.play(&"dungeon_enter")
+									World.instance().transition_player(
+											pid_e, target_kind, _region, target),
+								"Floor %d" % target.floor_num))
+			return
+	# First visit (or only floor 1 in cache): enter directly with fade.
+	_play_cave_transition(pid_e, func() -> void:
+		Sfx.play(&"dungeon_enter")
+		var entry_kind: StringName = WorldRoot._view_kind_from_interior(floor1)
+		World.instance().transition_player(pid_e, entry_kind, _region, floor1),
+		"Floor 1")
+
+
+func _play_cave_transition(pid: int, switch_fn: Callable,
+		floor_label: String = "") -> void:
+	var game: Game = Game.instance()
+	if game != null:
+		game.play_floor_transition(pid, floor_label, switch_fn)
+		return
+	# Fallback path: no Game available (e.g. headless tests).
 	var fade: ColorRect = _ensure_fade_overlay()
 	fade.color.a = 0.0
 	var fade_out := create_tween()

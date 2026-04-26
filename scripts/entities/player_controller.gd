@@ -60,7 +60,10 @@ var stats: Dictionary = {
 	&"speed": 0, &"defense": 0, &"dexterity": 0,
 }
 var fog_of_war: FogOfWarData = FogOfWarData.new()
+## Per-floor fog-of-war for dungeons and labyrinths (keyed by map_id).
+var dungeon_fog: DungeonFogData = DungeonFogData.new()
 var world_map: WorldMapView = null
+var dungeon_map: DungeonMapView = null
 ## Active status effects: Array of {effect_id: StringName, remaining: float, tick_timer: float}
 var active_effects: Array = []
 
@@ -325,17 +328,32 @@ func _physics_process(delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	var map_action: StringName = &"p1_worldmap" if player_id == 0 else &"p2_worldmap"
-	if event.is_action_pressed(map_action) and world_map != null:
-		world_map.toggle()
+	if event.is_action_pressed(map_action):
+		if _world != null and _world.is_in_interior():
+			if dungeon_map != null:
+				dungeon_map.toggle()
+		else:
+			if world_map != null:
+				world_map.toggle()
 		get_viewport().set_input_as_handled()
 
 
 func _on_fog_reveal_timer_timeout() -> void:
-	if _world == null or _world._region == null:
+	if _world == null:
 		return
-	fog_of_war.reveal(_world._region.region_id, _cell_of(position), 10)
-	if world_map != null and world_map.visible:
-		world_map.mark_dirty()
+	if _world.is_in_interior():
+		var interior: InteriorMap = _world._interior
+		if interior == null:
+			return
+		dungeon_fog.reveal(interior.map_id, _cell_of(position), 10)
+		if dungeon_map != null and dungeon_map.visible:
+			dungeon_map.mark_dirty()
+	else:
+		if _world._region == null:
+			return
+		fog_of_war.reveal(_world._region.region_id, _cell_of(position), 10)
+		if world_map != null and world_map.visible:
+			world_map.mark_dirty()
 
 
 func _step(delta_pos: Vector2) -> void:
