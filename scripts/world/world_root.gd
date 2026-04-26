@@ -863,7 +863,7 @@ func _process(_delta: float) -> void:
 			var chest: TreasureChest = child
 			if chest.is_opened:
 				continue
-			if chest.nearest_player_in_range() == player:
+			if chest.is_player_in_range(player):
 				chest.open(player)
 				break
 

@@ -16,11 +16,10 @@ extends Node2D
 ## True once the chest has been opened this session.
 var is_opened: bool = false
 
-## Players currently in interaction range (tracked by Area2D signals).
-var _players_in_range: Array = []
+## Interaction radius in pixels (matches the old Area2D circle radius).
+const INTERACT_RADIUS_PX: float = 20.0
 
 @onready var _sprite: Sprite2D = $Sprite2D
-@onready var _area: Area2D = $Area2D
 
 ## Atlas cells on dungeon_sheet.png for closed and open frames.
 ## Reads from TilesetCatalog.LABYRINTH_CHEST_CELLS (editable via Game Editor).
@@ -29,8 +28,6 @@ const _MARGIN: int = 1
 
 
 func _ready() -> void:
-	_area.body_entered.connect(_on_body_entered)
-	_area.body_exited.connect(_on_body_exited)
 	_refresh_sprite(false)
 
 
@@ -56,21 +53,11 @@ func open(player: Node) -> void:
 		get_parent().add_child(pickup)
 
 
-## Returns the first player in range, or null.
-func nearest_player_in_range() -> Node:
-	for p in _players_in_range:
-		if is_instance_valid(p):
-			return p
-	return null
-
-
-func _on_body_entered(body: Node) -> void:
-	if body.has_method("take_hit"):
-		_players_in_range.append(body)
-
-
-func _on_body_exited(body: Node) -> void:
-	_players_in_range.erase(body)
+## Returns true when the given player is close enough to interact.
+func is_player_in_range(player: Node) -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	return position.distance_to((player as Node2D).position) <= INTERACT_RADIUS_PX
 
 
 func _refresh_sprite(opened: bool) -> void:
