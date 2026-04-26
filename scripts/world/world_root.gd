@@ -592,9 +592,19 @@ func _paint_overworld_entrance_markers(region: Region) -> void:
 	for entry in region.dungeon_entrances:
 		var base: Vector2i = entry["cell"]
 		var ek: StringName = entry.get("kind", &"dungeon")
-		var tint: Color = Color(1.4, 0.95, 0.6) if ek == &"house" else Color.WHITE
-		for i in cells.size():
-			var atlas: Vector2i = cells[i]
+		var tint: Color
+		var cells_to_use: Array
+		if ek == &"house":
+			tint = Color(1.4, 0.95, 0.6)  # warm yellow
+			cells_to_use = cells
+		elif ek == &"labyrinth":
+			tint = Color(1.2, 0.6, 1.4)   # purple
+			cells_to_use = TilesetCatalog.LABYRINTH_OVERWORLD_ENTRANCE_CELLS
+		else:
+			tint = Color.WHITE
+			cells_to_use = cells
+		for i in cells_to_use.size():
+			var atlas: Vector2i = cells_to_use[i]
 			var spr := Sprite2D.new()
 			spr.texture = tex
 			spr.region_enabled = true
@@ -608,6 +618,7 @@ func _paint_overworld_entrance_markers(region: Region) -> void:
 				float(base.y * tile_px))
 			spr.modulate = tint
 			root.add_child(spr)
+
 
 
 func _ensure_entrance_marker_root() -> Node2D:

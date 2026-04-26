@@ -75,6 +75,10 @@ extends Resource
 ## Length 2, ordered [west, east].
 @export var dungeon_entrance_pair: Array[Vector2i] = []
 
+## Two side-by-side labyrinth entrance marker tiles on the dungeon sheet.
+## Painted on the overworld to mark labyrinth entrances with a tint.
+@export var labyrinth_entrance_pair: Array[Vector2i] = []
+
 ## Wooden doorframe cells for dungeon corridor exits, addressed by named
 ## slot. Slots: `&"TL"`, `&"TOP"`, `&"TR"`, `&"LW"`, `&"LW2"`, `&"RW"`,
 ## `&"RW2"`. `StringName → Vector2i`.

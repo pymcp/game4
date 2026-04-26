@@ -28,6 +28,7 @@ const _DEFAULT_SHEETS: Dictionary = {
 	&"dungeon_wall_autotile": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_floor_decor": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_entrance_pair": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"labyrinth_entrance_pair": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_doorframe": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"interior_terrain": "res://assets/tiles/roguelike/interior_sheet.png",
 }
@@ -276,6 +277,13 @@ const _DEFAULT_DUNGEON_ENTRANCE: Array = [
 ]
 static var DUNGEON_OVERWORLD_ENTRANCE_CELLS: Array = _DEFAULT_DUNGEON_ENTRANCE
 
+## Labyrinth entrance marker — default reuses dungeon entrance cells.
+## SpritePicker can override to distinct tiles.
+const _DEFAULT_LABYRINTH_ENTRANCE: Array = [
+	Vector2i(24, 4), Vector2i(25, 4),
+]
+static var LABYRINTH_OVERWORLD_ENTRANCE_CELLS: Array = _DEFAULT_LABYRINTH_ENTRANCE
+
 # Wooden doorframe drawn at the south end of a north-south cave corridor
 # where it opens into a room. Purely decorative — placed as Sprite2D
 # children, so they do not affect walkability or terrain queries.
@@ -383,6 +391,8 @@ static func _ensure_loaded() -> void:
 		DUNGEON_FLOOR_DECOR_CELLS = m.dungeon_floor_decor
 	if not m.dungeon_entrance_pair.is_empty():
 		DUNGEON_OVERWORLD_ENTRANCE_CELLS = m.dungeon_entrance_pair
+	if not m.labyrinth_entrance_pair.is_empty():
+		LABYRINTH_OVERWORLD_ENTRANCE_CELLS = m.labyrinth_entrance_pair
 	if not m.dungeon_doorframe.is_empty():
 		DUNGEON_DOORFRAME = m.dungeon_doorframe
 	# Interior
