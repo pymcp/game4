@@ -844,8 +844,8 @@ func _physics_process(_delta: float) -> void:
 func _process(_delta: float) -> void:
 	# Chest interaction — check each player's interact input.
 	for pid in range(2):
-		var input_ctx: int = InputContext.get_context(pid)
-		if input_ctx != InputContext.GAMEPLAY:
+		var input_ctx: InputContext.Context = InputContext.get_context(pid)
+		if input_ctx != InputContext.Context.GAMEPLAY:
 			continue
 		var action: StringName = &"p1_interact" if pid == 0 else &"p2_interact"
 		if not Input.is_action_just_pressed(action):
