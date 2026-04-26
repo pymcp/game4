@@ -362,6 +362,10 @@ static func _view_kind_from_interior(interior: InteriorMap) -> StringName:
 	return MapManager._kind_from_id(interior.map_id)
 
 
+# --- Cave (dungeon) painting --------------------------------------
+
+func _paint_dungeon_interior(interior: InteriorMap) -> void:
+	var ts: TileSet = TilesetCatalog.dungeon()
 	var dim_layer: TileMapLayer = _ensure_dungeon_dim_layer(ts)
 	dim_layer.clear()
 	var floor_cell: Vector2i = TilesetCatalog.cell_for(&"dungeon", &"floor")
