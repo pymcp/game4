@@ -77,6 +77,10 @@ var _rider_x: SpinBox = null
 var _rider_y: SpinBox = null
 var _rider_pick_btn: Button = null
 
+# Boss section
+var _is_boss_check: CheckBox = null
+var _boss_adds_edit: TextEdit = null
+
 
 func _ready() -> void:
 	_load_data()
@@ -140,6 +144,7 @@ func _build_ui() -> void:
 	_build_rendering_section()
 	_build_stats_section()
 	_build_mount_section()
+	_build_boss_section()
 
 
 func _build_identity_section() -> void:
@@ -323,6 +328,32 @@ func _build_mount_section() -> void:
 	_mount_section.add_child(_rider_pick_btn)
 
 
+func _build_boss_section() -> void:
+	_prop_panel.add_child(_section_label("Boss Settings"))
+
+	var is_boss_hbox := HBoxContainer.new()
+	_prop_panel.add_child(is_boss_hbox)
+	var is_boss_label := Label.new()
+	is_boss_label.text = "is_boss:"
+	is_boss_hbox.add_child(is_boss_label)
+	_is_boss_check = CheckBox.new()
+	_is_boss_check.name = "IsBossCheck"
+	_is_boss_check.toggled.connect(func(v: bool) -> void: _set_field("is_boss", v))
+	is_boss_hbox.add_child(_is_boss_check)
+
+	var adds_label := Label.new()
+	adds_label.text = "boss_adds (one per line: 'creature count'):"
+	_prop_panel.add_child(adds_label)
+
+	_boss_adds_edit = TextEdit.new()
+	_boss_adds_edit.name = "BossAddsEdit"
+	_boss_adds_edit.custom_minimum_size = Vector2(0, 60)
+	_boss_adds_edit.text_changed.connect(func() -> void:
+		_parse_boss_adds(_boss_adds_edit.text)
+		_mark_dirty())
+	_prop_panel.add_child(_boss_adds_edit)
+
+
 # ─── List management ───────────────────────────────────────────────────
 
 func _populate_list() -> void:
@@ -489,6 +520,14 @@ func _refresh_props() -> void:
 		_rider_x.set_value_no_signal(float(ro[0]))
 		_rider_y.set_value_no_signal(float(ro[1]))
 
+	# Boss fields
+	_is_boss_check.set_pressed_no_signal(bool(e.get("is_boss", false)))
+	var adds_list: Array = e.get("boss_adds", [])
+	var adds_text: String = ""
+	for add in adds_list:
+		adds_text += "%s %d\n" % [add.get("creature", ""), int(add.get("count", 1))]
+	_boss_adds_edit.text = adds_text.strip_edges()
+
 
 # ─── Field setters ─────────────────────────────────────────────────────
 
@@ -515,6 +554,20 @@ func _set_field_arr(key: String, idx: int, value: Variant) -> void:
 func _mark_dirty() -> void:
 	_dirty = true
 	dirty_changed.emit()
+
+
+func _parse_boss_adds(text: String) -> void:
+	var result: Array = []
+	for line in text.split("\n"):
+		var parts: Array = line.strip_edges().split(" ")
+		if parts.size() >= 2:
+			result.append({
+				"creature": parts[0],
+				"count": int(parts[1]),
+			})
+	var e: Dictionary = _data.get(String(_selected_id), {})
+	if not e.is_empty():
+		e["boss_adds"] = result
 
 
 # ─── Callbacks ─────────────────────────────────────────────────────────
