@@ -43,6 +43,16 @@ var _attack_cooldown: float = 0.0
 var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
 var _heart_display: HeartDisplay = null
 var _action_vfx: ActionVFX = null
+## LOD / performance.
+var _lod_sleeping: bool = false
+var _lod_index: int = 0
+## Target scan throttle — re-evaluate nearest player every interval.
+const TARGET_SCAN_INTERVAL: float = 0.25
+var _target_scan_timer: float = 0.0
+var _cached_target: PlayerController = null
+## Cached status-effect state computed in _tick_effects to avoid triple-iteration.
+var _cached_stunned: bool = false
+var _cached_speed_mult: float = 1.0
 
 
 func _ready() -> void:
@@ -121,8 +131,14 @@ func _process(delta: float) -> void:
 		return
 	if _attack_cooldown > 0.0:
 		_attack_cooldown -= delta
-	var target: PlayerController = nearest_player(position,
-			_world.entities.get_children(), SIGHT_RADIUS_TILES)
+	# Throttle target scan: re-evaluate every TARGET_SCAN_INTERVAL seconds.
+	_target_scan_timer -= delta
+	if _target_scan_timer <= 0.0 or \
+			(_cached_target != null and not is_instance_valid(_cached_target)):
+		_cached_target = nearest_player(position,
+				_world.get_player_cache(), SIGHT_RADIUS_TILES)
+		_target_scan_timer = TARGET_SCAN_INTERVAL
+	var target: PlayerController = _cached_target
 	if target == null:
 		return
 	var to: Vector2 = target.position - position
@@ -184,6 +200,10 @@ func _tick_attack(target: PlayerController, to_target: Vector2) -> void:
 
 
 func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
+	# Wake from LOD sleep so the enemy can respond.
+	if _lod_sleeping:
+		_lod_sleeping = false
+		set_process(true)
 	# Invincible while in a conversation.
 	if in_conversation:
 		return
@@ -204,6 +224,7 @@ func _apply_resistance(damage: int, element: int) -> int:
 
 
 func _die() -> void:
+	set_process(false)
 	var loot: Array = drops.duplicate()
 	# Roll drops from loot table if no explicit drops were set.
 	if loot.is_empty():
@@ -231,6 +252,8 @@ func _apply_status_from_element(element: int) -> void:
 
 
 func _tick_effects(delta: float) -> void:
+	_cached_stunned = false
+	_cached_speed_mult = 1.0
 	if health <= 0:
 		return
 	var i: int = active_effects.size() - 1
@@ -254,21 +277,16 @@ func _tick_effects(delta: float) -> void:
 				if health <= 0:
 					_die()
 					return
+		# Accumulate stun and speed in the same pass.
+		if eff.stun:
+			_cached_stunned = true
+		_cached_speed_mult *= eff.speed_multiplier
 		i -= 1
 
 
 func _is_stunned() -> bool:
-	for entry: Dictionary in active_effects:
-		var eff: StatusEffect = StatusEffectRegistry.get_effect(entry["effect_id"])
-		if eff != null and eff.stun:
-			return true
-	return false
+	return _cached_stunned
 
 
 func _get_speed_multiplier() -> float:
-	var mult: float = 1.0
-	for entry: Dictionary in active_effects:
-		var eff: StatusEffect = StatusEffectRegistry.get_effect(entry["effect_id"])
-		if eff != null:
-			mult *= eff.speed_multiplier
-	return mult
+	return _cached_speed_mult

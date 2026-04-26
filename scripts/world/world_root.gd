@@ -67,6 +67,17 @@ var _dialogue_box: DialogueBox = null  ## Per-instance dialogue UI.
 var _active_tree_player: PlayerController = null  ## Player driving branching dialogue.
 var _active_dialogue_npc: Node2D = null  ## NPC/entity the player is talking to.
 
+## Entity cache for fast per-frame lookups.
+var _player_cache: Array[PlayerController] = []
+var _hostile_cache: Array[Node2D] = []
+var _entity_cache_dirty: bool = true
+## LOD: freeze distant enemies to save CPU.
+const LOD_CHECK_INTERVAL: float = 0.5
+const LOD_SLEEP_TILES: float = 22.0
+var _lod_timer: float = 0.0
+## Monotonic counter used to stagger pathfind timers across spawned enemies.
+var _spawn_index: int = 0
+
 const MINEABLE_HP: Dictionary = {
 	&"tree": 3, &"bush": 1, &"rock": 5,
 	&"iron_vein": 6, &"copper_vein": 5, &"gold_vein": 8,
@@ -92,6 +103,75 @@ func _ready() -> void:
 	# under the [World] coordinator. The coordinator handles spatial
 	# offset (between instances) and zoom (set on the World itself).
 	add_to_group(&"world_instances")
+	# Invalidate entity cache when enemies/players enter or leave this instance.
+	entities.child_entered_tree.connect(func(node: Node) -> void:
+		if node is PlayerController or node is NPC or node is Monster:
+			mark_entity_cache_dirty())
+	entities.child_exiting_tree.connect(func(node: Node) -> void:
+		if node is PlayerController or node is NPC or node is Monster:
+			mark_entity_cache_dirty())
+
+
+# --- Entity cache + LOD -----------------------------------------
+
+## Mark the entity cache as needing a rebuild.
+func mark_entity_cache_dirty() -> void:
+	_entity_cache_dirty = true
+
+
+func _rebuild_entity_cache() -> void:
+	_player_cache.clear()
+	_hostile_cache.clear()
+	for child in entities.get_children():
+		if child is PlayerController:
+			_player_cache.append(child as PlayerController)
+		elif child is NPC or child is Monster:
+			_hostile_cache.append(child as Node2D)
+	_entity_cache_dirty = false
+
+
+## Returns the cached list of [PlayerController]s in this world instance.
+func get_player_cache() -> Array[PlayerController]:
+	if _entity_cache_dirty:
+		_rebuild_entity_cache()
+	return _player_cache
+
+
+## Returns the cached list of hostile entities ([NPC], [Monster]) in this world instance.
+func get_hostile_cache() -> Array[Node2D]:
+	if _entity_cache_dirty:
+		_rebuild_entity_cache()
+	return _hostile_cache
+
+
+## Runs every [LOD_CHECK_INTERVAL] seconds. Suspends process on enemies
+## far from every player; resumes them as players approach.
+func _tick_lod() -> void:
+	var players: Array[PlayerController] = get_player_cache()
+	var hostiles: Array[Node2D] = get_hostile_cache()
+	if players.is_empty():
+		return
+	for enemy in hostiles:
+		if not is_instance_valid(enemy):
+			continue
+		var min_dist_px: float = INF
+		for p in players:
+			if not is_instance_valid(p):
+				continue
+			var d: float = enemy.position.distance_to(p.position)
+			if d < min_dist_px:
+				min_dist_px = d
+		var dist_tiles: float = min_dist_px / float(WorldConst.TILE_PX)
+		if dist_tiles > LOD_SLEEP_TILES:
+			if not enemy.get(&"_lod_sleeping"):
+				enemy.set(&"_lod_sleeping", true)
+				enemy.set_process(false)
+				enemy.set_physics_process(false)
+		else:
+			if enemy.get(&"_lod_sleeping"):
+				enemy.set(&"_lod_sleeping", false)
+				enemy.set_process(true)
+				enemy.set_physics_process(true)
 
 
 # --- Public API ----------------------------------------------------
@@ -883,10 +963,7 @@ func _has_walkable_neighbour(c: Vector2i) -> bool:
 # --- Door / interior transitions ------------------------------------
 
 func _physics_process(_delta: float) -> void:
-	for child in entities.get_children():
-		var p := child as PlayerController
-		if p == null:
-			continue
+	for p in get_player_cache():
 		var cell: Vector2i = Vector2i(
 				int(floor(p.position.x / float(WorldConst.TILE_PX))),
 				int(floor(p.position.y / float(WorldConst.TILE_PX))))
@@ -900,7 +977,12 @@ func _physics_process(_delta: float) -> void:
 		_handle_door(p, door, cell)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	# LOD sleep/wake check — runs every LOD_CHECK_INTERVAL seconds.
+	_lod_timer -= delta
+	if _lod_timer <= 0.0:
+		_tick_lod()
+		_lod_timer = LOD_CHECK_INTERVAL
 	# Chest interaction — check each player's interact input.
 	for pid in range(2):
 		var input_ctx: InputContext.Context = InputContext.get_context(pid)
@@ -1165,6 +1247,8 @@ func _spawn_villager(entry: Dictionary) -> void:
 	if sid != "":
 		v.shop_id = StringName(sid)
 	v.is_cowardly = entry.get("is_cowardly", false)
+	v._lod_index = _spawn_index % 4
+	_spawn_index += 1
 	v.add_to_group(&"scattered_npcs")
 	entities.add_child(v)
 
@@ -1181,6 +1265,8 @@ func _spawn_monster(entry: Dictionary) -> void:
 		m.health = m.max_health
 		m.resistances = LootTableRegistry.get_resistances(kind)
 	m.died.connect(_on_monster_died)
+	m._lod_index = _spawn_index % 4
+	_spawn_index += 1
 	entities.add_child(m)
 
 

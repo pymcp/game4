@@ -64,6 +64,9 @@ var _threat_target: Node2D = null
 var _attack_cooldown: float = 0.0
 var _heart_display: HeartDisplay = null
 var _action_vfx: ActionVFX = null
+## LOD / performance.
+var _lod_sleeping: bool = false
+var _lod_index: int = 0
 
 
 # ---------- Pure helpers (testable without a scene) ----------
@@ -219,7 +222,7 @@ func _enter_wander() -> void:
 	_path = Pathfinder.find_path(_current_cell(), goal,
 		func(c: Vector2i) -> bool: return _world.is_walkable(c))
 	_path_target_cell = goal
-	_path_repath_timer = PATH_REPATH_SEC
+	_path_repath_timer = PATH_REPATH_SEC + _lod_index * 0.125
 	_state_timer = 0.0
 	_stuck_timer = 0.0
 	_last_pos = position
@@ -279,12 +282,17 @@ func _current_cell() -> Vector2i:
 func take_hit(damage: int, attacker: Node = null, _element: int = 0) -> void:
 	if health <= 0:
 		return
+	# Wake from LOD sleep so the villager can respond.
+	if _lod_sleeping:
+		_lod_sleeping = false
+		set_physics_process(true)
 	if in_conversation:
 		return
 	var effective: int = max(1, damage)
 	health = max(0, health - effective)
 	ActionParticles.flash_hit(self)
 	if health <= 0:
+		set_physics_process(false)
 		queue_free()
 		return
 	# Acquire threat.

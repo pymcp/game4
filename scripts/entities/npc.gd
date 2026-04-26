@@ -76,6 +76,9 @@ var _action_vfx: ActionVFX = null
 const PATH_REPATH_SEC: float = 0.5
 const _BOB_HZ: float = 4.0
 const _BOB_AMP_PX: float = 1.0
+## LOD / performance.
+var _lod_sleeping: bool = false
+var _lod_index: int = 0
 
 
 # ---------- Pure helpers ----------
@@ -262,7 +265,7 @@ func _tick_chase(delta: float) -> void:
 		_path = Pathfinder.find_path(start_cell, goal_cell,
 			func(c: Vector2i) -> bool: return _world.is_walkable(c))
 		_path_target_cell = goal_cell
-		_path_repath_timer = PATH_REPATH_SEC
+		_path_repath_timer = PATH_REPATH_SEC + _lod_index * 0.125
 	# Determine the immediate destination cell.
 	var dest_pos: Vector2 = target.position
 	if not _path.is_empty():
@@ -301,6 +304,10 @@ func _tick_attack(_delta: float) -> void:
 func take_hit(damage: int, attacker: Node = null, element: int = 0) -> void:
 	if state == State.DEAD:
 		return
+	# Wake from LOD sleep so the enemy can respond.
+	if _lod_sleeping:
+		_lod_sleeping = false
+		set_physics_process(true)
 	# Invincible while in a conversation.
 	if in_conversation:
 		return
@@ -324,6 +331,7 @@ func _apply_resistance(damage: int, element: int) -> int:
 
 func _die() -> void:
 	state = State.DEAD
+	set_physics_process(false)
 	died.emit(position, drops)
 	queue_free()
 

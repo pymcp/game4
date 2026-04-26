@@ -123,6 +123,7 @@ labyrinth_terrain = {
 labyrinth_wall_autotile = Array[Dictionary]([{
 "cell": Vector2i(8, 2),
 "flip": 0,
+"flip_h": 0,
 "mask": 2
 }, {
 "cell": Vector2i(10, 2),
@@ -133,12 +134,16 @@ labyrinth_wall_autotile = Array[Dictionary]([{
 "flip": 0,
 "mask": 8
 }, {
-"cell": Vector2i(8, 4),
+"cell": Vector2i(9, 2),
 "flip": 0,
+"flip_h": 1,
+"flip_v": 1,
 "mask": 10
 }, {
-"cell": Vector2i(10, 4),
+"cell": Vector2i(9, 2),
 "flip": 0,
+"flip_h": 0,
+"flip_v": 1,
 "mask": 9
 }, {
 "cell": Vector2i(11, 4),

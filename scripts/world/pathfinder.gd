@@ -29,23 +29,15 @@ static func find_path(start: Vector2i, goal: Vector2i,
 	if start == goal:
 		return [start]
 
-	var open: Array = []  # Array of [f_score, counter, cell] for stable order
+	var open: Array = []  # Binary min-heap of [f_score, counter, cell]
 	var came_from: Dictionary = {}
 	var g_score: Dictionary = {start: 0}
 	var counter: int = 0
-	open.append([heuristic(start, goal), counter, start])
+	_heap_push(open, [heuristic(start, goal), counter, start])
 
 	var expanded: int = 0
 	while not open.is_empty():
-		# Pop min-f node (linear scan; grids are small enough).
-		var min_idx: int = 0
-		for i in range(1, open.size()):
-			var oi: Array = open[i]
-			var om: Array = open[min_idx]
-			if oi[0] < om[0] or (oi[0] == om[0] and oi[1] < om[1]):
-				min_idx = i
-		var current_entry: Array = open[min_idx]
-		open.remove_at(min_idx)
+		var current_entry: Array = _heap_pop_min(open)
 		var current: Vector2i = current_entry[2]
 		if current == goal:
 			return _reconstruct(came_from, current)
@@ -63,8 +55,57 @@ static func find_path(start: Vector2i, goal: Vector2i,
 				came_from[next] = current
 				g_score[next] = tentative_g
 				counter += 1
-				open.append([tentative_g + heuristic(next, goal), counter, next])
+				_heap_push(open, [tentative_g + heuristic(next, goal), counter, next])
 	return []
+
+
+## Binary min-heap push. Items are [f_score, counter, cell].
+static func _heap_push(heap: Array, item: Array) -> void:
+	heap.append(item)
+	var i: int = heap.size() - 1
+	while i > 0:
+		var parent: int = (i - 1) / 2
+		var h_i: Array = heap[i]
+		var h_p: Array = heap[parent]
+		if h_i[0] < h_p[0] or (h_i[0] == h_p[0] and h_i[1] < h_p[1]):
+			heap[i] = h_p
+			heap[parent] = h_i
+			i = parent
+		else:
+			break
+
+
+## Binary min-heap pop. Returns and removes the item with lowest f_score.
+static func _heap_pop_min(heap: Array) -> Array:
+	var top: Array = heap[0]
+	var last: Array = heap[heap.size() - 1]
+	heap.resize(heap.size() - 1)
+	if heap.is_empty():
+		return top
+	heap[0] = last
+	var i: int = 0
+	var size: int = heap.size()
+	while true:
+		var left: int = 2 * i + 1
+		var right: int = 2 * i + 2
+		var smallest: int = i
+		if left < size:
+			var h_l: Array = heap[left]
+			var h_s: Array = heap[smallest]
+			if h_l[0] < h_s[0] or (h_l[0] == h_s[0] and h_l[1] < h_s[1]):
+				smallest = left
+		if right < size:
+			var h_r: Array = heap[right]
+			var h_s2: Array = heap[smallest]
+			if h_r[0] < h_s2[0] or (h_r[0] == h_s2[0] and h_r[1] < h_s2[1]):
+				smallest = right
+		if smallest == i:
+			break
+		var tmp: Array = heap[i]
+		heap[i] = heap[smallest]
+		heap[smallest] = tmp
+		i = smallest
+	return top
 
 
 static func _reconstruct(came_from: Dictionary, end: Vector2i) -> Array:
