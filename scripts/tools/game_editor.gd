@@ -108,6 +108,12 @@ const _MAPPINGS: Array = [
 	{"id": &"balance_overview",                    "label": "Balance Overview",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_balance_overview",                 "kind": &"balance_overview"},
+	{"id": &"encounter_table_editor",            "label": "Encounter Tables (Depth)",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_encounter_table_editor",           "kind": &"encounter_table_editor"},
+	{"id": &"chest_loot_editor",                  "label": "Chest Loot (Depth Tiers)",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_chest_loot_editor",               "kind": &"chest_loot_editor"},
 	{"id": &"asset_browser",                      "label": "Import from Kenney",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_asset_browser",                    "kind": &"asset_browser"},
@@ -141,6 +147,8 @@ var _shop_editor: ShopEditor = null
 var _quest_editor: QuestEditor = null
 var _dialogue_editor: DialogueEditor = null
 var _balance_overview: BalanceOverview = null
+var _encounter_table_editor: EncounterTableEditor = null
+var _chest_loot_editor: ChestLootEditor = null
 
 # Quest TODO panel state.
 var _quest_panel: ScrollContainer = null
@@ -759,6 +767,20 @@ func _select_mapping(entry: Dictionary) -> void:
 		_status_label.text = "Balance overview"
 		return
 
+	if kind == &"encounter_table_editor":
+		_show_encounter_table_editor()
+		_hide_all_editors_except(&"encounter_table_editor")
+		_refresh_marks()
+		_status_label.text = "Editing encounter tables"
+		return
+
+	if kind == &"chest_loot_editor":
+		_show_chest_loot_editor()
+		_hide_all_editors_except(&"chest_loot_editor")
+		_refresh_marks()
+		_status_label.text = "Editing chest loot tiers"
+		return
+
 	if kind == &"asset_browser":
 		_show_asset_browser()
 		_hide_all_editors_except(&"asset_browser")
@@ -785,7 +807,7 @@ func _select_mapping(entry: Dictionary) -> void:
 func _build_slots(entry: Dictionary) -> Array:
 	var field: StringName = entry["field"]
 	var kind: StringName = entry["kind"]
-	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser" or kind == &"loot_table_editor" or kind == &"crafting_editor" or kind == &"armor_set_editor" or kind == &"biome_editor" or kind == &"shop_editor" or kind == &"quest_editor" or kind == &"dialogue_editor" or kind == &"balance_overview":
+	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser" or kind == &"loot_table_editor" or kind == &"crafting_editor" or kind == &"armor_set_editor" or kind == &"biome_editor" or kind == &"shop_editor" or kind == &"quest_editor" or kind == &"dialogue_editor" or kind == &"balance_overview" or kind == &"encounter_table_editor" or kind == &"chest_loot_editor":
 		return []  # These use their own editors.
 	var value: Variant = _mappings_resource.get(field)
 	var out: Array = []
@@ -1056,6 +1078,10 @@ func _save() -> void:
 		_dialogue_editor.save()
 	if _balance_overview != null and _balance_overview.is_dirty():
 		_balance_overview.save()
+	if _encounter_table_editor != null and _encounter_table_editor.is_dirty():
+		_encounter_table_editor.save()
+	if _chest_loot_editor != null and _chest_loot_editor.is_dirty():
+		_chest_loot_editor.save()
 	var err: int = ResourceSaver.save(_mappings_resource, MAPPINGS_PATH)
 	if err != OK:
 		_status_label.text = "SAVE FAILED (err %d)" % err
@@ -1092,6 +1118,10 @@ func _revert() -> void:
 		_dialogue_editor.revert()
 	if _balance_overview != null:
 		_balance_overview.revert()
+	if _encounter_table_editor != null:
+		_encounter_table_editor.revert()
+	if _chest_loot_editor != null:
+		_chest_loot_editor.revert()
 	# Force a fresh load — drop the cached resource so subsequent loads
 	# pick up the on-disk version (in case it was edited externally).
 	if ResourceLoader.has_cached(MAPPINGS_PATH):
@@ -2037,6 +2067,60 @@ func _on_balance_overview_dirty() -> void:
 	_mark_dirty()
 
 
+# ─── Encounter Table editor integration ──────────────────────────────
+
+func _show_encounter_table_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _encounter_table_editor == null:
+		_encounter_table_editor = EncounterTableEditor.new()
+		_encounter_table_editor.dirty_changed.connect(_on_encounter_table_dirty)
+		_slot_root.get_parent().get_parent().add_child(_encounter_table_editor)
+	_encounter_table_editor.visible = true
+
+
+func _hide_encounter_table_editor() -> void:
+	if _encounter_table_editor != null:
+		_encounter_table_editor.visible = false
+
+
+func _on_encounter_table_dirty() -> void:
+	_mark_dirty()
+
+
+# ─── Chest Loot editor integration ───────────────────────────────────
+
+func _show_chest_loot_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _chest_loot_editor == null:
+		_chest_loot_editor = ChestLootEditor.new()
+		_chest_loot_editor.dirty_changed.connect(_on_chest_loot_dirty)
+		_slot_root.get_parent().get_parent().add_child(_chest_loot_editor)
+	_chest_loot_editor.visible = true
+
+
+func _hide_chest_loot_editor() -> void:
+	if _chest_loot_editor != null:
+		_chest_loot_editor.visible = false
+
+
+func _on_chest_loot_dirty() -> void:
+	_mark_dirty()
+
+
 # ─── Editor visibility helpers ────────────────────────────────────────
 
 func _hide_all_editors() -> void:
@@ -2053,6 +2137,8 @@ func _hide_all_editors() -> void:
 	_hide_quest_editor()
 	_hide_dialogue_editor()
 	_hide_balance_overview()
+	_hide_encounter_table_editor()
+	_hide_chest_loot_editor()
 
 
 func _hide_all_editors_except(kind: StringName) -> void:
@@ -2082,6 +2168,10 @@ func _hide_all_editors_except(kind: StringName) -> void:
 		_hide_dialogue_editor()
 	if kind != &"balance_overview":
 		_hide_balance_overview()
+	if kind != &"encounter_table_editor":
+		_hide_encounter_table_editor()
+	if kind != &"chest_loot_editor":
+		_hide_chest_loot_editor()
 
 
 func _on_navigate_to_mineable(resource_id: StringName) -> void:
