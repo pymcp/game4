@@ -287,16 +287,11 @@ const _DEFAULT_LABYRINTH_ENTRANCE: Array = [
 ]
 static var LABYRINTH_OVERWORLD_ENTRANCE_CELLS: Array = _DEFAULT_LABYRINTH_ENTRANCE
 
-# Labyrinth interior terrain. Same schema as DUNGEON_TERRAIN_CELLS.
-# Defaults to the dungeon tiles; overridden by TileMappings.
+# Labyrinth interior terrain. Only &"floor" is used by the painting path.
+# (&"door" and &"water" are never emitted by LabyrinthGenerator, so they
+# are intentionally omitted here.)
 const _DEFAULT_LABYRINTH_TERRAIN: Dictionary = {
 	&"floor": [Vector2i(9, 7)],
-	&"wall":  [
-		Vector2i(8, 7), Vector2i(10, 7),
-		Vector2i(9, 9), Vector2i(10, 9), Vector2i(11, 9),
-	],
-	&"door":  [Vector2i(2, 8)],
-	&"water": [Vector2i(2, 12)],
 }
 static var LABYRINTH_TERRAIN_CELLS: Dictionary = _DEFAULT_LABYRINTH_TERRAIN
 
@@ -486,7 +481,7 @@ static func dungeon() -> TileSet:
 static func labyrinth() -> TileSet:
 	_ensure_loaded()
 	if _labyrinth_ts == null:
-		_labyrinth_ts = _build(_sheet_for_view(&"labyrinth_terrain"), LABYRINTH_TERRAIN_CELLS, true)
+		_labyrinth_ts = _build(get_sheet_path(&"labyrinth_terrain"), LABYRINTH_TERRAIN_CELLS, true)
 	return _labyrinth_ts
 
 

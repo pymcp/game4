@@ -235,12 +235,12 @@ static func default_mappings() -> TileMappings:
 
 	m.dungeon_entrance_pair = [Vector2i(24, 4), Vector2i(25, 4)]
 
-	# Labyrinth terrain defaults — same tiles as dungeon until the user
-	# overrides them in the Game Editor → Labyrinth sections.
+	# Labyrinth terrain defaults — same floor tile as dungeon until the user
+	# overrides it in the Game Editor → Labyrinth sections.
+	# Note: &"door" and &"water" are intentionally absent — LabyrinthGenerator
+	# never emits those codes, so they are not used by the painting path.
 	m.labyrinth_terrain = {
 		&"floor": [Vector2i(9, 7)],
-		&"door":  [Vector2i(2, 8)],
-		&"water": [Vector2i(2, 12)],
 	}
 
 	m.labyrinth_wall_autotile = [
