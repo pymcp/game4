@@ -163,6 +163,7 @@ func apply_view(view_kind: StringName, region: Region, interior: InteriorMap) ->
 			_paint_interior(interior, view_kind)
 	_spawn_scattered_npcs()
 	_materialize_loot_scatter()
+	_materialize_chest_scatter()
 	_build_door_index(view_kind)
 	_build_mineable_index()
 	_last_door_cell_per_player.clear()
@@ -189,6 +190,7 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 	match view_kind:
 		&"city": ts = TilesetCatalog.city()
 		&"house": ts = TilesetCatalog.interior()
+		&"dungeon", &"labyrinth": ts = TilesetCatalog.dungeon()
 		_: ts = TilesetCatalog.dungeon()
 	ground.tile_set = ts
 	decoration.tile_set = ts
@@ -320,8 +322,10 @@ func _paint_region(region: Region) -> void:
 
 
 func _paint_interior(interior: InteriorMap, view_kind: StringName) -> void:
-	if view_kind == &"dungeon":
+	if view_kind == &"dungeon" or view_kind == &"labyrinth":
 		_paint_dungeon_interior(interior)
+		if view_kind == &"labyrinth" and not interior.boss_room_cells.is_empty():
+			_paint_boss_room_overlay(interior)
 		return
 	for y in interior.height:
 		for x in interior.width:
@@ -351,10 +355,13 @@ func _paint_interior(interior: InteriorMap, view_kind: StringName) -> void:
 						decoration.set_cell(canopy_cell, 0, canopy_atlas, 0)
 
 
-# --- Cave (dungeon) painting --------------------------------------
+## Derive the correct view_kind for an InteriorMap from its map_id.
+static func _view_kind_from_interior(interior: InteriorMap) -> StringName:
+	if interior == null:
+		return &"overworld"
+	return MapManager._kind_from_id(interior.map_id)
 
-func _paint_dungeon_interior(interior: InteriorMap) -> void:
-	var ts: TileSet = TilesetCatalog.dungeon()
+
 	var dim_layer: TileMapLayer = _ensure_dungeon_dim_layer(ts)
 	dim_layer.clear()
 	var floor_cell: Vector2i = TilesetCatalog.cell_for(&"dungeon", &"floor")
@@ -398,6 +405,18 @@ func _paint_dungeon_interior(interior: InteriorMap) -> void:
 			decoration.set_cell(cell, 0, atlas, alt)
 	_paint_dungeon_corridor_frames(interior)
 	_paint_dungeon_stair_markers(interior)
+
+
+## Paint a distinct floor decor pattern over boss room cells.
+func _paint_boss_room_overlay(interior: InteriorMap) -> void:
+	var decor: Array = TilesetCatalog.DUNGEON_FLOOR_DECOR_CELLS
+	if decor.is_empty():
+		return
+	var boss_tile: Vector2i = decor[decor.size() - 1]
+	for cell_var in interior.boss_room_cells:
+		var cell: Vector2i = cell_var
+		if (cell.x + cell.y) % 2 == 0:
+			decoration.set_cell(cell, 0, boss_tile, 0)
 
 
 func _paint_dungeon_corridor_frames(interior: InteriorMap) -> void:
@@ -807,6 +826,29 @@ func _physics_process(_delta: float) -> void:
 		_handle_door(p, door, cell)
 
 
+func _process(_delta: float) -> void:
+	# Chest interaction — check each player's interact input.
+	for pid in range(2):
+		var input_ctx: int = InputContext.get_context(pid)
+		if input_ctx != InputContext.GAMEPLAY:
+			continue
+		var action: StringName = &"p1_interact" if pid == 0 else &"p2_interact"
+		if not Input.is_action_just_pressed(action):
+			continue
+		var player: PlayerController = get_player(pid)
+		if player == null or not is_instance_valid(player):
+			continue
+		for child in entities.get_children():
+			if not (child is TreasureChest):
+				continue
+			var chest: TreasureChest = child
+			if chest.is_opened:
+				continue
+			if chest.nearest_player_in_range() == player:
+				chest.open(player)
+				break
+
+
 func _build_door_index(view_kind: StringName) -> void:
 	_doors.clear()
 	if view_kind == &"overworld" and _region != null:
@@ -815,13 +857,15 @@ func _build_door_index(view_kind: StringName) -> void:
 			var ek: StringName = entry.get("kind", &"dungeon")
 			if ek == &"house":
 				_doors[c] = {"kind": &"house_enter", "cell": c}
+			elif ek == &"labyrinth":
+				_doors[c] = {"kind": &"labyrinth_enter", "cell": c}
 			else:
 				_doors[c] = {"kind": &"dungeon_enter", "cell": c}
 		for rune in _region.runes:
 			var rc: Vector2i = rune["cell"]
 			_doors[rc] = {"kind": &"rune", "cell": rc, "source": int(rune["source"])}
 	elif _interior != null:
-		if view_kind == &"dungeon":
+		if view_kind == &"dungeon" or view_kind == &"labyrinth":
 			_doors[_interior.entry_cell] = {"kind": &"stairs_up"}
 			_doors[_interior.exit_cell] = {"kind": &"stairs_down"}
 		else:
@@ -847,6 +891,15 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 					hmid, hrid, cell, 1,
 					MapManager.DEFAULT_FLOOR_SIZE, &"house")
 			World.instance().transition_player(player.player_id, &"house", _region, house)
+		&"labyrinth_enter":
+			Sfx.play(&"dungeon_enter")
+			var lrid: Vector2i = _region.region_id
+			var lsize: int = randi_range(64, 96)
+			var lmid: StringName = MapManager.make_id(lrid, cell, 1, &"labyrinth")
+			var labyrinth: InteriorMap = MapManager.get_or_generate(
+					lmid, lrid, cell, 1, lsize, &"labyrinth")
+			World.instance().transition_player(
+					player.player_id, &"labyrinth", _region, labyrinth)
 		&"interior_exit":
 			if _interior != null:
 				Sfx.play(&"dungeon_exit")
@@ -871,9 +924,10 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 				var parent_cell: Vector2i = _interior.parent_entrance_cell
 				var pid2: int = player.player_id
 				var origin_r: Region = WorldManager.get_or_generate(_interior.origin_region_id)
+				var parent_kind: StringName = WorldRoot._view_kind_from_interior(parent)
 				_play_cave_transition(func() -> void:
 					Sfx.play(&"dungeon_exit")
-					World.instance().transition_player(pid2, &"dungeon", origin_r, parent, parent_cell))
+					World.instance().transition_player(pid2, parent_kind, origin_r, parent, parent_cell))
 		&"stairs_down":
 			if _interior == null:
 				return
@@ -882,10 +936,11 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 				return
 			var entry_cell: Vector2i = deeper.entry_cell
 			var pid3: int = player.player_id
+			var deeper_kind: StringName = WorldRoot._view_kind_from_interior(deeper)
 			var origin_r: Region = WorldManager.get_or_generate(_interior.origin_region_id)
 			_play_cave_transition(func() -> void:
 				Sfx.play(&"dungeon_enter")
-				World.instance().transition_player(pid3, &"dungeon", origin_r, deeper, entry_cell))
+				World.instance().transition_player(pid3, deeper_kind, origin_r, deeper, entry_cell))
 
 
 func _play_cave_transition(switch_fn: Callable) -> void:
@@ -953,6 +1008,7 @@ func mine_at(cell: Vector2i, damage: int) -> Dictionary:
 
 const _VillagerScene: PackedScene = preload("res://scenes/entities/Villager.tscn")
 const _MonsterScene: PackedScene = preload("res://scenes/entities/Monster.tscn")
+const _TreasureChestScene: PackedScene = preload("res://scenes/entities/TreasureChest.tscn")
 
 func _spawn_scattered_npcs() -> void:
 	_maybe_inject_mara()
@@ -975,6 +1031,22 @@ func _spawn_scattered_npcs() -> void:
 				if LootTableRegistry.has_table(kind):
 					entry["monster_kind"] = kind
 					_spawn_monster(entry)
+	# Boss room — spawn boss + adds if this is a labyrinth boss floor.
+	if _interior != null and not _interior.boss_data.is_empty():
+		var bd: Dictionary = _interior.boss_data
+		var boss_entry: Dictionary = {
+			"monster_kind": bd.get("kind", &"slime_king"),
+			"cell": bd.get("cell", Vector2i.ZERO),
+			"kind": bd.get("kind", &"slime_king"),
+		}
+		_spawn_monster(boss_entry)
+		for add in bd.get("adds", []):
+			var add_entry: Dictionary = {
+				"monster_kind": StringName(add.get("kind", &"slime")),
+				"cell": add.get("cell", Vector2i.ZERO),
+				"kind": StringName(add.get("kind", &"slime")),
+			}
+			_spawn_monster(add_entry)
 
 
 func _maybe_inject_mara() -> void:
@@ -1065,6 +1137,18 @@ func _materialize_loot_scatter() -> void:
 		pickup.count = count
 		pickup.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
 		entities.add_child(pickup)
+
+
+func _materialize_chest_scatter() -> void:
+	if _interior == null or _interior.chest_scatter.is_empty():
+		return
+	for entry in _interior.chest_scatter:
+		var cell: Vector2i = entry.get("cell", Vector2i.ZERO)
+		var floor_n: int = int(entry.get("floor_num", _interior.floor_num))
+		var chest: TreasureChest = _TreasureChestScene.instantiate()
+		chest.floor_num = floor_n
+		chest.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+		entities.add_child(chest)
 
 
 # --- Dialogue ------------------------------------------------------
@@ -1297,6 +1381,8 @@ func debug_spawn_interactables_for(player: PlayerController) -> void:
 			centre, Vector2i(-2, 0), "cave entrance")
 	_debug_place_entrance(&"house", &"house_enter",
 			centre, Vector2i(2, 0), "house entrance")
+	_debug_place_entrance(&"labyrinth", &"labyrinth_enter",
+			centre, Vector2i(4, 0), "labyrinth entrance")
 	_debug_spawn_encounters(centre)
 	_debug_refresh_labels()
 
