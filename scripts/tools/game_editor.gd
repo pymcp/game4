@@ -1146,6 +1146,7 @@ func _on_flip_toggled(pressed: bool, idx: int) -> void:
 	_set_at_path(path, new_flip)
 	slot["flip"] = new_flip
 	_mark_dirty()
+	_refresh_marks()
 	_status_label.text = "%s flip = %d" % [slot["label"], new_flip]
 
 
