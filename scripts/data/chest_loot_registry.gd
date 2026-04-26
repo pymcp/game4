@@ -7,6 +7,7 @@ class_name ChestLootRegistry
 extends RefCounted
 
 const _JSON_PATH: String = "res://resources/chest_loot.json"
+const _FALLBACK_ITEM: StringName = &"stone"
 
 static var _tiers: Array = []
 static var _loaded: bool = false
@@ -21,6 +22,7 @@ static func _ensure_loaded() -> void:
 		return
 	var f := FileAccess.open(_JSON_PATH, FileAccess.READ)
 	if f == null:
+		push_warning("[ChestLootRegistry] failed to open %s" % _JSON_PATH)
 		return
 	var json := JSON.new()
 	if json.parse(f.get_as_text()) != OK:
@@ -33,10 +35,6 @@ static func _ensure_loaded() -> void:
 static func reset() -> void:
 	_tiers.clear()
 	_loaded = false
-
-
-static func is_loaded() -> bool:
-	return _loaded
 
 
 ## Returns the raw tiers array for editing by the GameEditor panel.
@@ -74,7 +72,7 @@ static func roll_loot(floor_num: int, rng: RandomNumberGenerator) -> Dictionary:
 	var tier: Dictionary = get_tier_for_floor(floor_num)
 	var table: Array = tier.get("loot", [])
 	if table.is_empty():
-		return {"id": &"stone", "count": 1}
+		return {"id": _FALLBACK_ITEM, "count": 1}
 	var total: int = 0
 	for e in table:
 		total += int(e.get("weight", 1))

@@ -26,6 +26,7 @@ static func _ensure_loaded() -> void:
 		return
 	var f := FileAccess.open(_JSON_PATH, FileAccess.READ)
 	if f == null:
+		push_warning("[EncounterTableRegistry] failed to open %s" % _JSON_PATH)
 		return
 	var json := JSON.new()
 	if json.parse(f.get_as_text()) != OK:
