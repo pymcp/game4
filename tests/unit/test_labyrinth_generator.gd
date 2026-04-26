@@ -37,13 +37,15 @@ func test_has_chests_at_dead_ends() -> void:
 
 
 func test_no_boss_on_non_boss_floor() -> void:
+	# Floor 1 is never a boss floor regardless of boss_interval (which is >= 2).
 	var m: InteriorMap = LabyrinthGenerator.generate(1, 64, 64, 1)
 	assert_true(m.boss_data.is_empty(), "Floor 1 should have no boss")
 
 
 func test_boss_on_boss_floor() -> void:
-	var m: InteriorMap = LabyrinthGenerator.generate(1, 64, 64, 5)
-	assert_false(m.boss_data.is_empty(), "Floor 5 should have a boss")
+	var interval: int = EncounterTableRegistry.get_boss_interval(&"labyrinth")
+	var m: InteriorMap = LabyrinthGenerator.generate(1, 64, 64, interval)
+	assert_false(m.boss_data.is_empty(), "Floor %d should have a boss" % interval)
 	assert_true(m.boss_room_cells.size() >= 4, "Boss room should have some floor cells")
 
 

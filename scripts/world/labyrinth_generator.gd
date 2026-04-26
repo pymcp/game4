@@ -18,6 +18,8 @@ const _WALL_THICKNESS: int = 1
 const _STRIDE: int = _MAX_CORRIDOR_WIDTH + 2 * _WALL_THICKNESS
 const _MARGIN: int = 2
 const _BOSS_ROOM_HALF: int = 4
+const _ENEMY_SPAWN_CHANCE: float = 0.30
+const _LARGE_DIST: int = 99999
 
 
 static func generate(seed_val: int, width: int, height: int,
@@ -40,7 +42,7 @@ static func generate(seed_val: int, width: int, height: int,
 	var jw: int = max((width  - 2 * _MARGIN) / _STRIDE, 2)
 	var jh: int = max((height - 2 * _MARGIN) / _STRIDE, 2)
 
-	var junctions: Array = []
+	var junctions: Array[Vector2i] = []
 	for jy in jh:
 		for jx in jw:
 			junctions.append(Vector2i(
@@ -141,7 +143,7 @@ static func _carve_corridor(rng: RandomNumberGenerator, m: InteriorMap,
 
 static func _pick_border_junction(jw: int, jh: int,
 		connection: Array, rng: RandomNumberGenerator) -> int:
-	var border: Array = []
+	var border: Array[int] = []
 	for jy in jh:
 		for jx in jw:
 			if jx == 0 or jx == jw - 1 or jy == 0 or jy == jh - 1:
@@ -188,14 +190,14 @@ static func _carve_boss_room(rng: RandomNumberGenerator, m: InteriorMap,
 		junctions: Array, exit_idx: int,
 		floor_num: int, connection: Array) -> void:
 	var boss_jidx: int = exit_idx
-	var dead_ends: Array = []
+	var dead_ends: Array[int] = []
 	for idx in connection.size():
 		if idx == exit_idx:
 			continue
 		if (connection[idx] as Array).size() == 1:
 			dead_ends.append(idx)
 	if not dead_ends.is_empty():
-		var min_dist: int = 999
+		var min_dist: int = _LARGE_DIST
 		var best_idx: int = exit_idx
 		for idx in dead_ends:
 			var d: int = abs(junctions[idx].x - junctions[exit_idx].x) \
@@ -206,7 +208,7 @@ static func _carve_boss_room(rng: RandomNumberGenerator, m: InteriorMap,
 		boss_jidx = best_idx
 
 	var centre: Vector2i = junctions[boss_jidx]
-	var room_cells: Array = []
+	var room_cells: Array[Vector2i] = []
 	for dy in range(-_BOSS_ROOM_HALF, _BOSS_ROOM_HALF + 1):
 		for dx in range(-_BOSS_ROOM_HALF, _BOSS_ROOM_HALF + 1):
 			var cell: Vector2i = centre + Vector2i(dx, dy)
@@ -270,7 +272,7 @@ static func _scatter_enemies(rng: RandomNumberGenerator, m: InteriorMap,
 		var jcell: Vector2i = junctions[idx]
 		if boss_cells.has(jcell):
 			continue
-		if rng.randf() >= 0.30:
+		if rng.randf() >= _ENEMY_SPAWN_CHANCE:
 			continue
 		var pick: Dictionary = EncounterTableRegistry.weighted_pick(rng, table)
 		if pick.is_empty():
