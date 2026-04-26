@@ -19,6 +19,7 @@ const _STRIDE: int = _MAX_CORRIDOR_WIDTH + 2 * _WALL_THICKNESS
 const _MARGIN: int = 2
 const _BOSS_ROOM_HALF: int = 4
 const _ENEMY_SPAWN_CHANCE: float = 0.30
+const _MAX_CHESTS: int = 5  ## Max chests per floor; randomly sampled from dead ends.
 const _LARGE_DIST: int = 99999
 
 
@@ -89,14 +90,22 @@ static func generate(seed_val: int, width: int, height: int,
 	m.entry_cell = entry_cell
 	m.exit_cell  = exit_cell
 
+	# Collect all dead-end junctions, shuffle them, then keep at most
+	# _MAX_CHESTS so floors don't overflow with loot.
+	var dead_end_indices: Array = []
 	for idx in jw * jh:
 		if idx == entry_idx or idx == exit_idx:
 			continue
 		if (connection[idx] as Array).size() == 1:
-			m.chest_scatter.append({
-				"cell": junctions[idx],
-				"floor_num": floor_num,
-			})
+			dead_end_indices.append(idx)
+	dead_end_indices.shuffle()
+	var chest_count: int = mini(dead_end_indices.size(), _MAX_CHESTS)
+	for i in chest_count:
+		var idx: int = dead_end_indices[i]
+		m.chest_scatter.append({
+			"cell": junctions[idx],
+			"floor_num": floor_num,
+		})
 
 	var boss_interval: int = EncounterTableRegistry.get_boss_interval(&"labyrinth")
 	if floor_num > 0 and (floor_num % boss_interval) == 0:
