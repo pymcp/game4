@@ -23,8 +23,7 @@ var _players_in_range: Array = []
 @onready var _area: Area2D = $Area2D
 
 ## Atlas cells on dungeon_sheet.png for closed and open frames.
-const _CLOSED_CELL: Vector2i = Vector2i(2, 10)
-const _OPEN_CELL:   Vector2i = Vector2i(3, 10)
+## Reads from TilesetCatalog.LABYRINTH_CHEST_CELLS (editable via Game Editor).
 const _TILE_PX: int = 16
 const _MARGIN: int = 1
 
@@ -77,8 +76,9 @@ func _on_body_exited(body: Node) -> void:
 func _refresh_sprite(opened: bool) -> void:
 	if _sprite == null:
 		return
-	var atlas: Vector2i = _OPEN_CELL if opened else _CLOSED_CELL
-	var tex: Texture2D = load("res://assets/tiles/roguelike/dungeon_sheet.png")
+	var cells: Array = TilesetCatalog.LABYRINTH_CHEST_CELLS
+	var atlas: Vector2i = cells[1] if (opened and cells.size() >= 2) else cells[0]
+	var tex: Texture2D = load(TilesetCatalog.get_sheet_path(&"labyrinth_terrain"))
 	if tex == null:
 		return
 	_sprite.texture = tex

@@ -323,6 +323,11 @@ const _DEFAULT_LABYRINTH_FLOOR_DECOR: Array = [
 ]
 static var LABYRINTH_FLOOR_DECOR_CELLS: Array = _DEFAULT_LABYRINTH_FLOOR_DECOR
 
+## Treasure chest sprite cells on the dungeon sheet: [closed, open].
+## TreasureChest reads index 0 for closed state, index 1 for open state.
+const _DEFAULT_LABYRINTH_CHEST: Array = [Vector2i(2, 10), Vector2i(3, 10)]
+static var LABYRINTH_CHEST_CELLS: Array = _DEFAULT_LABYRINTH_CHEST
+
 # Wooden doorframe drawn at the south end of a north-south cave corridor
 # where it opens into a room. Purely decorative — placed as Sprite2D
 # children, so they do not affect walkability or terrain queries.
@@ -440,6 +445,8 @@ static func _ensure_loaded() -> void:
 		LABYRINTH_WALL_AUTOTILE = lab_autotile
 	if not m.labyrinth_floor_decor.is_empty():
 		LABYRINTH_FLOOR_DECOR_CELLS = m.labyrinth_floor_decor
+	if m.labyrinth_chest_pair.size() >= 2:
+		LABYRINTH_CHEST_CELLS = m.labyrinth_chest_pair
 	if not m.dungeon_doorframe.is_empty():
 		DUNGEON_DOORFRAME = m.dungeon_doorframe
 	# Interior

@@ -79,6 +79,10 @@ extends Resource
 ## Painted on the overworld to mark labyrinth entrances with a tint.
 @export var labyrinth_entrance_pair: Array[Vector2i] = []
 
+## Two atlas cells for the treasure chest sprite: [closed_cell, open_cell].
+## Used by TreasureChest._refresh_sprite() to draw the correct frame.
+@export var labyrinth_chest_pair: Array[Vector2i] = []
+
 ## Single-cell labyrinth terrains (floor / door / water).
 ## `StringName → Array[Vector2i]` (element [0] is canonical).
 ## Defaults to dungeon tiles until overridden via the Game Editor.
@@ -268,6 +272,8 @@ static func default_mappings() -> TileMappings:
 		Vector2i(12, 13), Vector2i(13, 13),
 		Vector2i(12, 14), Vector2i(13, 14),
 	]
+
+	m.labyrinth_chest_pair = [Vector2i(2, 10), Vector2i(3, 10)]
 
 	m.dungeon_doorframe = {
 		&"TL":  Vector2i(5, 8),
