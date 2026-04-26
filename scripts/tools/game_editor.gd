@@ -60,6 +60,9 @@ const _MAPPINGS: Array = [
 	{"id": &"dungeon_floor_decor",               "label": "Dungeon floor decor",
 	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	 "field": &"dungeon_floor_decor",               "kind": &"flat_list"},
+	{"id": &"dungeon_floor_border_3x3",        "label": "Dungeon floor border (3\u00d73)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"dungeon_floor_border_3x3",     "kind": &"patch3_flat"},
 	{"id": &"dungeon_entrance_pair",             "label": "Dungeon entrance marker pair",
 	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	 "field": &"dungeon_entrance_pair",             "kind": &"flat_list"},
@@ -75,6 +78,9 @@ const _MAPPINGS: Array = [
 	{"id": &"labyrinth_floor_decor",            "label": "Labyrinth floor decor",
 	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	 "field": &"labyrinth_floor_decor",         "kind": &"flat_list"},
+	{"id": &"labyrinth_floor_border_3x3",      "label": "Labyrinth floor border (3\u00d73)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"labyrinth_floor_border_3x3",   "kind": &"patch3_flat"},
 	{"id": &"labyrinth_chest_pair",             "label": "Labyrinth chest (closed + open)",
 	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	 "field": &"labyrinth_chest_pair",          "kind": &"flat_list"},
@@ -323,12 +329,32 @@ class SheetView extends Control:
 class PreviewView extends Control:
 	const FRAME: int = 5
 	const PREVIEW_ZOOM: int = 3
+	## Dimensions of the synthetic room+hallway preview map.
+	const _ROOM_W: int = 11
+	const _ROOM_H: int = 11
+	## 0 = wall, 1 = floor. 5×4 room (cols 1-5, rows 1-4) with 2-wide
+	## corridor (cols 2-3, rows 5-8) exiting south.
+	const _ROOM_MAP: Array = [
+		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	]
 
 	var texture: Texture2D = null
 	var tile_px: int = 16
 	var gutter: int = 1
 	var cells: Array = []
 	var layout: StringName = &"tile"
+	## Autotile mask→[cell, flip_v] dict. Only used when layout == &"autotile_room".
+	var autotile_dict: Dictionary = {}
 
 	func _ready() -> void:
 		_resize()
@@ -340,15 +366,91 @@ class PreviewView extends Control:
 		_resize()
 		queue_redraw()
 
+	func set_autotile_data(tex: Texture2D, at_dict: Dictionary) -> void:
+		texture = tex
+		autotile_dict = at_dict
+		cells = []  # not used for autotile_room layout
+		layout = &"autotile_room"
+		_resize()
+		queue_redraw()
+
 	func _resize() -> void:
-		custom_minimum_size = Vector2(
-				float(FRAME * tile_px * PREVIEW_ZOOM),
-				float(FRAME * tile_px * PREVIEW_ZOOM))
+		if layout == &"autotile_room":
+			custom_minimum_size = Vector2(
+					float(_ROOM_W * tile_px * PREVIEW_ZOOM),
+					float(_ROOM_H * tile_px * PREVIEW_ZOOM))
+		else:
+			custom_minimum_size = Vector2(
+					float(FRAME * tile_px * PREVIEW_ZOOM),
+					float(FRAME * tile_px * PREVIEW_ZOOM))
+
+	func _room_neighbour_is_floor(gx: int, gy: int) -> bool:
+		if gx < 0 or gx >= _ROOM_W or gy < 0 or gy >= _ROOM_H:
+			return false
+		return _ROOM_MAP[gy][gx] == 1
+
+	func _draw_autotile_room(src_step: int, dest_step: float) -> void:
+		var bg_dark := Color(0.08, 0.08, 0.10)
+		# Pick a floor tile: prefer mask=15 (all floors), else first entry.
+		var floor_atlas := Vector2i(0, 0)
+		var floor_entry: Variant = autotile_dict.get(15, null)
+		if floor_entry is Array and (floor_entry as Array).size() >= 1:
+			floor_atlas = (floor_entry as Array)[0]
+		elif not autotile_dict.is_empty():
+			var first: Variant = autotile_dict.values()[0]
+			if first is Array and (first as Array).size() >= 1:
+				floor_atlas = (first as Array)[0]
+		for gy in _ROOM_H:
+			for gx in _ROOM_W:
+				var dest := Rect2(
+					Vector2(float(gx) * dest_step, float(gy) * dest_step),
+					Vector2(dest_step, dest_step))
+				if _ROOM_MAP[gy][gx] == 1:
+					# Floor cell.
+					var src := Rect2(
+						float(floor_atlas.x * src_step),
+						float(floor_atlas.y * src_step),
+						float(tile_px), float(tile_px))
+					draw_texture_rect_region(texture, dest, src)
+				else:
+					# Wall cell — compute 4-bit mask.
+					var mask: int = 0
+					if _room_neighbour_is_floor(gx, gy - 1): mask |= 8  # N
+					if _room_neighbour_is_floor(gx, gy + 1): mask |= 4  # S
+					if _room_neighbour_is_floor(gx + 1, gy): mask |= 2  # E
+					if _room_neighbour_is_floor(gx - 1, gy): mask |= 1  # W
+					if mask == 0:
+						draw_rect(dest, bg_dark, true)
+						continue
+					var entry: Variant = autotile_dict.get(mask, null)
+					if entry == null or not (entry is Array):
+						draw_rect(dest, bg_dark, true)
+						continue
+					var arr: Array = entry as Array
+					var atlas: Vector2i = arr[0]
+					var flip_v: bool = (arr.size() > 1 and arr[1])
+					var src := Rect2(
+						float(atlas.x * src_step),
+						float(atlas.y * src_step),
+						float(tile_px), float(tile_px))
+					if flip_v:
+						draw_set_transform(
+							Vector2(dest.position.x, dest.position.y + dest_step),
+							0.0,
+							Vector2(1.0, -1.0) * dest_step / float(tile_px))
+						draw_texture_rect_region(texture,
+							Rect2(Vector2.ZERO, Vector2(float(tile_px), float(tile_px))),
+							src)
+						draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+					else:
+						draw_texture_rect_region(texture, dest, src)
 
 	func _draw() -> void:
 		var bg := Color(0.08, 0.08, 0.10)
 		draw_rect(Rect2(Vector2.ZERO, custom_minimum_size), bg, true)
-		if texture == null or cells.is_empty():
+		if texture == null:
+			return
+		if layout != &"autotile_room" and cells.is_empty():
 			return
 		var dest_step: float = float(tile_px * PREVIEW_ZOOM)
 		var src_step: int = tile_px + gutter
@@ -367,6 +469,10 @@ class PreviewView extends Control:
 							float(cell.x * src_step), float(cell.y * src_step),
 							float(tile_px), float(tile_px))
 					draw_texture_rect_region(texture, dest, src)
+			&"autotile_room":
+				if autotile_dict.is_empty():
+					return
+				_draw_autotile_room(src_step, dest_step)
 			_:
 				# "tile" — fill the FRAME×FRAME grid by cycling cells.
 				for y in FRAME:
@@ -1294,6 +1400,19 @@ func _refresh_preview() -> void:
 			layout = &"patch3"
 			var arr: Array = _mappings_resource.get(_current_mapping["field"])
 			cells = arr.duplicate()
+		&"autotile":
+			var field: StringName = _current_mapping["field"]
+			var arr: Array = _mappings_resource.get(field)
+			var at_dict: Dictionary = {}
+			for entry in arr:
+				var mask: int = int(entry.get("mask", -1))
+				if mask < 0:
+					continue
+				var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
+				var flip_v: bool = int(entry.get("flip", 0)) != 0
+				at_dict[mask] = [cell, flip_v]
+			_preview.set_autotile_data(tex, at_dict)
+			return
 		_:
 			for i in _slots.size():
 				var slot: Dictionary = _slots[i]
