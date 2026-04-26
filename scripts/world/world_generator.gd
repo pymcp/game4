@@ -73,6 +73,7 @@ static func generate_region(world_seed: int, plan: RegionPlan, plans: Dictionary
 	_pick_spawn_points(region)
 	_place_pier(region)
 	_place_dungeon_entrances(region)
+	_place_labyrinth_entrances(region)
 	_place_runes(region)
 	return region
 
@@ -407,6 +408,55 @@ static func _place_dungeon_entrances(region: Region) -> void:
 			"kind": &"dungeon",
 			"cell": cell,
 		})
+
+
+## Place 0 or 1 labyrinth entrance per non-ocean region (~35% of regions).
+static func _place_labyrinth_entrances(region: Region) -> void:
+	if region.is_ocean:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = region.seed ^ 0xa7b3c1
+	# ~35% of regions get a labyrinth entrance.
+	if rng.randf() > 0.35:
+		return
+	# Build occupied set.
+	var occupied: Dictionary = {}
+	for entry in region.decorations:
+		occupied[entry["cell"]] = true
+	for entry in region.npcs_scatter:
+		occupied[entry["cell"]] = true
+	for entry in region.dungeon_entrances:
+		occupied[entry["cell"]] = true
+	var size: int = Region.SIZE
+	var center := Vector2i(size / 2, size / 2)
+	# Collect candidate cells (same criteria as dungeon entrances).
+	var candidates: Array[Vector2i] = []
+	for y in size:
+		for x in size:
+			var cell := Vector2i(x, y)
+			if occupied.has(cell):
+				continue
+			var code: int = region.at(cell)
+			if code != TerrainCodes.ROCK and code != TerrainCodes.DIRT:
+				continue
+			if not TerrainCodes.is_walkable(code):
+				continue
+			if abs(cell.x - center.x) + abs(cell.y - center.y) < 20:
+				continue
+			candidates.append(cell)
+	if candidates.is_empty():
+		return
+	# Deterministic shuffle.
+	for i in range(candidates.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp: Vector2i = candidates[i]
+		candidates[i] = candidates[j]
+		candidates[j] = tmp
+	var cell: Vector2i = candidates[0]
+	region.dungeon_entrances.append({
+		"kind": &"labyrinth",
+		"cell": cell,
+	})
 
 
 # ─────────── Helpers ────────────────────────────────────────────────
