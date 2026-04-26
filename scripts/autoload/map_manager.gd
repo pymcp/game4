@@ -51,6 +51,8 @@ func get_or_generate(map_id: StringName, region_id: Vector2i,
 	var m: InteriorMap
 	if kind == &"house":
 		m = HouseGenerator.generate(seed_val)
+	elif kind == &"labyrinth":
+		m = LabyrinthGenerator.generate(seed_val, size, size, floor_num)
 	else:
 		m = DungeonGenerator.generate(seed_val, size, size)
 	m.map_id = map_id
@@ -73,8 +75,9 @@ func descend_from(current: InteriorMap, size: int = DEFAULT_FLOOR_SIZE) -> Inter
 	var next_floor: int = current.floor_num + 1
 	var rid: Vector2i = current.origin_region_id
 	var origin: Vector2i = current.origin_cell
-	var new_id: StringName = make_id(rid, origin, next_floor)
-	var m: InteriorMap = get_or_generate(new_id, rid, origin, next_floor, size)
+	var kind: StringName = _kind_from_id(current.map_id)
+	var new_id: StringName = make_id(rid, origin, next_floor, kind)
+	var m: InteriorMap = get_or_generate(new_id, rid, origin, next_floor, size, kind)
 	if m.parent_map_id == &"":
 		m.parent_map_id = current.map_id
 		m.parent_entrance_cell = current.exit_cell
@@ -124,6 +127,14 @@ func reset() -> void:
 
 
 # ─── Internals ────────────────────────────────────────────────────────
+
+## Extract the kind prefix from a map_id (e.g. "labyrinth@1:2:3:4:1" → &"labyrinth").
+static func _kind_from_id(map_id: StringName) -> StringName:
+	var s: String = String(map_id)
+	var at: int = s.find("@")
+	if at >= 0:
+		return StringName(s.substr(0, at))
+	return &"dungeon"
 
 static func _seed_for(region_id: Vector2i, cell: Vector2i, floor_num: int) -> int:
 	# Mix the world seed in so the same entrance differs across worlds.
