@@ -327,6 +327,9 @@ class SheetView extends Control:
 #   "patch3" — render exactly 9 cells in a 3×3 (NW..SE), centred in the
 #              preview frame.
 class PreviewView extends Control:
+	## Emitted when the user clicks a wall cell in the autotile_room preview.
+	signal mask_clicked(mask: int)
+
 	const FRAME: int = 5
 	const PREVIEW_ZOOM: int = 3
 	## Dimensions of the synthetic room+hallway preview map.
@@ -355,6 +358,8 @@ class PreviewView extends Control:
 	var layout: StringName = &"tile"
 	## Autotile mask→[cell, flip_v] dict. Only used when layout == &"autotile_room".
 	var autotile_dict: Dictionary = {}
+	## The 4-bit mask of the currently selected slot. -1 = nothing selected.
+	var highlighted_mask: int = -1
 
 	func _ready() -> void:
 		_resize()
@@ -366,9 +371,10 @@ class PreviewView extends Control:
 		_resize()
 		queue_redraw()
 
-	func set_autotile_data(tex: Texture2D, at_dict: Dictionary) -> void:
+	func set_autotile_data(tex: Texture2D, at_dict: Dictionary, active_mask: int = -1) -> void:
 		texture = tex
 		autotile_dict = at_dict
+		highlighted_mask = active_mask
 		cells = []  # not used for autotile_room layout
 		layout = &"autotile_room"
 		_resize()
@@ -438,6 +444,37 @@ class PreviewView extends Control:
 						float(tile_px),
 						float(tile_px) * (-1.0 if flip_v else 1.0))
 					draw_texture_rect_region(texture, dest, src)
+				# Highlight border for the currently selected mask.
+				if mask == highlighted_mask:
+					draw_rect(dest, Color(1.0, 0.9, 0.0, 1.0), false, 2.0)
+
+	## Hit-test: return the 4-bit wall mask at pixel position `pos` inside
+	## the autotile_room preview, or -1 if `pos` is over a floor cell or
+	## outside the map.
+	func _mask_at_pos(pos: Vector2) -> int:
+		var dest_step: float = float(tile_px * PREVIEW_ZOOM)
+		var gx: int = int(floor(pos.x / dest_step))
+		var gy: int = int(floor(pos.y / dest_step))
+		if gx < 0 or gx >= _ROOM_W or gy < 0 or gy >= _ROOM_H:
+			return -1
+		if _ROOM_MAP[gy][gx] == 1:
+			return -1  # floor cell
+		var mask: int = 0
+		if _room_neighbour_is_floor(gx, gy - 1): mask |= 8  # N
+		if _room_neighbour_is_floor(gx, gy + 1): mask |= 4  # S
+		if _room_neighbour_is_floor(gx + 1, gy): mask |= 2  # E
+		if _room_neighbour_is_floor(gx - 1, gy): mask |= 1  # W
+		return mask if mask > 0 else -1
+
+	func _gui_input(ev: InputEvent) -> void:
+		if layout != &"autotile_room":
+			return
+		if ev is InputEventMouseButton and (ev as InputEventMouseButton).pressed \
+				and (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+			var m: int = _mask_at_pos((ev as InputEventMouseButton).position)
+			if m >= 0:
+				mask_clicked.emit(m)
+				accept_event()
 
 	func _draw() -> void:
 		var bg := Color(0.08, 0.08, 0.10)
@@ -720,6 +757,8 @@ func _build_right_pane() -> Control:
 	_preview = PreviewView.new()
 	_preview.tile_px = TILE_PX
 	_preview.gutter = TILE_GUTTER
+	_preview.mouse_filter = Control.MOUSE_FILTER_STOP
+	_preview.mask_clicked.connect(_on_preview_mask_clicked)
 	vb.add_child(_preview)
 	return vb
 
@@ -1058,6 +1097,26 @@ func _on_slot_pressed(idx: int) -> void:
 	if idx >= 0 and idx < _slots.size():
 		_status_label.text = "active slot: %s = %s" % [
 				_slots[idx]["label"], _str_cell(_get_slot_cell(idx))]
+
+
+## Called when the user clicks a wall cell in the autotile room preview.
+## Finds the slot whose mask matches and activates it.
+func _on_preview_mask_clicked(mask: int) -> void:
+	for i in _slots.size():
+		var slot: Dictionary = _slots[i]
+		# Autotile slot paths are [field, array_index, "cell"].
+		if slot["path"].size() < 2:
+			continue
+		var field: StringName = _current_mapping.get("field", &"")
+		if field == &"":
+			continue
+		var arr: Array = _mappings_resource.get(field)
+		var slot_idx: int = int(slot["path"][1])
+		if slot_idx < 0 or slot_idx >= arr.size():
+			continue
+		if int(arr[slot_idx].get("mask", -1)) == mask:
+			_on_slot_pressed(i)
+			return
 
 
 func _on_flip_toggled(pressed: bool, idx: int) -> void:
@@ -1405,7 +1464,17 @@ func _refresh_preview() -> void:
 				var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
 				var flip_v: bool = int(entry.get("flip", 0)) != 0
 				at_dict[mask] = [cell, flip_v]
-			_preview.set_autotile_data(tex, at_dict)
+			# Determine the active slot's mask so the preview can highlight it.
+			var active_mask: int = -1
+			if _active_slot >= 0 and _active_slot < _slots.size():
+				var active_path: Array = _slots[_active_slot]["path"]
+				# path is [field, array_index, "cell"]; lookup mask from the entry.
+				if active_path.size() >= 2:
+					var slot_arr: Array = _mappings_resource.get(field)
+					var slot_idx: int = int(active_path[1])
+					if slot_idx >= 0 and slot_idx < slot_arr.size():
+						active_mask = int(slot_arr[slot_idx].get("mask", -1))
+			_preview.set_autotile_data(tex, at_dict, active_mask)
 			return
 		_:
 			for i in _slots.size():
