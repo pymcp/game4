@@ -76,6 +76,20 @@ static func get_entry(kind: StringName) -> Dictionary:
 	return _data.get(String(kind), {})
 
 
+## Returns true if the creature is flagged as a boss.
+static func is_boss(kind: StringName) -> bool:
+	return bool(get_entry(kind).get("is_boss", false))
+
+
+## Returns the boss_adds array for a boss creature, or empty array.
+## Each entry: {creature: StringName, count: int}
+static func get_boss_adds(kind: StringName) -> Array:
+	var adds: Variant = get_entry(kind).get("boss_adds", null)
+	if adds is Array:
+		return adds
+	return []
+
+
 ## All registered creature kind ids.
 static func all_kinds() -> Array:
 	_ensure_loaded()

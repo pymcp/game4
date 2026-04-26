@@ -15,7 +15,7 @@ extends Resource
 ## Layout-shaping constants. Generators are free to ignore them but the
 ## defaults match Region-style 8-bit tile codes.
 const MIN_SIZE: int = 16
-const MAX_SIZE: int = 64
+const MAX_SIZE: int = 96
 
 @export var map_id: StringName = &""
 ## Source-of-truth for tile dimensions; tiles array length must equal
@@ -48,6 +48,13 @@ const MAX_SIZE: int = 64
 ## Cell on the parent floor where the player should reappear when they
 ## climb back up — this is the parent floor's STAIRS_DOWN cell.
 @export var parent_entrance_cell: Vector2i = Vector2i.ZERO
+## Each entry: {cell: Vector2i, floor_num: int} — placed by LabyrinthGenerator at dead ends.
+@export var chest_scatter: Array = []
+## Floor cells that make up the boss room area (used for boss-room floor decor overlay).
+@export var boss_room_cells: Array = []  # Array of Vector2i
+## Boss spawn data: {kind: StringName, cell: Vector2i, adds: [{kind, cell}]}.
+## Empty dict when this floor has no boss room.
+@export var boss_data: Dictionary = {}
 
 
 func _init() -> void:
