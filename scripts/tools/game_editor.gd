@@ -427,26 +427,36 @@ class PreviewView extends Control:
 					if _room_neighbour_is_floor(gx - 1, gy): mask |= 1  # W
 					if mask == 0:
 						draw_rect(dest, bg_dark, true)
-						continue
-					var entry: Variant = autotile_dict.get(mask, null)
-					if entry == null or not (entry is Array):
-						draw_rect(dest, bg_dark, true)
-						continue
-					var arr: Array = entry as Array
-					var atlas: Vector2i = arr[0]
-					var flip_v: bool = (arr.size() > 1 and arr[1])
-					var src_x: float = float(atlas.x * src_step)
-					var src_y: float = float(atlas.y * src_step)
-					# Flip vertically by using a negative-height src_rect, sampling
-					# the texture from bottom-to-top. This matches TRANSFORM_FLIP_V.
-					var src := Rect2(src_x,
-						src_y + (float(tile_px) if flip_v else 0.0),
-						float(tile_px),
-						float(tile_px) * (-1.0 if flip_v else 1.0))
-					draw_texture_rect_region(texture, dest, src)
-				# Highlight border for the currently selected mask.
-				if mask == highlighted_mask:
-					draw_rect(dest, Color(1.0, 0.9, 0.0, 1.0), false, 2.0)
+					else:
+						var entry: Variant = autotile_dict.get(mask, null)
+						if entry == null or not (entry is Array):
+							draw_rect(dest, bg_dark, true)
+						else:
+							var arr: Array = entry as Array
+							var atlas: Vector2i = arr[0]
+							var flip_v: bool = (arr.size() > 1 and arr[1])
+							var src := Rect2(
+								float(atlas.x * src_step),
+								float(atlas.y * src_step),
+								float(tile_px), float(tile_px))
+							if flip_v:
+								# draw_set_transform flips by anchoring at the
+								# bottom of the dest cell with negative Y scale.
+								var sc: float = float(dest_step) / float(tile_px)
+								draw_set_transform(
+									Vector2(dest.position.x,
+										dest.position.y + dest_step),
+									0.0, Vector2(sc, -sc))
+								draw_texture_rect_region(texture,
+									Rect2(Vector2.ZERO,
+										Vector2(float(tile_px), float(tile_px))),
+									src)
+								draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+							else:
+								draw_texture_rect_region(texture, dest, src)
+					# Highlight border for the currently selected mask.
+					if mask == highlighted_mask and highlighted_mask >= 0:
+						draw_rect(dest, Color(1.0, 0.9, 0.0, 1.0), false, 2.0)
 
 	## Hit-test: return the 4-bit wall mask at pixel position `pos` inside
 	## the autotile_room preview, or -1 if `pos` is over a floor cell or
