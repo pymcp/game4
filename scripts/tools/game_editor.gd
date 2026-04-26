@@ -429,21 +429,15 @@ class PreviewView extends Control:
 					var arr: Array = entry as Array
 					var atlas: Vector2i = arr[0]
 					var flip_v: bool = (arr.size() > 1 and arr[1])
-					var src := Rect2(
-						float(atlas.x * src_step),
-						float(atlas.y * src_step),
-						float(tile_px), float(tile_px))
-					if flip_v:
-						draw_set_transform(
-							Vector2(dest.position.x, dest.position.y + dest_step),
-							0.0,
-							Vector2(1.0, -1.0) * dest_step / float(tile_px))
-						draw_texture_rect_region(texture,
-							Rect2(Vector2.ZERO, Vector2(float(tile_px), float(tile_px))),
-							src)
-						draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-					else:
-						draw_texture_rect_region(texture, dest, src)
+					var src_x: float = float(atlas.x * src_step)
+					var src_y: float = float(atlas.y * src_step)
+					# Flip vertically by using a negative-height src_rect, sampling
+					# the texture from bottom-to-top. This matches TRANSFORM_FLIP_V.
+					var src := Rect2(src_x,
+						src_y + (float(tile_px) if flip_v else 0.0),
+						float(tile_px),
+						float(tile_px) * (-1.0 if flip_v else 1.0))
+					draw_texture_rect_region(texture, dest, src)
 
 	func _draw() -> void:
 		var bg := Color(0.08, 0.08, 0.10)
