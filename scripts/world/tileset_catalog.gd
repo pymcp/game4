@@ -238,26 +238,26 @@ static var DUNGEON_TERRAIN_CELLS: Dictionary = _DEFAULT_DUNGEON_TERRAIN
 #   bit 2 (4) = floor to south
 #   bit 1 (2) = floor to east
 #   bit 0 (1) = floor to west
-# Value is `[atlas_cell, flip_v]`. `flip_v` is true when the bottom-row
-# tile must be flipped vertically to render as a top-of-wall tile.
-# Mask 0 (no floor neighbour) is omitted — those cells are dead space and
-# rendered separately.
+# Value is `[atlas_cell, flip_v, flip_h]`.
+# `flip_v` is true when the tile must be flipped vertically (top-of-wall).
+# `flip_h` is true when the tile must be flipped horizontally (mirrored E/W).
+# Mask 0 (no floor neighbour) is omitted — dead space rendered separately.
 const _DEFAULT_DUNGEON_WALL_AUTOTILE: Dictionary = {
-	2:  [Vector2i(8, 7),  false],
-	1:  [Vector2i(10, 7), false],
-	8:  [Vector2i(9, 9),  false],
-	10: [Vector2i(8, 9),  false],
-	9:  [Vector2i(10, 9), false],
-	11: [Vector2i(9, 9),  false],
-	4:  [Vector2i(9, 9),  true],
-	6:  [Vector2i(8, 9),  true],
-	5:  [Vector2i(10, 9), true],
-	7:  [Vector2i(9, 9),  true],
-	3:  [Vector2i(9, 9),  false],
-	12: [Vector2i(9, 9),  false],
-	13: [Vector2i(10, 7), false],
-	14: [Vector2i(8, 7),  false],
-	15: [Vector2i(9, 9),  false],
+	2:  [Vector2i(8, 7),  false, false],
+	1:  [Vector2i(10, 7), false, false],
+	8:  [Vector2i(9, 9),  false, false],
+	10: [Vector2i(8, 9),  false, false],
+	9:  [Vector2i(10, 9), false, false],
+	11: [Vector2i(9, 9),  false, false],
+	4:  [Vector2i(9, 9),  true,  false],
+	6:  [Vector2i(8, 9),  true,  false],
+	5:  [Vector2i(10, 9), true,  false],
+	7:  [Vector2i(9, 9),  true,  false],
+	3:  [Vector2i(9, 9),  false, false],
+	12: [Vector2i(9, 9),  false, false],
+	13: [Vector2i(10, 7), false, false],
+	14: [Vector2i(8, 7),  false, false],
+	15: [Vector2i(9, 9),  false, false],
 }
 static var DUNGEON_WALL_AUTOTILE: Dictionary = _DEFAULT_DUNGEON_WALL_AUTOTILE
 
@@ -313,21 +313,21 @@ const _DEFAULT_LABYRINTH_TERRAIN: Dictionary = {
 static var LABYRINTH_TERRAIN_CELLS: Dictionary = _DEFAULT_LABYRINTH_TERRAIN
 
 const _DEFAULT_LABYRINTH_WALL_AUTOTILE: Dictionary = {
-	2:  [Vector2i(8, 7),  false],
-	1:  [Vector2i(10, 7), false],
-	8:  [Vector2i(9, 9),  false],
-	10: [Vector2i(8, 9),  false],
-	9:  [Vector2i(10, 9), false],
-	11: [Vector2i(9, 9),  false],
-	4:  [Vector2i(9, 9),  true],
-	6:  [Vector2i(8, 9),  true],
-	5:  [Vector2i(10, 9), true],
-	7:  [Vector2i(9, 9),  true],
-	3:  [Vector2i(9, 9),  false],
-	12: [Vector2i(9, 9),  false],
-	13: [Vector2i(10, 7), false],
-	14: [Vector2i(8, 7),  false],
-	15: [Vector2i(9, 9),  false],
+	2:  [Vector2i(8, 7),  false, false],
+	1:  [Vector2i(10, 7), false, false],
+	8:  [Vector2i(9, 9),  false, false],
+	10: [Vector2i(8, 9),  false, false],
+	9:  [Vector2i(10, 9), false, false],
+	11: [Vector2i(9, 9),  false, false],
+	4:  [Vector2i(9, 9),  true,  false],
+	6:  [Vector2i(8, 9),  true,  false],
+	5:  [Vector2i(10, 9), true,  false],
+	7:  [Vector2i(9, 9),  true,  false],
+	3:  [Vector2i(9, 9),  false, false],
+	12: [Vector2i(9, 9),  false, false],
+	13: [Vector2i(10, 7), false, false],
+	14: [Vector2i(8, 7),  false, false],
+	15: [Vector2i(9, 9),  false, false],
 }
 static var LABYRINTH_WALL_AUTOTILE: Dictionary = _DEFAULT_LABYRINTH_WALL_AUTOTILE
 

@@ -409,7 +409,12 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 			var arr: Array = entry
 			var atlas: Vector2i = arr[0]
 			var flip_v: bool = arr[1]
-			var alt: int = TileSetAtlasSource.TRANSFORM_FLIP_V if flip_v else 0
+			var flip_h: bool = arr.size() > 2 and arr[2]
+			var alt: int = 0
+			if flip_v:
+				alt |= TileSetAtlasSource.TRANSFORM_FLIP_V
+			if flip_h:
+				alt |= TileSetAtlasSource.TRANSFORM_FLIP_H
 			decoration.set_cell(cell, 0, atlas, alt)
 	# Floor border pass — overwrites Ground with edge/corner tiles where
 	# floor meets wall. No-op when border_cells are all the plain floor cell.

@@ -177,11 +177,12 @@ var _quest_feature_btns: Dictionary = {}     ## id → Button for status updates
 
 # Currently focused mapping entry (one of _MAPPINGS) and its expanded
 # slot list. Each slot is a Dictionary:
-#   label : String — display text in the row button
-#   path  : Array  — addressing path used by `_get_slot_cell` /
-#                    `_set_slot_cell` to read/write the resource
-#   flip  : int    — 0/1 for autotile entries, -1 for everything else
-#                    (autotile rows render an extra Flip checkbox)
+#   label  : String — display text in the row button
+#   path   : Array  — addressing path used by `_get_slot_cell` /
+#                     `_set_slot_cell` to read/write the resource
+#   flip_v : int    — 0/1 for autotile entries, -1 for everything else
+#   flip_h : int    — 0/1 for autotile entries, -1 for everything else
+#                     (autotile rows render Flip V and Flip H checkboxes)
 var _current_mapping: Dictionary = {}
 var _slots: Array = []
 var _active_slot: int = -1
@@ -438,18 +439,24 @@ class PreviewView extends Control:
 							var arr: Array = entry as Array
 							var atlas: Vector2i = arr[0]
 							var flip_v: bool = (arr.size() > 1 and arr[1])
+							var flip_h: bool = (arr.size() > 2 and arr[2])
 							var src := Rect2(
 								float(atlas.x * src_step),
 								float(atlas.y * src_step),
 								float(tile_px), float(tile_px))
-							if flip_v:
-								# draw_set_transform flips by anchoring at the
-								# bottom of the dest cell with negative Y scale.
-								var sc: float = float(dest_step) / float(tile_px)
+							var sc: float = float(dest_step) / float(tile_px)
+							if flip_v or flip_h:
+								# Use draw_set_transform for reliable flipping.
+								# Anchor: bottom-left for V, top-right for H,
+								# bottom-right for both.
+								var ox: float = dest_step if flip_h else 0.0
+								var oy: float = dest_step if flip_v else 0.0
 								draw_set_transform(
-									Vector2(dest.position.x,
-										dest.position.y + dest_step),
-									0.0, Vector2(sc, -sc))
+									Vector2(dest.position.x + ox,
+										dest.position.y + oy),
+									0.0,
+									Vector2(-sc if flip_h else sc,
+										-sc if flip_v else sc))
 								draw_texture_rect_region(texture,
 									Rect2(Vector2.ZERO,
 										Vector2(float(tile_px), float(tile_px))),
@@ -1037,9 +1044,10 @@ func _build_slots(entry: Dictionary) -> Array:
 				var ent: Dictionary = arr[i]
 				var mask: int = int(ent.get("mask", 0))
 				out.append({
-					"label": "mask=%2d  (%s)" % [mask, _autotile_mask_desc(mask)],
-					"path":  [field, i, "cell"],
-					"flip":  int(ent.get("flip", 0)),
+					"label":  "mask=%2d  (%s)" % [mask, _autotile_mask_desc(mask)],
+					"path":   [field, i, "cell"],
+					"flip_v": int(ent.get("flip_v", ent.get("flip", 0))),
+					"flip_h": int(ent.get("flip_h", 0)),
 				})
 	return out
 
@@ -1093,13 +1101,18 @@ func _rebuild_slot_ui() -> void:
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.pressed.connect(_on_slot_pressed.bind(i))
 		row.add_child(btn)
-		# Autotile rows get an inline Flip checkbox.
-		if int(slot["flip"]) >= 0:
-			var flip := CheckBox.new()
-			flip.text = "flip"
-			flip.button_pressed = (int(slot["flip"]) == 1)
-			flip.toggled.connect(_on_flip_toggled.bind(i))
-			row.add_child(flip)
+		# Autotile rows get Flip V and Flip H checkboxes.
+		if slot.get("flip_v", -1) >= 0:
+			var flip_v := CheckBox.new()
+			flip_v.text = "flip V"
+			flip_v.button_pressed = (int(slot["flip_v"]) == 1)
+			flip_v.toggled.connect(_on_flip_v_toggled.bind(i))
+			row.add_child(flip_v)
+			var flip_h := CheckBox.new()
+			flip_h.text = "flip H"
+			flip_h.button_pressed = (int(slot["flip_h"]) == 1)
+			flip_h.toggled.connect(_on_flip_h_toggled.bind(i))
+			row.add_child(flip_h)
 		_slot_root.add_child(row)
 
 
@@ -1132,22 +1145,36 @@ func _on_preview_mask_clicked(mask: int) -> void:
 			return
 
 
-func _on_flip_toggled(pressed: bool, idx: int) -> void:
+func _on_flip_v_toggled(pressed: bool, idx: int) -> void:
 	if idx < 0 or idx >= _slots.size():
 		return
 	var slot: Dictionary = _slots[idx]
-	if int(slot["flip"]) < 0:
+	if slot.get("flip_v", -1) < 0:
 		return
-	# Autotile slots store flip on the parent dict entry, addressed by the
-	# path's leaf key swap (cell → flip).
 	var path: Array = slot["path"].duplicate()
-	path[-1] = "flip"
-	var new_flip: int = 1 if pressed else 0
-	_set_at_path(path, new_flip)
-	slot["flip"] = new_flip
+	path[-1] = "flip_v"
+	var new_val: int = 1 if pressed else 0
+	_set_at_path(path, new_val)
+	slot["flip_v"] = new_val
 	_mark_dirty()
 	_refresh_marks()
-	_status_label.text = "%s flip = %d" % [slot["label"], new_flip]
+	_status_label.text = "%s flip_v = %d" % [slot["label"], new_val]
+
+
+func _on_flip_h_toggled(pressed: bool, idx: int) -> void:
+	if idx < 0 or idx >= _slots.size():
+		return
+	var slot: Dictionary = _slots[idx]
+	if slot.get("flip_h", -1) < 0:
+		return
+	var path: Array = slot["path"].duplicate()
+	path[-1] = "flip_h"
+	var new_val: int = 1 if pressed else 0
+	_set_at_path(path, new_val)
+	slot["flip_h"] = new_val
+	_mark_dirty()
+	_refresh_marks()
+	_status_label.text = "%s flip_h = %d" % [slot["label"], new_val]
 
 
 # ─── Cell click handler ────────────────────────────────────────────────
@@ -1476,8 +1503,9 @@ func _refresh_preview() -> void:
 				if mask < 0:
 					continue
 				var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
-				var flip_v: bool = int(entry.get("flip", 0)) != 0
-				at_dict[mask] = [cell, flip_v]
+				var flip_v: bool = int(entry.get("flip_v", entry.get("flip", 0))) != 0
+				var flip_h: bool = int(entry.get("flip_h", 0)) != 0
+				at_dict[mask] = [cell, flip_v, flip_h]
 			# Determine the active slot's mask so the preview can highlight it.
 			var active_mask: int = -1
 			if _active_slot >= 0 and _active_slot < _slots.size():

@@ -65,7 +65,9 @@ extends Resource
 ## Wall autotile lookup as a flat list. Each entry is a `Dictionary` with:
 ##   - `mask`: `int` (4-bit floor-neighbour mask: N=8, S=4, E=2, W=1)
 ##   - `cell`: `Vector2i`
-##   - `flip`: `int` (0 = no flip, 1 = vertical flip — used for top-of-wall)
+##   - `flip_v`: `int` (0/1) vertical flip — top-of-wall / south-facing tiles
+##   - `flip_h`: `int` (0/1) horizontal flip — mirrored east/west tiles
+##   (Old saves with a single `flip` key are read as `flip_v` for compatibility.)
 @export var dungeon_wall_autotile: Array[Dictionary] = []
 
 ## Decorative floor overlay cells (random ~10% on floor tiles).
@@ -223,21 +225,21 @@ static func default_mappings() -> TileMappings:
 	}
 
 	m.dungeon_wall_autotile = [
-		{"mask": 2,  "cell": Vector2i(8, 7),  "flip": 0},
-		{"mask": 1,  "cell": Vector2i(10, 7), "flip": 0},
-		{"mask": 8,  "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 10, "cell": Vector2i(8, 9),  "flip": 0},
-		{"mask": 9,  "cell": Vector2i(10, 9), "flip": 0},
-		{"mask": 11, "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 4,  "cell": Vector2i(9, 9),  "flip": 1},
-		{"mask": 6,  "cell": Vector2i(8, 9),  "flip": 1},
-		{"mask": 5,  "cell": Vector2i(10, 9), "flip": 1},
-		{"mask": 7,  "cell": Vector2i(9, 9),  "flip": 1},
-		{"mask": 3,  "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 12, "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 13, "cell": Vector2i(10, 7), "flip": 0},
-		{"mask": 14, "cell": Vector2i(8, 7),  "flip": 0},
-		{"mask": 15, "cell": Vector2i(9, 9),  "flip": 0},
+		{"mask": 2,  "cell": Vector2i(8, 7),  "flip_v": 0, "flip_h": 0},
+		{"mask": 1,  "cell": Vector2i(10, 7), "flip_v": 0, "flip_h": 0},
+		{"mask": 8,  "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 10, "cell": Vector2i(8, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 9,  "cell": Vector2i(10, 9), "flip_v": 0, "flip_h": 0},
+		{"mask": 11, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 4,  "cell": Vector2i(9, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 6,  "cell": Vector2i(8, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 5,  "cell": Vector2i(10, 9), "flip_v": 1, "flip_h": 0},
+		{"mask": 7,  "cell": Vector2i(9, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 3,  "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 12, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 13, "cell": Vector2i(10, 7), "flip_v": 0, "flip_h": 0},
+		{"mask": 14, "cell": Vector2i(8, 7),  "flip_v": 0, "flip_h": 0},
+		{"mask": 15, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
 	]
 
 	m.dungeon_floor_decor = [
@@ -259,21 +261,21 @@ static func default_mappings() -> TileMappings:
 	}
 
 	m.labyrinth_wall_autotile = [
-		{"mask": 2,  "cell": Vector2i(8, 7),  "flip": 0},
-		{"mask": 1,  "cell": Vector2i(10, 7), "flip": 0},
-		{"mask": 8,  "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 10, "cell": Vector2i(8, 9),  "flip": 0},
-		{"mask": 9,  "cell": Vector2i(10, 9), "flip": 0},
-		{"mask": 11, "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 4,  "cell": Vector2i(9, 9),  "flip": 1},
-		{"mask": 6,  "cell": Vector2i(8, 9),  "flip": 1},
-		{"mask": 5,  "cell": Vector2i(10, 9), "flip": 1},
-		{"mask": 7,  "cell": Vector2i(9, 9),  "flip": 1},
-		{"mask": 3,  "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 12, "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 13, "cell": Vector2i(10, 7), "flip": 0},
-		{"mask": 14, "cell": Vector2i(8, 7),  "flip": 0},
-		{"mask": 15, "cell": Vector2i(9, 9),  "flip": 0},
+		{"mask": 2,  "cell": Vector2i(8, 7),  "flip_v": 0, "flip_h": 0},
+		{"mask": 1,  "cell": Vector2i(10, 7), "flip_v": 0, "flip_h": 0},
+		{"mask": 8,  "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 10, "cell": Vector2i(8, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 9,  "cell": Vector2i(10, 9), "flip_v": 0, "flip_h": 0},
+		{"mask": 11, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 4,  "cell": Vector2i(9, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 6,  "cell": Vector2i(8, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 5,  "cell": Vector2i(10, 9), "flip_v": 1, "flip_h": 0},
+		{"mask": 7,  "cell": Vector2i(9, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 3,  "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 12, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 13, "cell": Vector2i(10, 7), "flip_v": 0, "flip_h": 0},
+		{"mask": 14, "cell": Vector2i(8, 7),  "flip_v": 0, "flip_h": 0},
+		{"mask": 15, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
 	]
 
 	m.labyrinth_floor_decor = [
@@ -333,8 +335,10 @@ func build_dungeon_wall_autotile_dict() -> Dictionary:
 		if mask < 0:
 			continue
 		var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
-		var flip_v: bool = int(entry.get("flip", 0)) != 0
-		out[mask] = [cell, flip_v]
+		# Support legacy single `flip` key (treated as flip_v).
+		var flip_v: bool = int(entry.get("flip_v", entry.get("flip", 0))) != 0
+		var flip_h: bool = int(entry.get("flip_h", 0)) != 0
+		out[mask] = [cell, flip_v, flip_h]
 	return out
 
 
@@ -346,6 +350,7 @@ func build_labyrinth_wall_autotile_dict() -> Dictionary:
 		if mask < 0:
 			continue
 		var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
-		var flip_v: bool = int(entry.get("flip", 0)) != 0
-		out[mask] = [cell, flip_v]
+		var flip_v: bool = int(entry.get("flip_v", entry.get("flip", 0))) != 0
+		var flip_h: bool = int(entry.get("flip_h", 0)) != 0
+		out[mask] = [cell, flip_v, flip_h]
 	return out
