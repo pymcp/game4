@@ -24,7 +24,7 @@ func test_deep_floor_entries() -> void:
 
 
 func test_boss_interval() -> void:
-	assert_eq(EncounterTableRegistry.get_boss_interval(&"labyrinth"), 5)
+	assert_eq(EncounterTableRegistry.get_boss_interval(&"labyrinth"), 2)
 
 
 func test_unknown_type_returns_empty() -> void:

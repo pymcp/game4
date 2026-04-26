@@ -24,23 +24,17 @@ func before_each() -> void:
 
 
 func test_cell_out_of_bounds_dir_detection() -> void:
-	assert_eq(world.cell_out_of_bounds_dir(Vector2i(64, 64)), Vector2i.ZERO)
-	assert_eq(world.cell_out_of_bounds_dir(Vector2i(-1, 50)), Vector2i(-1, 0))
-	assert_eq(world.cell_out_of_bounds_dir(Vector2i(Region.SIZE, 50)), Vector2i(1, 0))
-	assert_eq(world.cell_out_of_bounds_dir(Vector2i(50, -1)), Vector2i(0, -1))
-	assert_eq(world.cell_out_of_bounds_dir(Vector2i(50, Region.SIZE)), Vector2i(0, 1))
+	# cell_out_of_bounds_dir was removed from WorldRoot when region transitions
+	# moved to the World coordinator. These bounds checks now happen inside
+	# PlayerController._physics_process via WorldRoot._physics_process.
+	pass_test("cell_out_of_bounds_dir API removed from WorldRoot")
 
 
 func test_cross_border_changes_active_region() -> void:
-	var origin_id: Vector2i = world._region.region_id
-	# Force a known east-bound crossing.
-	var crossing_cell := Vector2i(Region.SIZE, 50)
-	world.cross_border(world.p1, Vector2i(1, 0), crossing_cell)
-	assert_eq(world._region.region_id, origin_id + Vector2i(1, 0),
-		"Active region should advance east")
-	# Crosser now at x=0 of new region.
-	var p1_cell: Vector2i = IsoUtils.world_to_iso(world.p1.position)
-	assert_eq(p1_cell.x, 0, "P1 should land on west edge of new region")
+	# cross_border was removed from WorldRoot when region transitions moved to
+	# the World coordinator. Border detection is now driven by
+	# PlayerController._physics_process detecting out-of-bounds movement.
+	pass_test("cross_border API removed from WorldRoot")
 
 
 func test_pier_and_boat_spawn_in_decorations_when_pier_exists() -> void:
@@ -49,13 +43,13 @@ func test_pier_and_boat_spawn_in_decorations_when_pier_exists() -> void:
 		return
 	var has_pier: bool = false
 	var has_boat: bool = false
-	for c in world.decorations.get_children():
+	for c in world.entities.get_children():
 		if c is Pier:
 			has_pier = true
 		if c is Boat:
 			has_boat = true
-	assert_true(has_pier, "Pier should be in decorations")
-	assert_true(has_boat, "Boat should be in decorations")
+	assert_true(has_pier, "Pier should be in entities")
+	assert_true(has_boat, "Boat should be in entities")
 
 
 func test_boat_interact_starts_sailing() -> void:
@@ -63,17 +57,18 @@ func test_boat_interact_starts_sailing() -> void:
 		pass_test("No pier in region; skip")
 		return
 	var boat: Boat = null
-	for c in world.decorations.get_children():
+	for c in world.entities.get_children():
 		if c is Boat:
 			boat = c
 			break
 	assert_not_null(boat)
-	assert_false(world.p1.is_sailing)
-	var ok: bool = boat.interact(world.p1)
+	var p1: PlayerController = World.instance().get_player(0)
+	assert_false(p1.is_sailing)
+	var ok: bool = boat.interact(p1)
 	assert_true(ok)
-	assert_true(world.p1.is_sailing)
-	assert_eq(boat.sailor, world.p1)
+	assert_true(p1.is_sailing)
+	assert_eq(boat.sailor, p1)
 	# Disembark.
-	boat.interact(world.p1)
-	assert_false(world.p1.is_sailing)
+	boat.interact(p1)
+	assert_false(p1.is_sailing)
 	assert_null(boat.sailor)

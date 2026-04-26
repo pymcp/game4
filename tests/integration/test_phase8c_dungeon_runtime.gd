@@ -67,14 +67,21 @@ func test_enter_interior_swaps_scene() -> void:
 	var entry: Dictionary = region.dungeon_entrances[0]
 	var cell: Vector2i = entry["cell"]
 	var map_id: StringName = MapManager.make_id(region.region_id, cell, 1)
-	MapManager.set_active(map_id, region.region_id, cell, 1)
-	# Game.gd handler routes to world.enter_interior synchronously via signal.
+	var interior: InteriorMap = MapManager.get_or_generate(map_id, region.region_id, cell, 1)
+	# Drive the full transition through World so WorldRoot.apply_view() runs.
+	var coord: World = World.instance()
+	coord.transition_player(0, &"dungeon", region, interior)
+	await get_tree().process_frame
+	# Update world ref — player moved to a new WorldRoot instance.
+	world = coord.get_player_world(0)
 	assert_true(world.is_in_interior(), "world should be in interior")
-	var interior: InteriorMap = world._active_interior
-	assert_not_null(interior)
-	# Players seated on entry cell.
-	var p1_cell: Vector2i = IsoUtils.world_to_iso(world.p1.position)
-	assert_eq(p1_cell, interior.entry_cell)
+	assert_not_null(world._interior)
+	# Player should be placed at the interior entry cell.
+	var p1: PlayerController = coord.get_player(0)
+	var p1_tile: Vector2i = Vector2i(
+			int(floor(p1.position.x / float(WorldConst.TILE_PX))),
+			int(floor(p1.position.y / float(WorldConst.TILE_PX))))
+	assert_eq(p1_tile, interior.entry_cell)
 
 
 func test_enter_then_exit_restores_overworld() -> void:

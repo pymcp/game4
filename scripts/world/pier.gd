@@ -60,14 +60,14 @@ func _rebuild() -> void:
 		var cell: Vector2i = step_iso * i
 		var spr := Sprite2D.new()
 		spr.texture = plate
-		spr.position = IsoUtils.iso_to_world(cell)
+		spr.position = Vector2(float(cell.x * WorldConst.TILE_PX), float(cell.y * WorldConst.TILE_PX))
 		spr.scale = Vector2(0.5, 0.5)
 		spr.offset = Vector2(0, -plate.get_height() * 0.25)
 		add_child(spr)
 		if rail != null and i > 0:
 			var r_spr := Sprite2D.new()
 			r_spr.texture = rail
-			r_spr.position = IsoUtils.iso_to_world(cell)
+			r_spr.position = Vector2(float(cell.x * WorldConst.TILE_PX), float(cell.y * WorldConst.TILE_PX))
 			r_spr.scale = Vector2(0.5, 0.5)
 			r_spr.offset = Vector2(0, -rail.get_height() * 0.25)
 			add_child(r_spr)

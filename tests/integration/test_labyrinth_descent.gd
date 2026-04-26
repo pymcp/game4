@@ -56,9 +56,10 @@ func test_labyrinth_has_chest_scatter() -> void:
 func test_boss_floor_has_boss_data() -> void:
 	var rid := Vector2i(0, 0)
 	var cell := Vector2i(50, 20)
-	var mid: StringName = MapManager.make_id(rid, cell, 5, &"labyrinth")
-	var m: InteriorMap = MapManager.get_or_generate(mid, rid, cell, 5, 64, &"labyrinth")
-	assert_false(m.boss_data.is_empty(), "Floor 5 labyrinth should have boss_data")
+	# boss_interval == 2, so floor 2 is the first boss floor (2 % 2 == 0).
+	var mid: StringName = MapManager.make_id(rid, cell, 2, &"labyrinth")
+	var m: InteriorMap = MapManager.get_or_generate(mid, rid, cell, 2, 64, &"labyrinth")
+	assert_false(m.boss_data.is_empty(), "Floor 2 labyrinth should have boss_data")
 	assert_true(m.boss_room_cells.size() >= 4, "Boss room should have cells")
 
 
