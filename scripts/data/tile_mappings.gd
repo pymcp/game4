@@ -71,6 +71,17 @@ extends Resource
 ## Decorative floor overlay cells (random ~10% on floor tiles).
 @export var dungeon_floor_decor: Array[Vector2i] = []
 
+## 3×3 border set for dungeon floor cells that are adjacent to walls.
+## NW/N/NE/W/C/E/SW/S/SE ordering (same as overworld_terrain_patches_3x3).
+## C (index 4) = fully-surrounded "open floor" cell.
+## Edge cells = floor meeting wall on one side.
+## Corner cells = floor meeting wall on two sides.
+## Leave empty to disable floor borders (falls back to plain floor cell).
+@export var dungeon_floor_border_3x3: Array[Vector2i] = []
+
+## Same as dungeon_floor_border_3x3 for labyrinth floors.
+@export var labyrinth_floor_border_3x3: Array[Vector2i] = []
+
 ## Two side-by-side cells for the cave-mouth marker on the overworld.
 ## Length 2, ordered [west, east].
 @export var dungeon_entrance_pair: Array[Vector2i] = []
@@ -274,6 +285,21 @@ static func default_mappings() -> TileMappings:
 	]
 
 	m.labyrinth_chest_pair = [Vector2i(2, 10), Vector2i(3, 10)]
+
+	# Floor-border 3×3: NW N NE / W C E / SW S SE.
+	# Defaults to all pointing at the plain floor cell (9,7) — border is
+	# invisible until the user picks actual transition tiles in the Game Editor.
+	m.dungeon_floor_border_3x3 = [
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # NW  N  NE
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # W   C   E
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # SW  S  SE
+	]
+
+	m.labyrinth_floor_border_3x3 = [
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # NW  N  NE
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # W   C   E
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # SW  S  SE
+	]
 
 	m.dungeon_doorframe = {
 		&"TL":  Vector2i(5, 8),

@@ -273,6 +273,23 @@ const _DEFAULT_DUNGEON_FLOOR_DECOR: Array = [
 ]
 static var DUNGEON_FLOOR_DECOR_CELLS: Array = _DEFAULT_DUNGEON_FLOOR_DECOR
 
+## 3×3 border cells for dungeon floors (NW…SE, index 4 = open centre).
+## All default to the plain floor cell until TileMappings overrides them.
+const _DEFAULT_DUNGEON_FLOOR_BORDER: Array = [
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+]
+static var DUNGEON_FLOOR_BORDER_3X3: Array = _DEFAULT_DUNGEON_FLOOR_BORDER
+
+## Same as DUNGEON_FLOOR_BORDER_3X3 for labyrinth.
+const _DEFAULT_LABYRINTH_FLOOR_BORDER: Array = [
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+]
+static var LABYRINTH_FLOOR_BORDER_3X3: Array = _DEFAULT_LABYRINTH_FLOOR_BORDER
+
 # Cave entrance marker on the overworld. Two side-by-side dungeon-sheet
 # tiles (anchor cell + cell to the east) drawn on a Sprite-based marker.
 const _DEFAULT_DUNGEON_ENTRANCE: Array = [
@@ -447,6 +464,11 @@ static func _ensure_loaded() -> void:
 		LABYRINTH_FLOOR_DECOR_CELLS = m.labyrinth_floor_decor
 	if m.labyrinth_chest_pair.size() >= 2:
 		LABYRINTH_CHEST_CELLS = m.labyrinth_chest_pair
+	# Exact 9 required — partial arrays would mis-index the NW…SE lookup.
+	if m.dungeon_floor_border_3x3.size() == 9:
+		DUNGEON_FLOOR_BORDER_3X3 = m.dungeon_floor_border_3x3
+	if m.labyrinth_floor_border_3x3.size() == 9:
+		LABYRINTH_FLOOR_BORDER_3X3 = m.labyrinth_floor_border_3x3
 	if not m.dungeon_doorframe.is_empty():
 		DUNGEON_DOORFRAME = m.dungeon_doorframe
 	# Interior
