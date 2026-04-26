@@ -1,0 +1,15 @@
+{
+	"labyrinth": {
+		"boss_interval": 5,
+		"enemy_tables": [
+			{"creature": "goblin",       "min_floor": 1,  "max_floor": 4,  "weight": 10},
+			{"creature": "bat",          "min_floor": 1,  "max_floor": 8,  "weight": 8},
+			{"creature": "slime",        "min_floor": 1,  "max_floor": 10, "weight": 6},
+			{"creature": "skeleton",     "min_floor": 3,  "max_floor": 99, "weight": 10},
+			{"creature": "goblin",       "min_floor": 5,  "max_floor": 99, "weight": 14},
+			{"creature": "ogre",         "min_floor": 8,  "max_floor": 99, "weight": 8},
+			{"creature": "fire_elemental","min_floor": 12, "max_floor": 99, "weight": 6},
+			{"creature": "ice_elemental", "min_floor": 15, "max_floor": 99, "weight": 6}
+		]
+	}
+}

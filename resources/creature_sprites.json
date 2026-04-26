@@ -254,6 +254,22 @@
 		"attack_speed": 1.2,
 		"attack_range_tiles": 1.0
 	},
+	"slime_king": {
+		"anchor": [12, 20],
+		"footprint": [2, 2],
+		"region": [0, 32, 48, 32],
+		"scale": [1.6, 1.6],
+		"sheet": "res://assets/tiles/roguelike/monster_animals2.png",
+		"tint": [0.3, 0.9, 0.3, 1.0],
+		"attack_style": "slam",
+		"attack_damage": 6,
+		"attack_speed": 2.0,
+		"attack_range_tiles": 1.5,
+		"is_boss": true,
+		"boss_adds": [
+			{"creature": "slime", "count": 3}
+		]
+	},
 	"wolf": {
 		"anchor": [
 			8,
