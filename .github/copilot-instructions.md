@@ -111,6 +111,25 @@ See [docs/conventions.md](docs/conventions.md) for full details. Critical points
 - `CraftingRegistry` (`scripts/data/crafting_registry.gd`) — Static cache. 4 default recipes (sword, helmet, armor, boots). Scans `resources/recipes/` for `.tres` overrides.
 - `CraftingPanel` lives inside `InventoryScreen` as a tab.
 
+## Labyrinth System
+
+A second interior type (`&"labyrinth"`) alongside the BSP dungeon. Gauntlet-style Prim's maze with 2-4 tile wide corridors.
+
+### Key classes
+- `LabyrinthGenerator` (`scripts/world/labyrinth_generator.gd`) — Prim's maze generator. `generate(seed, w, h, floor_num)`. Boss room on `floor_num % boss_interval == 0`. Dead-end junctions → `chest_scatter`.
+- `TreasureChest` (`scripts/entities/treasure_chest.gd`) — Interactive chest. Player presses `p*_interact` when in range. Rolls loot via `ChestLootRegistry`, spawns `LootPickup` nodes. Stays in world as open sprite after looting.
+- `EncounterTableRegistry` (`scripts/data/encounter_table_registry.gd`) — Depth-scaled enemy tables. `get_weighted_list(dungeon_type, floor_num)`, `get_boss_interval(dungeon_type)`. Editable in GameEditor → "Encounter Tables (Depth)".
+- `ChestLootRegistry` (`scripts/data/chest_loot_registry.gd`) — Depth-tiered chest loot. `roll_loot(floor_num, rng)`. Editable in GameEditor → "Chest Loot (Depth Tiers)".
+
+### Labyrinth entrances
+- Overworld: auto-placed (~35% of land regions) in `WorldGenerator._place_labyrinth_entrances()`. Purple tint `Color(1.2, 0.6, 1.4)` on the entrance marker.
+- F9 debug: spawns a labyrinth entrance at `(4, 0)` tile offset from player (right of house entrance).
+
+### Boss floors
+- Every `boss_interval` floors (default 5, configurable per dungeon type in `encounter_tables.json`).
+- Boss creature: entry in `creature_sprites.json` with `"is_boss": true` and `"boss_adds": [{creature, count}]`.
+- Editable via GameEditor → "Creatures" → boss section at bottom of creature detail.
+
 ## Mining System
 Mining is **tile-based** — decorations on `TileMapLayer`, not `Sprite2D` nodes. `WorldRoot` owns all mining state.
 
