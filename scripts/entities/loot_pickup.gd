@@ -13,6 +13,7 @@ class_name LootPickup
 const _PICKUP_RADIUS_TILES: float = 0.7
 const _BOB_AMP_PX: float = 2.0
 const _BOB_HZ: float = 1.0
+const _LABEL_FONT_SIZE: int = 5
 
 @export var item_id: StringName = &""
 @export var count: int = 1
@@ -20,6 +21,7 @@ const _BOB_HZ: float = 1.0
 var _world: WorldRoot = null
 var _consumed: bool = false
 var _visual: Sprite2D = null
+var _label: Label = null
 var _bob_t: float = 0.0
 
 
@@ -44,22 +46,18 @@ func _ready() -> void:
 	_visual.modulate = Color(1, 1, 1, 0.95)
 	add_child(_visual)
 	# Small floating label so players know what they're picking up.
+	# Persists until the item is collected, then floats away on pickup.
 	var display_name: String = def.display_name if def != null else String(item_id)
-	var label := Label.new()
-	label.name = "Label"
-	label.text = "%s x%d" % [display_name, count]
-	label.position = Vector2(-30, -38)
-	label.add_theme_font_size_override("font_size", 7)
+	_label = Label.new()
+	_label.name = "Label"
+	_label.text = "%s x%d" % [display_name, count]
+	_label.position = Vector2(-20, -24)
+	_label.add_theme_font_size_override("font_size", _LABEL_FONT_SIZE)
 	# Tint label by rarity.
 	if def != null and def.rarity != ItemDefinition.Rarity.COMMON:
 		var rc: Color = ItemDefinition.RARITY_COLORS.get(def.rarity, Color.WHITE)
-		label.add_theme_color_override("font_color", rc)
-	add_child(label)
-	# Scroll label up and fade it out over 2 seconds.
-	var tw := create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(label, "position:y", label.position.y - 20.0, 2.0)
-	tw.tween_property(label, "modulate:a", 0.0, 2.0)
+		_label.add_theme_color_override("font_color", rc)
+	add_child(_label)
 
 
 func _process(delta: float) -> void:
@@ -81,6 +79,16 @@ func _process(delta: float) -> void:
 		var leftover: int = p.inventory.add(item_id, count)
 		if leftover < count:
 			_consumed = true
+			# Float the label away before freeing.
+			if _label != null:
+				_label.reparent(get_parent())
+				_label.global_position = global_position + Vector2(-20, -24)
+				var tw := _label.create_tween()
+				tw.set_parallel(true)
+				tw.tween_property(_label, "position:y", _label.position.y - 20.0, 0.8)
+				tw.tween_property(_label, "modulate:a", 0.0, 0.8)
+				tw.chain().tween_callback(_label.queue_free)
+				_label = null
 			queue_free()
 			Sfx.play(&"loot_pickup")
 			return
