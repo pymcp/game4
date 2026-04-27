@@ -50,6 +50,7 @@ const _RANGED_REACH_PX: float = 80.0   ## native-px max range for ranged auto-at
 var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
 var inventory: Inventory = Inventory.new()
 var equipment: Equipment = Equipment.new()
+var caravan_data: CaravanData = null
 var max_health: int = 10
 var health: int = 10
 var is_sailing: bool = false
