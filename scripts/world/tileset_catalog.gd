@@ -489,35 +489,45 @@ static var _runes_ts: TileSet = null
 static func overworld() -> TileSet:
 	_ensure_loaded()
 	if _overworld_ts == null:
-		_overworld_ts = _build(_sheet_for_view(&"overworld"), OVERWORLD_TERRAIN_CELLS)
+		var sheet := _sheet_for_view(&"overworld")
+		_overworld_ts = _build(sheet, OVERWORLD_TERRAIN_CELLS, false,
+				SheetSpecReader.read(sheet))
 	return _overworld_ts
 
 
 static func city() -> TileSet:
 	_ensure_loaded()
 	if _city_ts == null:
-		_city_ts = _build(_sheet_for_view(&"city"), CITY_TERRAIN_CELLS)
+		var sheet := _sheet_for_view(&"city")
+		_city_ts = _build(sheet, CITY_TERRAIN_CELLS, false,
+				SheetSpecReader.read(sheet))
 	return _city_ts
 
 
 static func dungeon() -> TileSet:
 	_ensure_loaded()
 	if _dungeon_ts == null:
-		_dungeon_ts = _build(_sheet_for_view(&"dungeon"), DUNGEON_TERRAIN_CELLS, true)
+		var sheet := _sheet_for_view(&"dungeon")
+		_dungeon_ts = _build(sheet, DUNGEON_TERRAIN_CELLS, true,
+				SheetSpecReader.read(sheet))
 	return _dungeon_ts
 
 
 static func labyrinth() -> TileSet:
 	_ensure_loaded()
 	if _labyrinth_ts == null:
-		_labyrinth_ts = _build(get_sheet_path(&"labyrinth_terrain"), LABYRINTH_TERRAIN_CELLS, true)
+		var sheet := get_sheet_path(&"labyrinth_terrain")
+		_labyrinth_ts = _build(sheet, LABYRINTH_TERRAIN_CELLS, true,
+				SheetSpecReader.read(sheet))
 	return _labyrinth_ts
 
 
 static func interior() -> TileSet:
 	_ensure_loaded()
 	if _interior_ts == null:
-		_interior_ts = _build(_sheet_for_view(&"interior"), INTERIOR_TERRAIN_CELLS)
+		var sheet := _sheet_for_view(&"interior")
+		_interior_ts = _build(sheet, INTERIOR_TERRAIN_CELLS, false,
+				SheetSpecReader.read(sheet))
 	return _interior_ts
 
 
@@ -528,17 +538,25 @@ static func runes() -> TileSet:
 	return _runes_ts
 
 
+## Returns the scale factor a TileMapLayer should use for the given sheet path.
+## 1.0 for standard 16 px sheets (no-op); 0.25 for 64 px sheets, etc.
+static func scale_for_sheet(sheet_path: String) -> float:
+	return SheetSpecReader.read(sheet_path).scale_factor()
+
+
 # ─── Builders ──────────────────────────────────────────────────────────
 
 static func _build(png_path: String, terrain_cells: Dictionary,
-		is_dungeon: bool = false) -> TileSet:
+		is_dungeon: bool = false, spec: SheetSpec = null) -> TileSet:
+	if spec == null:
+		spec = SheetSpec.new()
 	var tex: Texture2D = load(png_path) as Texture2D
 	if tex == null:
 		push_error("TilesetCatalog: missing texture %s" % png_path)
 		return TileSet.new()
 
 	var ts := TileSet.new()
-	ts.tile_size = Vector2i(WorldConst.TILE_PX, WorldConst.TILE_PX)
+	ts.tile_size = Vector2i(spec.tile_px, spec.tile_px)
 	# Two custom data layers: terrain (StringName) + walkable (bool).
 	ts.add_custom_data_layer(0)
 	ts.set_custom_data_layer_name(0, CUSTOM_TERRAIN)
@@ -549,15 +567,15 @@ static func _build(png_path: String, terrain_cells: Dictionary,
 
 	var src := TileSetAtlasSource.new()
 	src.texture = tex
-	src.texture_region_size = Vector2i(WorldConst.TILE_PX, WorldConst.TILE_PX)
+	src.texture_region_size = Vector2i(spec.tile_px, spec.tile_px)
 	src.margins = Vector2i(0, 0)
-	src.separation = Vector2i(WorldConst.TILESHEET_MARGIN, WorldConst.TILESHEET_MARGIN)
+	src.separation = Vector2i(spec.margin_px, spec.margin_px)
 	# IMPORTANT: source must be added to the TileSet BEFORE creating tiles
 	# in it, otherwise `TileData.set_custom_data` errors with "tile_set is null".
 	ts.add_source(src, 0)
 
-	var cols: int = (tex.get_width() + WorldConst.TILESHEET_MARGIN) / (WorldConst.TILE_PX + WorldConst.TILESHEET_MARGIN)
-	var rows: int = (tex.get_height() + WorldConst.TILESHEET_MARGIN) / (WorldConst.TILE_PX + WorldConst.TILESHEET_MARGIN)
+	var cols: int = (tex.get_width() + spec.margin_px) / spec.stride
+	var rows: int = (tex.get_height() + spec.margin_px) / spec.stride
 
 	# Reverse-lookup: cell -> terrain name (so we can stamp custom data).
 	# Terrain values are `Array[Vector2i]` (canonical first, then variants);

@@ -616,6 +616,18 @@ func _resolve_sheet(entry: Dictionary) -> String:
 	return entry["sheet"]
 
 
+## Read `_spec.json` for `sheet_path` and push `tile_px` to SheetView and
+## PreviewView before calling `set_sheet()`. Must be called BEFORE
+## `set_sheet()` so the gutter auto-detection inside that method uses the
+## correct tile size.
+func _sync_views_from_spec(sheet_path: String) -> void:
+	var spec: SheetSpec = SheetSpecReader.read(sheet_path)
+	_sheet_view.tile_px = spec.tile_px
+	if _preview != null:
+		_preview.tile_px = spec.tile_px
+		_preview.gutter = spec.margin_px
+
+
 func _sync_sheet_selector(new_path: String) -> void:
 	if _sheet_selector == null:
 		return
@@ -651,6 +663,7 @@ func _on_sheet_selected(idx: int) -> void:
 	# Reload the atlas view with the new sheet.
 	var tex: Texture2D = load(new_sheet) as Texture2D
 	if tex != null:
+		_sync_views_from_spec(new_sheet)
 		_sheet_view.set_sheet(tex)
 		_refresh_marks()
 		if _mineable_editor != null and _mineable_editor.visible:
@@ -855,6 +868,7 @@ func _select_mapping(entry: Dictionary) -> void:
 	if tex == null:
 		_status_label.text = "ERROR: sheet not found at %s" % sheet_path
 		return
+	_sync_views_from_spec(sheet_path)
 	_sheet_view.set_sheet(tex)
 
 	if kind == &"mineable":

@@ -19,6 +19,14 @@ extends RefCounted
 
 const _SHEET: Texture2D = preload("res://assets/characters/roguelike/characters_sheet.png")
 
+## Cached SheetSpec so we only read the sidecar file once.
+static var _spec: SheetSpec = null
+
+static func _get_spec() -> SheetSpec:
+	if _spec == null:
+		_spec = SheetSpecReader.read(CharacterAtlas.SHEET_PATH)
+	return _spec
+
 static func build(opts: Dictionary) -> Node2D:
 	var root := Node2D.new()
 	root.name = "Character"
@@ -47,17 +55,21 @@ static func build(opts: Dictionary) -> Node2D:
 	return root
 
 static func _make_sprite(name: String, cell: Vector2i, height_tiles: int) -> Sprite2D:
+	var spec := _get_spec()
 	var spr := Sprite2D.new()
 	spr.name = name
 	spr.texture = _SHEET
 	spr.region_enabled = true
 	spr.region_rect = Rect2(
-		cell.x * CharacterAtlas.STRIDE,
-		cell.y * CharacterAtlas.STRIDE,
-		CharacterAtlas.TILE,
-		CharacterAtlas.TILE * height_tiles + (height_tiles - 1),
+		cell.x * spec.stride,
+		cell.y * spec.stride,
+		spec.tile_px,
+		spec.tile_px * height_tiles + spec.margin_px * (height_tiles - 1),
 	)
 	spr.centered = true
+	var sf: float = spec.scale_factor()
+	if sf != 1.0:
+		spr.scale = Vector2(sf, sf)
 	return spr
 
 static func _torso_cell(opts: Dictionary) -> Vector2i:
