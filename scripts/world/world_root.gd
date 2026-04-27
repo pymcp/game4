@@ -1670,7 +1670,35 @@ func debug_spawn_interactables_for(player: PlayerController) -> void:
 	_debug_place_entrance(&"labyrinth", &"labyrinth_enter",
 			centre, Vector2i(4, 0), "labyrinth entrance")
 	_debug_spawn_encounters(centre)
+	debug_drop_all_items_for(player)
 	_debug_refresh_labels()
+
+
+## Drop one LootPickup per item in ItemRegistry in a grid below the player.
+## Items are arranged in rows of 10, starting 4 tiles south of the player.
+func debug_drop_all_items_for(player: PlayerController) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	const COLS: int = 10
+	const ROW_OFFSET: int = 4   # tiles south of player before first row
+	var tile_px: float = float(WorldConst.TILE_PX)
+	var centre: Vector2i = Vector2i(
+		int(floor(player.position.x / tile_px)),
+		int(floor(player.position.y / tile_px)))
+	var ids: Array = ItemRegistry.all_ids()
+	ids.sort()
+	var i: int = 0
+	for id in ids:
+		var col: int = i % COLS
+		var row: int = i / COLS
+		var cell := Vector2i(centre.x - COLS / 2 + col, centre.y + ROW_OFFSET + row)
+		var pickup := LootPickup.new()
+		pickup.item_id = id
+		pickup.count = 1
+		pickup.position = (Vector2(cell) + Vector2(0.5, 0.5)) * tile_px
+		entities.add_child(pickup)
+		i += 1
+	print("[F9] dropped %d items in a grid south of player" % ids.size())
 
 
 

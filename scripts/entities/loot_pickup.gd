@@ -37,15 +37,23 @@ func _ready() -> void:
 	_visual = Sprite2D.new()
 	_visual.name = "Visual"
 	var def: ItemDefinition = ItemRegistry.get_item(item_id) if item_id != &"" else null
-	var equip_tex: Texture2D = _try_equipment_sprite(def)
-	if equip_tex != null:
-		_visual.texture = equip_tex
-	elif def != null and def.icon != null:
+	# Prefer hires icon; fall back to character-sheet equipment sprite, then placeholder.
+	if def != null and def.icon != null:
 		_visual.texture = def.icon
 	else:
-		var img := Image.create(48, 48, false, Image.FORMAT_RGBA8)
-		img.fill(Color(0.95, 0.85, 0.25, 1.0))
-		_visual.texture = ImageTexture.create_from_image(img)
+		var equip_tex: Texture2D = _try_equipment_sprite(def)
+		if equip_tex != null:
+			_visual.texture = equip_tex
+		else:
+			var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+			img.fill(Color(0.95, 0.85, 0.25, 1.0))
+			_visual.texture = ImageTexture.create_from_image(img)
+	# Scale the visual so it always occupies exactly one tile (TILE_PX world pixels).
+	if _visual.texture != null:
+		var tex_w: int = _visual.texture.get_width()
+		if tex_w > 0:
+			var s: float = float(WorldConst.TILE_PX) / float(tex_w)
+			_visual.scale = Vector2(s, s)
 	_visual.modulate = Color(1, 1, 1, 0.95)
 	add_child(_visual)
 	# Small floating label — persists until the item is collected.

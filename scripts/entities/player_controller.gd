@@ -146,10 +146,24 @@ func _update_weapon_sprite() -> void:
 	if item_id == &"":
 		_weapon_sprite.visible = false
 		return
+	# Prefer hires icon when available (AtlasTexture from hires spritesheet).
+	var def: ItemDefinition = ItemRegistry.get_item(item_id)
+	if def != null and def.icon != null:
+		_weapon_sprite.region_enabled = false
+		_weapon_sprite.texture = def.icon
+		var tex_w: int = def.icon.get_width()
+		var s: float = float(WorldConst.TILE_PX) / float(tex_w) if tex_w > 0 else 1.0
+		_weapon_sprite.scale = Vector2(s, s)
+		_weapon_sprite.visible = true
+		return
+	# Fall back to character-sheet weapon atlas.
 	var region: Rect2 = WeaponAtlas.region_for(item_id)
 	if region.size == Vector2.ZERO:
 		_weapon_sprite.visible = false
 		return
+	_weapon_sprite.texture = load(CharacterAtlas.SHEET_PATH) as Texture2D
+	_weapon_sprite.region_enabled = true
+	_weapon_sprite.scale = Vector2.ONE
 	_weapon_sprite.region_rect = region
 	_weapon_sprite.visible = true
 
