@@ -56,6 +56,10 @@ var _move_time: float = 0.0
 var _facing_left: bool = false
 var _last_owner_x: float = NAN
 var _attack_target: NPC = null
+## Hostile scan throttle.
+const HOSTILE_SCAN_INTERVAL: float = 0.3
+var _hostile_scan_timer: float = 0.0
+var _cached_hostile_result: Dictionary = {"npc": null, "dist_tiles": INF}
 
 
 func _ready() -> void:
@@ -90,7 +94,7 @@ static func find_nearest_hostile(world: WorldRoot, from: Vector2,
 		return {"npc": null, "dist_tiles": INF}
 	var max_px: float = max_tiles * float(WorldConst.TILE_PX)
 	var max_d2: float = max_px * max_px
-	for n in world.entities.get_children():
+	for n in world.get_hostile_cache():
 		if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
 			var d2: float = from.distance_squared_to((n as NPC).position)
 			if d2 < best_d2 and d2 <= max_d2:
@@ -114,9 +118,14 @@ func _process(delta: float) -> void:
 	var dist_owner_px: float = position.distance_to(owner_pos)
 	var dist_owner_tiles: float = dist_owner_px / float(WorldConst.TILE_PX)
 
-	var enemy: Dictionary = find_nearest_hostile(_world, position,
-			BARK_RANGE_TILES if species == PET_SPECIES_DOG \
-					else PetState.ATTACK_DETECT_TILES)
+	# Throttle hostile scan — re-evaluate every HOSTILE_SCAN_INTERVAL seconds.
+	_hostile_scan_timer -= delta
+	if _hostile_scan_timer <= 0.0:
+		_cached_hostile_result = find_nearest_hostile(_world, position,
+				BARK_RANGE_TILES if species == PET_SPECIES_DOG \
+						else PetState.ATTACK_DETECT_TILES)
+		_hostile_scan_timer = HOSTILE_SCAN_INTERVAL
+	var enemy: Dictionary = _cached_hostile_result
 	var dist_enemy_tiles: float = enemy["dist_tiles"]
 	# PetState.decide_state thresholds attack at ATTACK_DETECT_TILES (4.0).
 	# The dog's bark reaches further (5.0), so lie to the state machine
@@ -230,7 +239,7 @@ func _do_bark() -> void:
 	var range_px: float = BARK_RANGE_TILES * float(WorldConst.TILE_PX)
 	var range_d2: float = range_px * range_px
 	if _world != null:
-		for n in _world.entities.get_children():
+		for n in _world.get_hostile_cache():
 			if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
 				var eff_range: float = range_px + (n as NPC).hitbox_radius
 				if position.distance_squared_to((n as NPC).position) <= eff_range * eff_range:

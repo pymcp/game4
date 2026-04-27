@@ -65,15 +65,47 @@ extends Resource
 ## Wall autotile lookup as a flat list. Each entry is a `Dictionary` with:
 ##   - `mask`: `int` (4-bit floor-neighbour mask: N=8, S=4, E=2, W=1)
 ##   - `cell`: `Vector2i`
-##   - `flip`: `int` (0 = no flip, 1 = vertical flip — used for top-of-wall)
+##   - `flip_v`: `int` (0/1) vertical flip — top-of-wall / south-facing tiles
+##   - `flip_h`: `int` (0/1) horizontal flip — mirrored east/west tiles
+##   (Old saves with a single `flip` key are read as `flip_v` for compatibility.)
 @export var dungeon_wall_autotile: Array[Dictionary] = []
 
 ## Decorative floor overlay cells (random ~10% on floor tiles).
 @export var dungeon_floor_decor: Array[Vector2i] = []
 
+## 3×3 border set for dungeon floor cells that are adjacent to walls.
+## NW/N/NE/W/C/E/SW/S/SE ordering (same as overworld_terrain_patches_3x3).
+## C (index 4) = fully-surrounded "open floor" cell.
+## Edge cells = floor meeting wall on one side.
+## Corner cells = floor meeting wall on two sides.
+## Leave empty to disable floor borders (falls back to plain floor cell).
+@export var dungeon_floor_border_3x3: Array[Vector2i] = []
+
+## Same as dungeon_floor_border_3x3 for labyrinth floors.
+@export var labyrinth_floor_border_3x3: Array[Vector2i] = []
+
 ## Two side-by-side cells for the cave-mouth marker on the overworld.
 ## Length 2, ordered [west, east].
 @export var dungeon_entrance_pair: Array[Vector2i] = []
+
+## Two side-by-side labyrinth entrance marker tiles on the dungeon sheet.
+## Painted on the overworld to mark labyrinth entrances with a tint.
+@export var labyrinth_entrance_pair: Array[Vector2i] = []
+
+## Two atlas cells for the treasure chest sprite: [closed_cell, open_cell].
+## Used by TreasureChest._refresh_sprite() to draw the correct frame.
+@export var labyrinth_chest_pair: Array[Vector2i] = []
+
+## Single-cell labyrinth terrains (floor / door / water).
+## `StringName → Array[Vector2i]` (element [0] is canonical).
+## Defaults to dungeon tiles until overridden via the Game Editor.
+@export var labyrinth_terrain: Dictionary = {}
+
+## Wall autotile lookup for the labyrinth (same schema as dungeon_wall_autotile).
+@export var labyrinth_wall_autotile: Array[Dictionary] = []
+
+## Decorative floor overlay cells for the labyrinth (~10% on floor tiles).
+@export var labyrinth_floor_decor: Array[Vector2i] = []
 
 ## Wooden doorframe cells for dungeon corridor exits, addressed by named
 ## slot. Slots: `&"TL"`, `&"TOP"`, `&"TR"`, `&"LW"`, `&"LW2"`, `&"RW"`,
@@ -95,6 +127,13 @@ extends Resource
 ## The Game Editor sheet selector writes this; TilesetCatalog reads it.
 ## Missing keys fall back to the built-in default sheet.
 @export var sheet_overrides: Dictionary = {}
+
+# ─── Entity sprites ──────────────────────────────────────────────────────
+
+## Atlas cell(s) for the caravan wagon sprite on the overworld sheet.
+## Element [0] is the cell used by the Caravan entity. Editable via the
+## Game Editor → "Caravan Wagon" category.
+@export var caravan_wagon: Array[Vector2i] = []
 
 
 ## Returns a fresh `TileMappings` populated with the historical default
@@ -193,21 +232,21 @@ static func default_mappings() -> TileMappings:
 	}
 
 	m.dungeon_wall_autotile = [
-		{"mask": 2,  "cell": Vector2i(8, 7),  "flip": 0},
-		{"mask": 1,  "cell": Vector2i(10, 7), "flip": 0},
-		{"mask": 8,  "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 10, "cell": Vector2i(8, 9),  "flip": 0},
-		{"mask": 9,  "cell": Vector2i(10, 9), "flip": 0},
-		{"mask": 11, "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 4,  "cell": Vector2i(9, 9),  "flip": 1},
-		{"mask": 6,  "cell": Vector2i(8, 9),  "flip": 1},
-		{"mask": 5,  "cell": Vector2i(10, 9), "flip": 1},
-		{"mask": 7,  "cell": Vector2i(9, 9),  "flip": 1},
-		{"mask": 3,  "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 12, "cell": Vector2i(9, 9),  "flip": 0},
-		{"mask": 13, "cell": Vector2i(10, 7), "flip": 0},
-		{"mask": 14, "cell": Vector2i(8, 7),  "flip": 0},
-		{"mask": 15, "cell": Vector2i(9, 9),  "flip": 0},
+		{"mask": 2,  "cell": Vector2i(8, 7),  "flip_v": 0, "flip_h": 0},
+		{"mask": 1,  "cell": Vector2i(10, 7), "flip_v": 0, "flip_h": 0},
+		{"mask": 8,  "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 10, "cell": Vector2i(8, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 9,  "cell": Vector2i(10, 9), "flip_v": 0, "flip_h": 0},
+		{"mask": 11, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 4,  "cell": Vector2i(9, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 6,  "cell": Vector2i(8, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 5,  "cell": Vector2i(10, 9), "flip_v": 1, "flip_h": 0},
+		{"mask": 7,  "cell": Vector2i(9, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 3,  "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 12, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 13, "cell": Vector2i(10, 7), "flip_v": 0, "flip_h": 0},
+		{"mask": 14, "cell": Vector2i(8, 7),  "flip_v": 0, "flip_h": 0},
+		{"mask": 15, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
 	]
 
 	m.dungeon_floor_decor = [
@@ -219,6 +258,57 @@ static func default_mappings() -> TileMappings:
 	]
 
 	m.dungeon_entrance_pair = [Vector2i(24, 4), Vector2i(25, 4)]
+
+	# Labyrinth terrain defaults — same floor tile as dungeon until the user
+	# overrides it in the Game Editor → Labyrinth sections.
+	# Note: &"door" and &"water" are intentionally absent — LabyrinthGenerator
+	# never emits those codes, so they are not used by the painting path.
+	m.labyrinth_terrain = {
+		&"floor": [Vector2i(9, 7)],
+	}
+
+	m.labyrinth_wall_autotile = [
+		{"mask": 2,  "cell": Vector2i(8, 7),  "flip_v": 0, "flip_h": 0},
+		{"mask": 1,  "cell": Vector2i(10, 7), "flip_v": 0, "flip_h": 0},
+		{"mask": 8,  "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 10, "cell": Vector2i(8, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 9,  "cell": Vector2i(10, 9), "flip_v": 0, "flip_h": 0},
+		{"mask": 11, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 4,  "cell": Vector2i(9, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 6,  "cell": Vector2i(8, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 5,  "cell": Vector2i(10, 9), "flip_v": 1, "flip_h": 0},
+		{"mask": 7,  "cell": Vector2i(9, 9),  "flip_v": 1, "flip_h": 0},
+		{"mask": 3,  "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 12, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+		{"mask": 13, "cell": Vector2i(10, 7), "flip_v": 0, "flip_h": 0},
+		{"mask": 14, "cell": Vector2i(8, 7),  "flip_v": 0, "flip_h": 0},
+		{"mask": 15, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
+	]
+
+	m.labyrinth_floor_decor = [
+		Vector2i(12, 10), Vector2i(13, 10),
+		Vector2i(12, 11), Vector2i(13, 11),
+		Vector2i(12, 12), Vector2i(13, 12),
+		Vector2i(12, 13), Vector2i(13, 13),
+		Vector2i(12, 14), Vector2i(13, 14),
+	]
+
+	m.labyrinth_chest_pair = [Vector2i(2, 10), Vector2i(3, 10)]
+
+	# Floor-border 3×3: NW N NE / W C E / SW S SE.
+	# Defaults to all pointing at the plain floor cell (9,7) — border is
+	# invisible until the user picks actual transition tiles in the Game Editor.
+	m.dungeon_floor_border_3x3 = [
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # NW  N  NE
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # W   C   E
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # SW  S  SE
+	]
+
+	m.labyrinth_floor_border_3x3 = [
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # NW  N  NE
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # W   C   E
+		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # SW  S  SE
+	]
 
 	m.dungeon_doorframe = {
 		&"TL":  Vector2i(5, 8),
@@ -239,6 +329,8 @@ static func default_mappings() -> TileMappings:
 	# No sheet overrides by default — everything uses the historical sheets.
 	m.sheet_overrides = {}
 
+	m.caravan_wagon = [Vector2i(10, 0)]
+
 	return m
 
 
@@ -252,6 +344,22 @@ func build_dungeon_wall_autotile_dict() -> Dictionary:
 		if mask < 0:
 			continue
 		var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
-		var flip_v: bool = int(entry.get("flip", 0)) != 0
-		out[mask] = [cell, flip_v]
+		# Support legacy single `flip` key (treated as flip_v).
+		var flip_v: bool = int(entry.get("flip_v", entry.get("flip", 0))) != 0
+		var flip_h: bool = int(entry.get("flip_h", 0)) != 0
+		out[mask] = [cell, flip_v, flip_h]
+	return out
+
+
+## Same as build_dungeon_wall_autotile_dict but for labyrinth_wall_autotile.
+func build_labyrinth_wall_autotile_dict() -> Dictionary:
+	var out: Dictionary = {}
+	for entry in labyrinth_wall_autotile:
+		var mask: int = int(entry.get("mask", -1))
+		if mask < 0:
+			continue
+		var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
+		var flip_v: bool = int(entry.get("flip_v", entry.get("flip", 0))) != 0
+		var flip_h: bool = int(entry.get("flip_h", 0)) != 0
+		out[mask] = [cell, flip_v, flip_h]
 	return out

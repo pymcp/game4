@@ -1,0 +1,37 @@
+{
+	"tiers": [
+		{
+			"min_floor": 1,
+			"max_floor": 5,
+			"loot": [
+				{"id": "wood",     "weight": 10, "min": 2, "max": 5},
+				{"id": "stone",    "weight": 10, "min": 2, "max": 5},
+				{"id": "iron_ore", "weight": 8,  "min": 1, "max": 2},
+				{"id": "fiber",    "weight": 8,  "min": 2, "max": 4},
+				{"id": "wooden_sword", "weight": 4, "min": 1, "max": 1}
+			]
+		},
+		{
+			"min_floor": 6,
+			"max_floor": 15,
+			"loot": [
+				{"id": "iron_ore",  "weight": 10, "min": 2, "max": 4},
+				{"id": "copper_ore","weight": 8,  "min": 1, "max": 3},
+				{"id": "gold_ore",  "weight": 4,  "min": 1, "max": 2},
+				{"id": "iron_dagger","weight": 6, "min": 1, "max": 1},
+				{"id": "helmet",    "weight": 3,  "min": 1, "max": 1}
+			]
+		},
+		{
+			"min_floor": 16,
+			"max_floor": 999,
+			"loot": [
+				{"id": "gold_ore",  "weight": 12, "min": 2, "max": 4},
+				{"id": "iron_dagger","weight": 8, "min": 1, "max": 1},
+				{"id": "helmet",    "weight": 6,  "min": 1, "max": 1},
+				{"id": "armor",     "weight": 5,  "min": 1, "max": 1},
+				{"id": "sword",     "weight": 4,  "min": 1, "max": 1}
+			]
+		}
+	]
+}

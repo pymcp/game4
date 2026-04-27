@@ -50,6 +50,7 @@ const _RANGED_REACH_PX: float = 80.0   ## native-px max range for ranged auto-at
 var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
 var inventory: Inventory = Inventory.new()
 var equipment: Equipment = Equipment.new()
+var caravan_data: CaravanData = null
 var max_health: int = 10
 var health: int = 10
 var is_sailing: bool = false
@@ -60,7 +61,10 @@ var stats: Dictionary = {
 	&"speed": 0, &"defense": 0, &"dexterity": 0,
 }
 var fog_of_war: FogOfWarData = FogOfWarData.new()
+## Per-floor fog-of-war for dungeons and labyrinths (keyed by map_id).
+var dungeon_fog: DungeonFogData = DungeonFogData.new()
 var world_map: WorldMapView = null
+var dungeon_map: DungeonMapView = null
 ## Active status effects: Array of {effect_id: StringName, remaining: float, tick_timer: float}
 var active_effects: Array = []
 
@@ -130,6 +134,29 @@ func set_world(w: WorldRoot) -> void:
 	_world = w
 	if _action_vfx != null:
 		_action_vfx._world = w
+
+
+## Transfer all crafting ingredient items from this player's inventory to the
+## caravan's shared inventory. Called automatically when the player transitions
+## back to the overworld. No-op if caravan_data is null.
+func trigger_overworld_transfer() -> void:
+	if caravan_data == null or caravan_data.inventory == null:
+		return
+	# Collect items to transfer first — do not modify slots during iteration.
+	var to_transfer: Array = []
+	for i in inventory.size:
+		var slot = inventory.slots[i]
+		if slot == null:
+			continue
+		var item_id: StringName = slot["id"]
+		var def: ItemDefinition = ItemRegistry.get_item(item_id)
+		if def != null and def.is_crafting_ingredient:
+			to_transfer.append({"id": item_id, "count": slot["count"]})
+	# Transfer collected items.
+	for entry in to_transfer:
+		var removed: int = inventory.remove(entry["id"], entry["count"])
+		if removed > 0:
+			caravan_data.inventory.add(entry["id"], removed)
 
 
 func _update_weapon_sprite() -> void:
@@ -325,17 +352,32 @@ func _physics_process(delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	var map_action: StringName = &"p1_worldmap" if player_id == 0 else &"p2_worldmap"
-	if event.is_action_pressed(map_action) and world_map != null:
-		world_map.toggle()
+	if event.is_action_pressed(map_action):
+		if _world != null and _world.is_in_interior():
+			if dungeon_map != null:
+				dungeon_map.toggle()
+		else:
+			if world_map != null:
+				world_map.toggle()
 		get_viewport().set_input_as_handled()
 
 
 func _on_fog_reveal_timer_timeout() -> void:
-	if _world == null or _world._region == null:
+	if _world == null:
 		return
-	fog_of_war.reveal(_world._region.region_id, _cell_of(position), 10)
-	if world_map != null and world_map.visible:
-		world_map.mark_dirty()
+	if _world.is_in_interior():
+		var interior: InteriorMap = _world._interior
+		if interior == null:
+			return
+		dungeon_fog.reveal(interior.map_id, _cell_of(position), 10)
+		if dungeon_map != null and dungeon_map.visible:
+			dungeon_map.mark_dirty()
+	else:
+		if _world._region == null:
+			return
+		fog_of_war.reveal(_world._region.region_id, _cell_of(position), 10)
+		if world_map != null and world_map.visible:
+			world_map.mark_dirty()
 
 
 func _step(delta_pos: Vector2) -> void:

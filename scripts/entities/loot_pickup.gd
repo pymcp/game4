@@ -13,6 +13,10 @@ class_name LootPickup
 const _PICKUP_RADIUS_TILES: float = 0.7
 const _BOB_AMP_PX: float = 2.0
 const _BOB_HZ: float = 1.0
+## Font size in screen pixels. The label is counter-scaled by 1/RENDER_ZOOM
+## so it renders crisp at native resolution instead of being pixel-upscaled
+## with the rest of the world.
+const _LABEL_FONT_SIZE: int = 14
 
 @export var item_id: StringName = &""
 @export var count: int = 1
@@ -20,6 +24,7 @@ const _BOB_HZ: float = 1.0
 var _world: WorldRoot = null
 var _consumed: bool = false
 var _visual: Sprite2D = null
+var _label: Label = null
 var _bob_t: float = 0.0
 
 
@@ -43,23 +48,24 @@ func _ready() -> void:
 		_visual.texture = ImageTexture.create_from_image(img)
 	_visual.modulate = Color(1, 1, 1, 0.95)
 	add_child(_visual)
-	# Small floating label so players know what they're picking up.
+	# Small floating label — persists until the item is collected.
+	# Counter-scaled by 1/RENDER_ZOOM so text renders at native resolution
+	# rather than being pixel-upscaled with the 4× world scale.
 	var display_name: String = def.display_name if def != null else String(item_id)
-	var label := Label.new()
-	label.name = "Label"
-	label.text = "%s x%d" % [display_name, count]
-	label.position = Vector2(-30, -38)
-	label.add_theme_font_size_override("font_size", 7)
+	_label = Label.new()
+	_label.name = "Label"
+	_label.text = "%s x%d" % [display_name, count]
+	var inv_zoom: float = 1.0 / float(WorldConst.RENDER_ZOOM)
+	_label.scale = Vector2(inv_zoom, inv_zoom)
+	# Position is in world pixels. At 0.25 scale the text appears 6 world px
+	# left and 10 world px above the item = 24 px left, 40 px above on screen.
+	_label.position = Vector2(-6, -10)
+	_label.add_theme_font_size_override("font_size", _LABEL_FONT_SIZE)
 	# Tint label by rarity.
 	if def != null and def.rarity != ItemDefinition.Rarity.COMMON:
 		var rc: Color = ItemDefinition.RARITY_COLORS.get(def.rarity, Color.WHITE)
-		label.add_theme_color_override("font_color", rc)
-	add_child(label)
-	# Scroll label up and fade it out over 2 seconds.
-	var tw := create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(label, "position:y", label.position.y - 20.0, 2.0)
-	tw.tween_property(label, "modulate:a", 0.0, 2.0)
+		_label.add_theme_color_override("font_color", rc)
+	add_child(_label)
 
 
 func _process(delta: float) -> void:
@@ -81,6 +87,17 @@ func _process(delta: float) -> void:
 		var leftover: int = p.inventory.add(item_id, count)
 		if leftover < count:
 			_consumed = true
+			# Float the label away before freeing.
+			if _label != null:
+				_label.reparent(get_parent())
+				_label.global_position = global_position + Vector2(-6, -10) * float(WorldConst.RENDER_ZOOM)
+				var tw := _label.create_tween()
+				tw.set_parallel(true)
+				# Float 5 world px up (= 20 screen px) over 0.8 s.
+				tw.tween_property(_label, "position:y", _label.position.y - 5.0, 0.8)
+				tw.tween_property(_label, "modulate:a", 0.0, 0.8)
+				tw.chain().tween_callback(_label.queue_free)
+				_label = null
 			queue_free()
 			Sfx.play(&"loot_pickup")
 			return

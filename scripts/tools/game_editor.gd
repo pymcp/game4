@@ -60,9 +60,30 @@ const _MAPPINGS: Array = [
 	{"id": &"dungeon_floor_decor",               "label": "Dungeon floor decor",
 	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	 "field": &"dungeon_floor_decor",               "kind": &"flat_list"},
+	{"id": &"dungeon_floor_border_3x3",        "label": "Dungeon floor border (3\u00d73)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"dungeon_floor_border_3x3",     "kind": &"patch3_flat"},
 	{"id": &"dungeon_entrance_pair",             "label": "Dungeon entrance marker pair",
 	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	 "field": &"dungeon_entrance_pair",             "kind": &"flat_list"},
+	{"id": &"labyrinth_entrance_pair",           "label": "Labyrinth entrance marker pair",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"labyrinth_entrance_pair",            "kind": &"flat_list"},
+	{"id": &"labyrinth_terrain",                "label": "Labyrinth single-cell terrains",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"labyrinth_terrain",             "kind": &"list"},
+	{"id": &"labyrinth_wall_autotile",          "label": "Labyrinth wall autotile (16-mask)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"labyrinth_wall_autotile",       "kind": &"autotile"},
+	{"id": &"labyrinth_floor_decor",            "label": "Labyrinth floor decor",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"labyrinth_floor_decor",         "kind": &"flat_list"},
+	{"id": &"labyrinth_floor_border_3x3",      "label": "Labyrinth floor border (3\u00d73)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"labyrinth_floor_border_3x3",   "kind": &"patch3_flat"},
+	{"id": &"labyrinth_chest_pair",             "label": "Labyrinth chest (closed + open)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"labyrinth_chest_pair",          "kind": &"flat_list"},
 	{"id": &"dungeon_doorframe",                 "label": "Dungeon doorframe (named slots)",
 	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	 "field": &"dungeon_doorframe",                 "kind": &"named"},
@@ -105,6 +126,15 @@ const _MAPPINGS: Array = [
 	{"id": &"balance_overview",                    "label": "Balance Overview",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_balance_overview",                 "kind": &"balance_overview"},
+	{"id": &"encounter_table_editor",            "label": "Encounter Tables (Depth)",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_encounter_table_editor",           "kind": &"encounter_table_editor"},
+	{"id": &"chest_loot_editor",                  "label": "Chest Loot (Depth Tiers)",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"_chest_loot_editor",               "kind": &"chest_loot_editor"},
+	{"id": &"caravan_wagon",                       "label": "Caravan Wagon sprite",
+	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
+	 "field": &"caravan_wagon",                      "kind": &"flat_list"},
 	{"id": &"asset_browser",                      "label": "Import from Kenney",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_asset_browser",                    "kind": &"asset_browser"},
@@ -138,6 +168,8 @@ var _shop_editor: ShopEditor = null
 var _quest_editor: QuestEditor = null
 var _dialogue_editor: DialogueEditor = null
 var _balance_overview: BalanceOverview = null
+var _encounter_table_editor: EncounterTableEditor = null
+var _chest_loot_editor: ChestLootEditor = null
 
 # Quest TODO panel state.
 var _quest_panel: ScrollContainer = null
@@ -148,11 +180,12 @@ var _quest_feature_btns: Dictionary = {}     ## id → Button for status updates
 
 # Currently focused mapping entry (one of _MAPPINGS) and its expanded
 # slot list. Each slot is a Dictionary:
-#   label : String — display text in the row button
-#   path  : Array  — addressing path used by `_get_slot_cell` /
-#                    `_set_slot_cell` to read/write the resource
-#   flip  : int    — 0/1 for autotile entries, -1 for everything else
-#                    (autotile rows render an extra Flip checkbox)
+#   label  : String — display text in the row button
+#   path   : Array  — addressing path used by `_get_slot_cell` /
+#                     `_set_slot_cell` to read/write the resource
+#   flip_v : int    — 0/1 for autotile entries, -1 for everything else
+#   flip_h : int    — 0/1 for autotile entries, -1 for everything else
+#                     (autotile rows render Flip V and Flip H checkboxes)
 var _current_mapping: Dictionary = {}
 var _slots: Array = []
 var _active_slot: int = -1
@@ -203,12 +236,15 @@ class SheetView extends Control:
 			var fits_gutter_h: bool = ((h + 1) % step == 0) or (h % step == 0)
 			var fits_no_gutter_w: bool = (w % tile_px) == 0
 			var fits_no_gutter_h: bool = (h % tile_px) == 0
-			if fits_gutter_w and fits_gutter_h:
+			# Width is a stronger signal than height (more tiles = more constraints).
+			# If width cleanly fits the gutter pattern, trust it regardless of height,
+			# so a sheet with a slightly-off height doesn't revert everything to step=16.
+			if fits_gutter_w:
 				gutter = 1
 			elif fits_no_gutter_w and fits_no_gutter_h:
 				gutter = 0
 			else:
-				gutter = 0  # fallback for odd sizes
+				gutter = 1  # default: Kenney roguelike sheets always use 1-px gutter
 		_resize_to_texture()
 		queue_redraw()
 
@@ -298,14 +334,39 @@ class SheetView extends Control:
 #   "patch3" — render exactly 9 cells in a 3×3 (NW..SE), centred in the
 #              preview frame.
 class PreviewView extends Control:
+	## Emitted when the user clicks a wall cell in the autotile_room preview.
+	signal mask_clicked(mask: int)
+
 	const FRAME: int = 5
 	const PREVIEW_ZOOM: int = 3
+	## Dimensions of the synthetic room+hallway preview map.
+	const _ROOM_W: int = 11
+	const _ROOM_H: int = 11
+	## 0 = wall, 1 = floor. 5×4 room (cols 1-5, rows 1-4) with 2-wide
+	## corridor (cols 2-3, rows 5-8) exiting south.
+	const _ROOM_MAP: Array = [
+		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	]
 
 	var texture: Texture2D = null
 	var tile_px: int = 16
 	var gutter: int = 1
 	var cells: Array = []
 	var layout: StringName = &"tile"
+	## Autotile mask→[cell, flip_v] dict. Only used when layout == &"autotile_room".
+	var autotile_dict: Dictionary = {}
+	## The 4-bit mask of the currently selected slot. -1 = nothing selected.
+	var highlighted_mask: int = -1
 
 	func _ready() -> void:
 		_resize()
@@ -317,15 +378,133 @@ class PreviewView extends Control:
 		_resize()
 		queue_redraw()
 
+	func set_autotile_data(tex: Texture2D, at_dict: Dictionary, active_mask: int = -1) -> void:
+		texture = tex
+		autotile_dict = at_dict
+		highlighted_mask = active_mask
+		cells = []  # not used for autotile_room layout
+		layout = &"autotile_room"
+		_resize()
+		queue_redraw()
+
 	func _resize() -> void:
-		custom_minimum_size = Vector2(
-				float(FRAME * tile_px * PREVIEW_ZOOM),
-				float(FRAME * tile_px * PREVIEW_ZOOM))
+		if layout == &"autotile_room":
+			custom_minimum_size = Vector2(
+					float(_ROOM_W * tile_px * PREVIEW_ZOOM),
+					float(_ROOM_H * tile_px * PREVIEW_ZOOM))
+		else:
+			custom_minimum_size = Vector2(
+					float(FRAME * tile_px * PREVIEW_ZOOM),
+					float(FRAME * tile_px * PREVIEW_ZOOM))
+
+	func _room_neighbour_is_floor(gx: int, gy: int) -> bool:
+		if gx < 0 or gx >= _ROOM_W or gy < 0 or gy >= _ROOM_H:
+			return false
+		return _ROOM_MAP[gy][gx] == 1
+
+	func _draw_autotile_room(src_step: int, dest_step: float) -> void:
+		var bg_dark := Color(0.08, 0.08, 0.10)
+		# Pick a floor tile: prefer mask=15 (all floors), else first entry.
+		var floor_atlas := Vector2i(0, 0)
+		var floor_entry: Variant = autotile_dict.get(15, null)
+		if floor_entry is Array and (floor_entry as Array).size() >= 1:
+			floor_atlas = (floor_entry as Array)[0]
+		elif not autotile_dict.is_empty():
+			var first: Variant = autotile_dict.values()[0]
+			if first is Array and (first as Array).size() >= 1:
+				floor_atlas = (first as Array)[0]
+		for gy in _ROOM_H:
+			for gx in _ROOM_W:
+				var dest := Rect2(
+					Vector2(float(gx) * dest_step, float(gy) * dest_step),
+					Vector2(dest_step, dest_step))
+				if _ROOM_MAP[gy][gx] == 1:
+					# Floor cell.
+					var src := Rect2(
+						float(floor_atlas.x * src_step),
+						float(floor_atlas.y * src_step),
+						float(tile_px), float(tile_px))
+					draw_texture_rect_region(texture, dest, src)
+				else:
+					# Wall cell — compute 4-bit mask.
+					var mask: int = 0
+					if _room_neighbour_is_floor(gx, gy - 1): mask |= 8  # N
+					if _room_neighbour_is_floor(gx, gy + 1): mask |= 4  # S
+					if _room_neighbour_is_floor(gx + 1, gy): mask |= 2  # E
+					if _room_neighbour_is_floor(gx - 1, gy): mask |= 1  # W
+					if mask == 0:
+						draw_rect(dest, bg_dark, true)
+					else:
+						var entry: Variant = autotile_dict.get(mask, null)
+						if entry == null or not (entry is Array):
+							draw_rect(dest, bg_dark, true)
+						else:
+							var arr: Array = entry as Array
+							var atlas: Vector2i = arr[0]
+							var flip_v: bool = (arr.size() > 1 and arr[1])
+							var flip_h: bool = (arr.size() > 2 and arr[2])
+							var src := Rect2(
+								float(atlas.x * src_step),
+								float(atlas.y * src_step),
+								float(tile_px), float(tile_px))
+							var sc: float = float(dest_step) / float(tile_px)
+							if flip_v or flip_h:
+								# Use draw_set_transform for reliable flipping.
+								# Anchor: bottom-left for V, top-right for H,
+								# bottom-right for both.
+								var ox: float = dest_step if flip_h else 0.0
+								var oy: float = dest_step if flip_v else 0.0
+								draw_set_transform(
+									Vector2(dest.position.x + ox,
+										dest.position.y + oy),
+									0.0,
+									Vector2(-sc if flip_h else sc,
+										-sc if flip_v else sc))
+								draw_texture_rect_region(texture,
+									Rect2(Vector2.ZERO,
+										Vector2(float(tile_px), float(tile_px))),
+									src)
+								draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+							else:
+								draw_texture_rect_region(texture, dest, src)
+					# Highlight border for the currently selected mask.
+					if mask == highlighted_mask and highlighted_mask >= 0:
+						draw_rect(dest, Color(1.0, 0.9, 0.0, 1.0), false, 2.0)
+
+	## Hit-test: return the 4-bit wall mask at pixel position `pos` inside
+	## the autotile_room preview, or -1 if `pos` is over a floor cell or
+	## outside the map.
+	func _mask_at_pos(pos: Vector2) -> int:
+		var dest_step: float = float(tile_px * PREVIEW_ZOOM)
+		var gx: int = int(floor(pos.x / dest_step))
+		var gy: int = int(floor(pos.y / dest_step))
+		if gx < 0 or gx >= _ROOM_W or gy < 0 or gy >= _ROOM_H:
+			return -1
+		if _ROOM_MAP[gy][gx] == 1:
+			return -1  # floor cell
+		var mask: int = 0
+		if _room_neighbour_is_floor(gx, gy - 1): mask |= 8  # N
+		if _room_neighbour_is_floor(gx, gy + 1): mask |= 4  # S
+		if _room_neighbour_is_floor(gx + 1, gy): mask |= 2  # E
+		if _room_neighbour_is_floor(gx - 1, gy): mask |= 1  # W
+		return mask if mask > 0 else -1
+
+	func _gui_input(ev: InputEvent) -> void:
+		if layout != &"autotile_room":
+			return
+		if ev is InputEventMouseButton and (ev as InputEventMouseButton).pressed \
+				and (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+			var m: int = _mask_at_pos((ev as InputEventMouseButton).position)
+			if m >= 0:
+				mask_clicked.emit(m)
+				accept_event()
 
 	func _draw() -> void:
 		var bg := Color(0.08, 0.08, 0.10)
 		draw_rect(Rect2(Vector2.ZERO, custom_minimum_size), bg, true)
-		if texture == null or cells.is_empty():
+		if texture == null:
+			return
+		if layout != &"autotile_room" and cells.is_empty():
 			return
 		var dest_step: float = float(tile_px * PREVIEW_ZOOM)
 		var src_step: int = tile_px + gutter
@@ -344,6 +523,10 @@ class PreviewView extends Control:
 							float(cell.x * src_step), float(cell.y * src_step),
 							float(tile_px), float(tile_px))
 					draw_texture_rect_region(texture, dest, src)
+			&"autotile_room":
+				if autotile_dict.is_empty():
+					return
+				_draw_autotile_room(src_step, dest_step)
 			_:
 				# "tile" — fill the FRAME×FRAME grid by cycling cells.
 				for y in FRAME:
@@ -597,6 +780,8 @@ func _build_right_pane() -> Control:
 	_preview = PreviewView.new()
 	_preview.tile_px = TILE_PX
 	_preview.gutter = TILE_GUTTER
+	_preview.mouse_filter = Control.MOUSE_FILTER_STOP
+	_preview.mask_clicked.connect(_on_preview_mask_clicked)
 	vb.add_child(_preview)
 	return vb
 
@@ -756,6 +941,20 @@ func _select_mapping(entry: Dictionary) -> void:
 		_status_label.text = "Balance overview"
 		return
 
+	if kind == &"encounter_table_editor":
+		_show_encounter_table_editor()
+		_hide_all_editors_except(&"encounter_table_editor")
+		_refresh_marks()
+		_status_label.text = "Editing encounter tables"
+		return
+
+	if kind == &"chest_loot_editor":
+		_show_chest_loot_editor()
+		_hide_all_editors_except(&"chest_loot_editor")
+		_refresh_marks()
+		_status_label.text = "Editing chest loot tiers"
+		return
+
 	if kind == &"asset_browser":
 		_show_asset_browser()
 		_hide_all_editors_except(&"asset_browser")
@@ -782,7 +981,7 @@ func _select_mapping(entry: Dictionary) -> void:
 func _build_slots(entry: Dictionary) -> Array:
 	var field: StringName = entry["field"]
 	var kind: StringName = entry["kind"]
-	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser" or kind == &"loot_table_editor" or kind == &"crafting_editor" or kind == &"armor_set_editor" or kind == &"biome_editor" or kind == &"shop_editor" or kind == &"quest_editor" or kind == &"dialogue_editor" or kind == &"balance_overview":
+	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser" or kind == &"loot_table_editor" or kind == &"crafting_editor" or kind == &"armor_set_editor" or kind == &"biome_editor" or kind == &"shop_editor" or kind == &"quest_editor" or kind == &"dialogue_editor" or kind == &"balance_overview" or kind == &"encounter_table_editor" or kind == &"chest_loot_editor":
 		return []  # These use their own editors.
 	var value: Variant = _mappings_resource.get(field)
 	var out: Array = []
@@ -848,9 +1047,10 @@ func _build_slots(entry: Dictionary) -> Array:
 				var ent: Dictionary = arr[i]
 				var mask: int = int(ent.get("mask", 0))
 				out.append({
-					"label": "mask=%2d  (%s)" % [mask, _autotile_mask_desc(mask)],
-					"path":  [field, i, "cell"],
-					"flip":  int(ent.get("flip", 0)),
+					"label":  "mask=%2d  (%s)" % [mask, _autotile_mask_desc(mask)],
+					"path":   [field, i, "cell"],
+					"flip_v": int(ent.get("flip_v", ent.get("flip", 0))),
+					"flip_h": int(ent.get("flip_h", 0)),
 				})
 	return out
 
@@ -904,13 +1104,18 @@ func _rebuild_slot_ui() -> void:
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.pressed.connect(_on_slot_pressed.bind(i))
 		row.add_child(btn)
-		# Autotile rows get an inline Flip checkbox.
-		if int(slot["flip"]) >= 0:
-			var flip := CheckBox.new()
-			flip.text = "flip"
-			flip.button_pressed = (int(slot["flip"]) == 1)
-			flip.toggled.connect(_on_flip_toggled.bind(i))
-			row.add_child(flip)
+		# Autotile rows get Flip V and Flip H checkboxes.
+		if slot.get("flip_v", -1) >= 0:
+			var flip_v := CheckBox.new()
+			flip_v.text = "flip V"
+			flip_v.button_pressed = (int(slot["flip_v"]) == 1)
+			flip_v.toggled.connect(_on_flip_v_toggled.bind(i))
+			row.add_child(flip_v)
+			var flip_h := CheckBox.new()
+			flip_h.text = "flip H"
+			flip_h.button_pressed = (int(slot["flip_h"]) == 1)
+			flip_h.toggled.connect(_on_flip_h_toggled.bind(i))
+			row.add_child(flip_h)
 		_slot_root.add_child(row)
 
 
@@ -923,21 +1128,56 @@ func _on_slot_pressed(idx: int) -> void:
 				_slots[idx]["label"], _str_cell(_get_slot_cell(idx))]
 
 
-func _on_flip_toggled(pressed: bool, idx: int) -> void:
+## Called when the user clicks a wall cell in the autotile room preview.
+## Finds the slot whose mask matches and activates it.
+func _on_preview_mask_clicked(mask: int) -> void:
+	for i in _slots.size():
+		var slot: Dictionary = _slots[i]
+		# Autotile slot paths are [field, array_index, "cell"].
+		if slot["path"].size() < 2:
+			continue
+		var field: StringName = _current_mapping.get("field", &"")
+		if field == &"":
+			continue
+		var arr: Array = _mappings_resource.get(field)
+		var slot_idx: int = int(slot["path"][1])
+		if slot_idx < 0 or slot_idx >= arr.size():
+			continue
+		if int(arr[slot_idx].get("mask", -1)) == mask:
+			_on_slot_pressed(i)
+			return
+
+
+func _on_flip_v_toggled(pressed: bool, idx: int) -> void:
 	if idx < 0 or idx >= _slots.size():
 		return
 	var slot: Dictionary = _slots[idx]
-	if int(slot["flip"]) < 0:
+	if slot.get("flip_v", -1) < 0:
 		return
-	# Autotile slots store flip on the parent dict entry, addressed by the
-	# path's leaf key swap (cell → flip).
 	var path: Array = slot["path"].duplicate()
-	path[-1] = "flip"
-	var new_flip: int = 1 if pressed else 0
-	_set_at_path(path, new_flip)
-	slot["flip"] = new_flip
+	path[-1] = "flip_v"
+	var new_val: int = 1 if pressed else 0
+	_set_at_path(path, new_val)
+	slot["flip_v"] = new_val
 	_mark_dirty()
-	_status_label.text = "%s flip = %d" % [slot["label"], new_flip]
+	_refresh_marks()
+	_status_label.text = "%s flip_v = %d" % [slot["label"], new_val]
+
+
+func _on_flip_h_toggled(pressed: bool, idx: int) -> void:
+	if idx < 0 or idx >= _slots.size():
+		return
+	var slot: Dictionary = _slots[idx]
+	if slot.get("flip_h", -1) < 0:
+		return
+	var path: Array = slot["path"].duplicate()
+	path[-1] = "flip_h"
+	var new_val: int = 1 if pressed else 0
+	_set_at_path(path, new_val)
+	slot["flip_h"] = new_val
+	_mark_dirty()
+	_refresh_marks()
+	_status_label.text = "%s flip_h = %d" % [slot["label"], new_val]
 
 
 # ─── Cell click handler ────────────────────────────────────────────────
@@ -1053,6 +1293,10 @@ func _save() -> void:
 		_dialogue_editor.save()
 	if _balance_overview != null and _balance_overview.is_dirty():
 		_balance_overview.save()
+	if _encounter_table_editor != null and _encounter_table_editor.is_dirty():
+		_encounter_table_editor.save()
+	if _chest_loot_editor != null and _chest_loot_editor.is_dirty():
+		_chest_loot_editor.save()
 	var err: int = ResourceSaver.save(_mappings_resource, MAPPINGS_PATH)
 	if err != OK:
 		_status_label.text = "SAVE FAILED (err %d)" % err
@@ -1089,6 +1333,10 @@ func _revert() -> void:
 		_dialogue_editor.revert()
 	if _balance_overview != null:
 		_balance_overview.revert()
+	if _encounter_table_editor != null:
+		_encounter_table_editor.revert()
+	if _chest_loot_editor != null:
+		_chest_loot_editor.revert()
 	# Force a fresh load — drop the cached resource so subsequent loads
 	# pick up the on-disk version (in case it was edited externally).
 	if ResourceLoader.has_cached(MAPPINGS_PATH):
@@ -1249,6 +1497,30 @@ func _refresh_preview() -> void:
 			layout = &"patch3"
 			var arr: Array = _mappings_resource.get(_current_mapping["field"])
 			cells = arr.duplicate()
+		&"autotile":
+			var field: StringName = _current_mapping["field"]
+			var arr: Array = _mappings_resource.get(field)
+			var at_dict: Dictionary = {}
+			for entry in arr:
+				var mask: int = int(entry.get("mask", -1))
+				if mask < 0:
+					continue
+				var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
+				var flip_v: bool = int(entry.get("flip_v", entry.get("flip", 0))) != 0
+				var flip_h: bool = int(entry.get("flip_h", 0)) != 0
+				at_dict[mask] = [cell, flip_v, flip_h]
+			# Determine the active slot's mask so the preview can highlight it.
+			var active_mask: int = -1
+			if _active_slot >= 0 and _active_slot < _slots.size():
+				var active_path: Array = _slots[_active_slot]["path"]
+				# path is [field, array_index, "cell"]; lookup mask from the entry.
+				if active_path.size() >= 2:
+					var slot_arr: Array = _mappings_resource.get(field)
+					var slot_idx: int = int(active_path[1])
+					if slot_idx >= 0 and slot_idx < slot_arr.size():
+						active_mask = int(slot_arr[slot_idx].get("mask", -1))
+			_preview.set_autotile_data(tex, at_dict, active_mask)
+			return
 		_:
 			for i in _slots.size():
 				var slot: Dictionary = _slots[i]
@@ -2034,6 +2306,60 @@ func _on_balance_overview_dirty() -> void:
 	_mark_dirty()
 
 
+# ─── Encounter Table editor integration ──────────────────────────────
+
+func _show_encounter_table_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _encounter_table_editor == null:
+		_encounter_table_editor = EncounterTableEditor.new()
+		_encounter_table_editor.dirty_changed.connect(_on_encounter_table_dirty)
+		_slot_root.get_parent().get_parent().add_child(_encounter_table_editor)
+	_encounter_table_editor.visible = true
+
+
+func _hide_encounter_table_editor() -> void:
+	if _encounter_table_editor != null:
+		_encounter_table_editor.visible = false
+
+
+func _on_encounter_table_dirty() -> void:
+	_mark_dirty()
+
+
+# ─── Chest Loot editor integration ───────────────────────────────────
+
+func _show_chest_loot_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _chest_loot_editor == null:
+		_chest_loot_editor = ChestLootEditor.new()
+		_chest_loot_editor.dirty_changed.connect(_on_chest_loot_dirty)
+		_slot_root.get_parent().get_parent().add_child(_chest_loot_editor)
+	_chest_loot_editor.visible = true
+
+
+func _hide_chest_loot_editor() -> void:
+	if _chest_loot_editor != null:
+		_chest_loot_editor.visible = false
+
+
+func _on_chest_loot_dirty() -> void:
+	_mark_dirty()
+
+
 # ─── Editor visibility helpers ────────────────────────────────────────
 
 func _hide_all_editors() -> void:
@@ -2050,6 +2376,8 @@ func _hide_all_editors() -> void:
 	_hide_quest_editor()
 	_hide_dialogue_editor()
 	_hide_balance_overview()
+	_hide_encounter_table_editor()
+	_hide_chest_loot_editor()
 
 
 func _hide_all_editors_except(kind: StringName) -> void:
@@ -2079,6 +2407,10 @@ func _hide_all_editors_except(kind: StringName) -> void:
 		_hide_dialogue_editor()
 	if kind != &"balance_overview":
 		_hide_balance_overview()
+	if kind != &"encounter_table_editor":
+		_hide_encounter_table_editor()
+	if kind != &"chest_loot_editor":
+		_hide_chest_loot_editor()
 
 
 func _on_navigate_to_mineable(resource_id: StringName) -> void:

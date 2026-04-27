@@ -168,7 +168,7 @@ func test_chase_state_picks_when_target_within_sight() -> void:
 	add_child_autofree(target_node)
 	# 3 tiles away horizontally → within sight (default 6) but outside attack
 	# range (default 1.25).
-	target_node.position = Vector2(IsoUtils.TILE_SIZE.x * 3.0, 0)
+	target_node.position = Vector2(WorldConst.TILE_PX * 3.0, 0)
 	n.set_target(target_node)
 	n._physics_process(0.016)
 	assert_eq(n.state, NPC.State.CHASE)
@@ -180,7 +180,7 @@ func test_attack_state_when_within_attack_range() -> void:
 	await get_tree().process_frame
 	var target_node := Node2D.new()
 	add_child_autofree(target_node)
-	target_node.position = Vector2(IsoUtils.TILE_SIZE.x * 0.5, 0)
+	target_node.position = Vector2(WorldConst.TILE_PX * 0.5, 0)
 	n.set_target(target_node)
 	n._physics_process(0.016)
 	assert_eq(n.state, NPC.State.ATTACK)

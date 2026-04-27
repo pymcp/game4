@@ -29,6 +29,16 @@ const SIGHT_RADIUS_TILES: float = 6.0
 const ATTACK_RADIUS_TILES: float = 1.25
 const LEASH_RADIUS_TILES: float = 10.0
 
+## Convert pixel position to integer tile cell for this game's top-down grid.
+static func _pos_to_cell(pos: Vector2) -> Vector2i:
+	var t: int = WorldConst.TILE_PX
+	return Vector2i(int(floor(pos.x / float(t))), int(floor(pos.y / float(t))))
+
+## Return pixel centre of a tile cell.
+static func _cell_center(cell: Vector2i) -> Vector2:
+	var t: float = float(WorldConst.TILE_PX)
+	return Vector2((cell.x + 0.5) * t, (cell.y + 0.5) * t)
+
 @export var kind: StringName = &"slime"
 @export var max_health: int = 5
 @export var health: int = 5
@@ -66,6 +76,9 @@ var _action_vfx: ActionVFX = null
 const PATH_REPATH_SEC: float = 0.5
 const _BOB_HZ: float = 4.0
 const _BOB_AMP_PX: float = 1.0
+## LOD / performance.
+var _lod_sleeping: bool = false
+var _lod_index: int = 0
 
 
 # ---------- Pure helpers ----------
@@ -143,7 +156,7 @@ func _ready() -> void:
 	while n != null and not (n is WorldRoot):
 		n = n.get_parent()
 	_world = n as WorldRoot
-	home_cell = IsoUtils.world_to_iso(position)
+	home_cell = _pos_to_cell(position)
 	# Default sprite from creature sprite registry; fallback to tinted placeholder.
 	if get_node_or_null("Sprite") == null:
 		var built: Sprite2D = CreatureSpriteRegistry.build_sprite(kind)
@@ -190,8 +203,8 @@ func _physics_process(delta: float) -> void:
 	if is_instance_valid(target):
 		var dist_px: float = position.distance_to(target.position)
 		var target_hb: float = HitboxCalc.get_radius(target)
-		dist_tiles = max(0.0, dist_px - target_hb) / IsoUtils.TILE_SIZE.x
-	var leash_tiles: float = position.distance_to(IsoUtils.iso_to_world(home_cell)) / IsoUtils.TILE_SIZE.x
+		dist_tiles = max(0.0, dist_px - target_hb) / float(WorldConst.TILE_PX)
+	var leash_tiles: float = position.distance_to(_cell_center(home_cell)) / float(WorldConst.TILE_PX)
 	var next: State = decide_state(state, dist_tiles, health, leash_tiles,
 		sight_radius_tiles, attack_range_tiles, leash_radius_tiles)
 	if next != state:
@@ -227,17 +240,16 @@ func _enter_state(s: State) -> void:
 	if s == State.WANDER:
 		if _world != null:
 			_wander_target_cell = wander_step(_rng,
-				IsoUtils.world_to_iso(position), 3,
-				func(c: Vector2i) -> bool: return _world.is_walkable(c))
+					_pos_to_cell(position), 3,
+					func(c: Vector2i) -> bool: return _world.is_walkable(c))
 		else:
-			_wander_target_cell = IsoUtils.world_to_iso(position)
-
+			_wander_target_cell = _pos_to_cell(position)
 
 func _tick_wander(delta: float) -> void:
 	if _state_timer > WANDER_DURATION_SEC:
 		_enter_state(State.IDLE)
 		return
-	var dest: Vector2 = IsoUtils.iso_to_world(_wander_target_cell)
+	var dest: Vector2 = _cell_center(_wander_target_cell)
 	position = step_toward(position, dest, move_speed * 0.5, delta)
 
 
@@ -246,23 +258,23 @@ func _tick_chase(delta: float) -> void:
 		return
 	# Repath periodically or whenever the target's cell changes.
 	_path_repath_timer -= delta
-	var goal_cell: Vector2i = IsoUtils.world_to_iso(target.position)
+	var goal_cell: Vector2i = _pos_to_cell(target.position)
 	if _world != null and (_path.is_empty() or _path_repath_timer <= 0.0
 			or goal_cell != _path_target_cell):
-		var start_cell: Vector2i = IsoUtils.world_to_iso(position)
+		var start_cell: Vector2i = _pos_to_cell(position)
 		_path = Pathfinder.find_path(start_cell, goal_cell,
 			func(c: Vector2i) -> bool: return _world.is_walkable(c))
 		_path_target_cell = goal_cell
-		_path_repath_timer = PATH_REPATH_SEC
+		_path_repath_timer = PATH_REPATH_SEC + _lod_index * 0.125
 	# Determine the immediate destination cell.
 	var dest_pos: Vector2 = target.position
 	if not _path.is_empty():
-		var here: Vector2i = IsoUtils.world_to_iso(position)
+		var here: Vector2i = _pos_to_cell(position)
 		var nxt: Vector2i = Pathfinder.next_step(_path, here)
-		dest_pos = IsoUtils.iso_to_world(nxt)
+		dest_pos = _cell_center(nxt)
 	# Move toward the next waypoint, but only commit if it's walkable.
 	var step_pos: Vector2 = step_toward(position, dest_pos, move_speed, delta)
-	var next_cell: Vector2i = IsoUtils.world_to_iso(step_pos)
+	var next_cell: Vector2i = _pos_to_cell(step_pos)
 	if _world == null or _world.is_walkable(next_cell) or next_cell == goal_cell:
 		position = step_pos
 
@@ -292,6 +304,10 @@ func _tick_attack(_delta: float) -> void:
 func take_hit(damage: int, attacker: Node = null, element: int = 0) -> void:
 	if state == State.DEAD:
 		return
+	# Wake from LOD sleep so the enemy can respond.
+	if _lod_sleeping:
+		_lod_sleeping = false
+		set_physics_process(true)
 	# Invincible while in a conversation.
 	if in_conversation:
 		return
@@ -315,6 +331,7 @@ func _apply_resistance(damage: int, element: int) -> int:
 
 func _die() -> void:
 	state = State.DEAD
+	set_physics_process(false)
 	died.emit(position, drops)
 	queue_free()
 

@@ -18,3 +18,6 @@ extends Resource
 ## Serialized FogOfWarData for this player. Keys are "x,y" region strings;
 ## values are PackedByteArray (2048 bytes per region).
 @export var fog_data: Dictionary = {}
+## Serialized DungeonFogData for this player. Keys are map_id strings;
+## values are PackedByteArray (2048 bytes per interior floor).
+@export var dungeon_fog_data: Dictionary = {}

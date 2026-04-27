@@ -9,6 +9,7 @@ extends Resource
 @export var inputs: Array = []  # Array of {id: StringName, count: int}
 @export var output_id: StringName = &""
 @export var output_count: int = 1
+@export var crafter_domain: StringName = &""
 
 
 ## Returns true if `inv` contains every input in the required count.

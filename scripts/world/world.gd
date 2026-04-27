@@ -27,6 +27,8 @@ class_name World
 
 const _PlayerScene: PackedScene = preload("res://scenes/entities/Player.tscn")
 const _PetScene: PackedScene = preload("res://scenes/entities/Pet.tscn")
+const _CaravanScene: PackedScene = preload("res://scenes/entities/caravan.tscn")
+const _WarriorScene: PackedScene = preload("res://scenes/entities/warrior.tscn")
 const _WorldInstanceScene: PackedScene = preload(
 		"res://scenes/world/World.tscn")
 
@@ -44,6 +46,9 @@ var _instances: Dictionary = {}  ## key (StringName) -> WorldRoot
 var _next_instance_index: int = 0
 var _players: Array = []  ## index = player_id; PlayerController
 var _pets: Array = []  ## index = player_id; Pet
+var _caravans: Array = []      ## index = player_id; Caravan node (null until placed)
+var _caravan_datas: Array = [] ## index = player_id; CaravanData (persistent)
+var _warriors: Array = []      ## index = player_id; Warrior node (null until recruited)
 var _player_instance_key: Array = []  ## index = player_id; StringName
 var _pending_spawn: Array = []  ## index = player_id; Vector2i (or _NO_OVERRIDE)
 
@@ -56,6 +61,9 @@ func _ready() -> void:
 	for _i in range(2):
 		_players.append(null)
 		_pets.append(null)
+		_caravans.append(null)
+		_caravan_datas.append(CaravanData.new())
+		_warriors.append(null)
 		_player_instance_key.append(&"")
 		_pending_spawn.append(_NO_OVERRIDE)
 	for pid in range(2):
@@ -81,6 +89,20 @@ func get_player_world(pid: int) -> WorldRoot:
 	if pid < 0 or pid >= _player_instance_key.size():
 		return null
 	return _instances.get(_player_instance_key[pid])
+
+
+## Returns the [CaravanData] resource for [param pid].
+func get_caravan_data(pid: int) -> CaravanData:
+	if pid < 0 or pid >= _caravan_datas.size():
+		return null
+	return _caravan_datas[pid]
+
+
+## Returns the [Caravan] node for [param pid], or null if not yet created.
+func get_caravan(pid: int) -> Caravan:
+	if pid < 0 or pid >= _caravans.size():
+		return null
+	return _caravans[pid]
 
 
 ## Singleton-ish accessor: returns the active [World] from the scene
@@ -152,6 +174,18 @@ func _enter_view(pid: int, view_kind: StringName, region: Region,
 	inst.prime_door_cache(player, spawn_cell)
 	# Re-parent + place pet alongside.
 	_ensure_pet_for_player(pid, inst)
+	# Set caravan_data reference on player (needed by auto-transfer system).
+	var p: PlayerController = _players[pid]
+	if p != null:
+		p.caravan_data = _caravan_datas[pid]
+	# Caravan: only on overworld. Auto-transfer crafting ingredients from
+	# player inventory to caravan when entering the overworld.
+	if view_kind == &"overworld":
+		_ensure_caravan_for_player(pid, inst)
+		if p != null:
+			p.trigger_overworld_transfer()
+	# Warrior: everywhere, but only if recruited.
+	_ensure_warrior_for_player(pid, inst, view_kind)
 
 
 func _instance_key(view_kind: StringName, region: Region,
@@ -208,6 +242,62 @@ func _ensure_pet_for_player(pid: int, inst: WorldRoot) -> void:
 			int(floor(_players[pid].position.y / float(WorldConst.TILE_PX))))
 	var cell: Vector2i = inst.find_safe_spawn_cell(centre, 6, true)
 	pet.position = (Vector2(cell) + Vector2(0.5, 0.5)) \
+			* float(WorldConst.TILE_PX)
+
+
+## Ensure the caravan for [param pid] exists and is parented to [param inst].
+## Only called when the player is on the overworld.
+func _ensure_caravan_for_player(pid: int, inst: WorldRoot) -> void:
+	var caravan: Caravan = _caravans[pid]
+	if caravan == null:
+		caravan = _CaravanScene.instantiate() as Caravan
+		caravan.owner_player = _players[pid]
+		caravan.caravan_data = _caravan_datas[pid]
+		_caravans[pid] = caravan
+	# Re-parent to the overworld instance if not already there.
+	if caravan.get_parent() == null:
+		inst.entities.add_child(caravan)
+	elif caravan.get_parent() != inst.entities:
+		caravan.get_parent().remove_child(caravan)
+		inst.entities.add_child(caravan)
+	# Snap caravan near player on first placement.
+	var centre: Vector2i = Vector2i(
+			int(floor(_players[pid].position.x / float(WorldConst.TILE_PX))),
+			int(floor(_players[pid].position.y / float(WorldConst.TILE_PX))))
+	var cell: Vector2i = inst.find_safe_spawn_cell(centre, 4, true)
+	caravan.position = (Vector2(cell) + Vector2(0.5, 0.5)) \
+			* float(WorldConst.TILE_PX)
+
+
+## Ensure the warrior for [param pid] exists and is parented to [param inst].
+## Only spawns if the warrior is recruited in the player's caravan.
+func _ensure_warrior_for_player(pid: int, inst: WorldRoot,
+		view_kind: StringName) -> void:
+	var cd: CaravanData = _caravan_datas[pid]
+	if not cd.has_member(&"warrior"):
+		return
+	var warrior: Warrior = _warriors[pid]
+	if warrior == null:
+		warrior = _WarriorScene.instantiate() as Warrior
+		warrior.owner_player = _players[pid]
+		warrior.caravan = _caravans[pid]
+		_warriors[pid] = warrior
+	# Always update caravan reference in case it was set after warrior was created.
+	warrior.caravan = _caravans[pid]
+	# Update in-dungeon flag.
+	warrior.is_in_dungeon = (view_kind == &"dungeon" or view_kind == &"labyrinth")
+	# Re-parent to this instance.
+	if warrior.get_parent() == null:
+		inst.entities.add_child(warrior)
+	elif warrior.get_parent() != inst.entities:
+		warrior.get_parent().remove_child(warrior)
+		inst.entities.add_child(warrior)
+	# Snap warrior near player.
+	var centre: Vector2i = Vector2i(
+			int(floor(_players[pid].position.x / float(WorldConst.TILE_PX))),
+			int(floor(_players[pid].position.y / float(WorldConst.TILE_PX))))
+	var cell: Vector2i = inst.find_safe_spawn_cell(centre, 4, true)
+	warrior.position = (Vector2(cell) + Vector2(0.5, 0.5)) \
 			* float(WorldConst.TILE_PX)
 
 
@@ -268,3 +358,20 @@ func debug_toggle_hitbox_overlay() -> void:
 	for inst in _instances.values():
 		if inst.has_method("debug_toggle_hitbox_overlay"):
 			inst.debug_toggle_hitbox_overlay()
+
+
+## Debug: add all party member types to both players' caravans.
+## Triggered by F8 (see pause_manager.gd).
+func debug_add_all_party_members() -> void:
+	for pid in range(2):
+		var cd: CaravanData = _caravan_datas[pid]
+		for member_id in PartyMemberRegistry.all_ids():
+			cd.add_member(member_id)
+		print("[F8] added all party members to P%d caravan" % (pid + 1))
+	# If warrior was just added, immediately place it in the current instance.
+	for pid in range(2):
+		var inst: WorldRoot = get_player_world(pid)
+		if inst == null:
+			continue
+		var view_kind: StringName = ViewManager.get_view_kind(pid)
+		_ensure_warrior_for_player(pid, inst, view_kind)

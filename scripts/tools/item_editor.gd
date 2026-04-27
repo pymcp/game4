@@ -475,12 +475,15 @@ func _add_opt_row(label: String, items: Array, cb: Callable) -> OptionButton:
 
 func _populate_list() -> void:
 	_item_list.clear()
-	var keys: Array = _items.keys()
-	keys.sort()
-	for k in keys:
+	# Sort by display_name so the list reads alphabetically.
+	var pairs: Array = []
+	for k in _items.keys():
 		var entry: Dictionary = _items[k]
-		_item_list.add_item(entry.get("display_name", String(k)))
-		_item_list.set_item_metadata(_item_list.item_count - 1, String(k))
+		pairs.append([entry.get("display_name", String(k)), String(k)])
+	pairs.sort_custom(func(a: Array, b: Array) -> bool: return a[0].nocasecmp_to(b[0]) < 0)
+	for pair in pairs:
+		_item_list.add_item(pair[0])
+		_item_list.set_item_metadata(_item_list.item_count - 1, pair[1])
 
 
 func _on_item_selected(idx: int) -> void:

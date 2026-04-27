@@ -36,6 +36,15 @@ func test_tres_loads_and_has_expected_keys() -> void:
 	assert_true(loaded.city_terrain.size() > 0, "city_terrain non-empty")
 	assert_true(loaded.interior_terrain.size() > 0, "interior_terrain non-empty")
 	assert_true(loaded.dungeon_wall_autotile.size() > 0, "autotile non-empty")
+	# Labyrinth fields must be present and non-empty after reseeding.
+	assert_true(loaded.labyrinth_terrain.has(&"floor"), "labyrinth_terrain must have 'floor' key")
+	assert_true(loaded.labyrinth_terrain.size() > 0, "labyrinth_terrain non-empty")
+	assert_true(loaded.labyrinth_wall_autotile.size() > 0, "labyrinth_wall_autotile non-empty")
+	assert_true(loaded.labyrinth_floor_decor.size() > 0, "labyrinth_floor_decor non-empty")
+	assert_true(loaded.dungeon_floor_border_3x3.size() == 9,
+		"dungeon_floor_border_3x3 size == 9")
+	assert_true(loaded.labyrinth_floor_border_3x3.size() == 9,
+		"labyrinth_floor_border_3x3 size == 9")
 
 
 # Catalog still owns its constants; verify they agree with the resource

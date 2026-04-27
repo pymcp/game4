@@ -141,6 +141,7 @@
 	"copper_ore": {
 		"description_flavor": "A lump of unrefined copper.",
 		"display_name": "Copper Ore",
+		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
 	},
@@ -155,6 +156,7 @@
 	"fiber": {
 		"description_flavor": "Plant fibres for crafting.",
 		"display_name": "Fiber",
+		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
 	},
@@ -183,6 +185,7 @@
 	"gold_ore": {
 		"description_flavor": "A gleaming nugget of gold.",
 		"display_name": "Gold Ore",
+		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
 	},
@@ -248,6 +251,7 @@
 	"iron_ore": {
 		"description_flavor": "A lump of unrefined iron.",
 		"display_name": "Iron Ore",
+		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
 	},
@@ -329,6 +333,7 @@
 	"stone": {
 		"description_flavor": "A heavy chunk of rock.",
 		"display_name": "Stone",
+		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
 	},
@@ -342,9 +347,22 @@
 			5
 		]
 	},
+	"test_hammer": {
+		"attack_speed": 0.5,
+		"attack_type": "melee",
+		"display_name": "War Hammer",
+		"hands": 1,
+		"icon_idx": 1,
+		"knockback": 12,
+		"power": 5,
+		"reach": 20,
+		"slot": "weapon",
+		"weapon_category": "axe"
+	},
 	"wood": {
 		"description_flavor": "A bundle of sturdy logs.",
 		"display_name": "Wood",
+		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
 	},

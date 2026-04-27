@@ -28,6 +28,10 @@ const _DEFAULT_SHEETS: Dictionary = {
 	&"dungeon_wall_autotile": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_floor_decor": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_entrance_pair": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"labyrinth_entrance_pair": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"labyrinth_terrain":       "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"labyrinth_wall_autotile": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"labyrinth_floor_decor":   "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_doorframe": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"interior_terrain": "res://assets/tiles/roguelike/interior_sheet.png",
 }
@@ -234,26 +238,26 @@ static var DUNGEON_TERRAIN_CELLS: Dictionary = _DEFAULT_DUNGEON_TERRAIN
 #   bit 2 (4) = floor to south
 #   bit 1 (2) = floor to east
 #   bit 0 (1) = floor to west
-# Value is `[atlas_cell, flip_v]`. `flip_v` is true when the bottom-row
-# tile must be flipped vertically to render as a top-of-wall tile.
-# Mask 0 (no floor neighbour) is omitted — those cells are dead space and
-# rendered separately.
+# Value is `[atlas_cell, flip_v, flip_h]`.
+# `flip_v` is true when the tile must be flipped vertically (top-of-wall).
+# `flip_h` is true when the tile must be flipped horizontally (mirrored E/W).
+# Mask 0 (no floor neighbour) is omitted — dead space rendered separately.
 const _DEFAULT_DUNGEON_WALL_AUTOTILE: Dictionary = {
-	2:  [Vector2i(8, 7),  false],
-	1:  [Vector2i(10, 7), false],
-	8:  [Vector2i(9, 9),  false],
-	10: [Vector2i(8, 9),  false],
-	9:  [Vector2i(10, 9), false],
-	11: [Vector2i(9, 9),  false],
-	4:  [Vector2i(9, 9),  true],
-	6:  [Vector2i(8, 9),  true],
-	5:  [Vector2i(10, 9), true],
-	7:  [Vector2i(9, 9),  true],
-	3:  [Vector2i(9, 9),  false],
-	12: [Vector2i(9, 9),  false],
-	13: [Vector2i(10, 7), false],
-	14: [Vector2i(8, 7),  false],
-	15: [Vector2i(9, 9),  false],
+	2:  [Vector2i(8, 7),  false, false],
+	1:  [Vector2i(10, 7), false, false],
+	8:  [Vector2i(9, 9),  false, false],
+	10: [Vector2i(8, 9),  false, false],
+	9:  [Vector2i(10, 9), false, false],
+	11: [Vector2i(9, 9),  false, false],
+	4:  [Vector2i(9, 9),  true,  false],
+	6:  [Vector2i(8, 9),  true,  false],
+	5:  [Vector2i(10, 9), true,  false],
+	7:  [Vector2i(9, 9),  true,  false],
+	3:  [Vector2i(9, 9),  false, false],
+	12: [Vector2i(9, 9),  false, false],
+	13: [Vector2i(10, 7), false, false],
+	14: [Vector2i(8, 7),  false, false],
+	15: [Vector2i(9, 9),  false, false],
 }
 static var DUNGEON_WALL_AUTOTILE: Dictionary = _DEFAULT_DUNGEON_WALL_AUTOTILE
 
@@ -269,12 +273,77 @@ const _DEFAULT_DUNGEON_FLOOR_DECOR: Array = [
 ]
 static var DUNGEON_FLOOR_DECOR_CELLS: Array = _DEFAULT_DUNGEON_FLOOR_DECOR
 
+## 3×3 border cells for dungeon floors (NW…SE, index 4 = open centre).
+## All default to the plain floor cell until TileMappings overrides them.
+const _DEFAULT_DUNGEON_FLOOR_BORDER: Array = [
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+]
+static var DUNGEON_FLOOR_BORDER_3X3: Array = _DEFAULT_DUNGEON_FLOOR_BORDER
+
+## Same as DUNGEON_FLOOR_BORDER_3X3 for labyrinth.
+const _DEFAULT_LABYRINTH_FLOOR_BORDER: Array = [
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
+]
+static var LABYRINTH_FLOOR_BORDER_3X3: Array = _DEFAULT_LABYRINTH_FLOOR_BORDER
+
 # Cave entrance marker on the overworld. Two side-by-side dungeon-sheet
 # tiles (anchor cell + cell to the east) drawn on a Sprite-based marker.
 const _DEFAULT_DUNGEON_ENTRANCE: Array = [
 	Vector2i(24, 4), Vector2i(25, 4),
 ]
 static var DUNGEON_OVERWORLD_ENTRANCE_CELLS: Array = _DEFAULT_DUNGEON_ENTRANCE
+
+## Labyrinth entrance marker — default reuses dungeon entrance cells.
+## SpritePicker can override to distinct tiles.
+const _DEFAULT_LABYRINTH_ENTRANCE: Array = [
+	Vector2i(24, 4), Vector2i(25, 4),
+]
+static var LABYRINTH_OVERWORLD_ENTRANCE_CELLS: Array = _DEFAULT_LABYRINTH_ENTRANCE
+
+# Labyrinth interior terrain. Only &"floor" is used by the painting path.
+# (&"door" and &"water" are never emitted by LabyrinthGenerator, so they
+# are intentionally omitted here.)
+const _DEFAULT_LABYRINTH_TERRAIN: Dictionary = {
+	&"floor": [Vector2i(9, 7)],
+}
+static var LABYRINTH_TERRAIN_CELLS: Dictionary = _DEFAULT_LABYRINTH_TERRAIN
+
+const _DEFAULT_LABYRINTH_WALL_AUTOTILE: Dictionary = {
+	2:  [Vector2i(8, 7),  false, false],
+	1:  [Vector2i(10, 7), false, false],
+	8:  [Vector2i(9, 9),  false, false],
+	10: [Vector2i(8, 9),  false, false],
+	9:  [Vector2i(10, 9), false, false],
+	11: [Vector2i(9, 9),  false, false],
+	4:  [Vector2i(9, 9),  true,  false],
+	6:  [Vector2i(8, 9),  true,  false],
+	5:  [Vector2i(10, 9), true,  false],
+	7:  [Vector2i(9, 9),  true,  false],
+	3:  [Vector2i(9, 9),  false, false],
+	12: [Vector2i(9, 9),  false, false],
+	13: [Vector2i(10, 7), false, false],
+	14: [Vector2i(8, 7),  false, false],
+	15: [Vector2i(9, 9),  false, false],
+}
+static var LABYRINTH_WALL_AUTOTILE: Dictionary = _DEFAULT_LABYRINTH_WALL_AUTOTILE
+
+const _DEFAULT_LABYRINTH_FLOOR_DECOR: Array = [
+	Vector2i(12, 10), Vector2i(13, 10),
+	Vector2i(12, 11), Vector2i(13, 11),
+	Vector2i(12, 12), Vector2i(13, 12),
+	Vector2i(12, 13), Vector2i(13, 13),
+	Vector2i(12, 14), Vector2i(13, 14),
+]
+static var LABYRINTH_FLOOR_DECOR_CELLS: Array = _DEFAULT_LABYRINTH_FLOOR_DECOR
+
+## Treasure chest sprite cells on the dungeon sheet: [closed, open].
+## TreasureChest reads index 0 for closed state, index 1 for open state.
+const _DEFAULT_LABYRINTH_CHEST: Array = [Vector2i(2, 10), Vector2i(3, 10)]
+static var LABYRINTH_CHEST_CELLS: Array = _DEFAULT_LABYRINTH_CHEST
 
 # Wooden doorframe drawn at the south end of a north-south cave corridor
 # where it opens into a room. Purely decorative — placed as Sprite2D
@@ -383,6 +452,23 @@ static func _ensure_loaded() -> void:
 		DUNGEON_FLOOR_DECOR_CELLS = m.dungeon_floor_decor
 	if not m.dungeon_entrance_pair.is_empty():
 		DUNGEON_OVERWORLD_ENTRANCE_CELLS = m.dungeon_entrance_pair
+	if not m.labyrinth_entrance_pair.is_empty():
+		LABYRINTH_OVERWORLD_ENTRANCE_CELLS = m.labyrinth_entrance_pair
+	# Labyrinth terrain
+	if not m.labyrinth_terrain.is_empty():
+		LABYRINTH_TERRAIN_CELLS = m.labyrinth_terrain
+	var lab_autotile: Dictionary = m.build_labyrinth_wall_autotile_dict()
+	if not lab_autotile.is_empty():
+		LABYRINTH_WALL_AUTOTILE = lab_autotile
+	if not m.labyrinth_floor_decor.is_empty():
+		LABYRINTH_FLOOR_DECOR_CELLS = m.labyrinth_floor_decor
+	if m.labyrinth_chest_pair.size() >= 2:
+		LABYRINTH_CHEST_CELLS = m.labyrinth_chest_pair
+	# Exact 9 required — partial arrays would mis-index the NW…SE lookup.
+	if m.dungeon_floor_border_3x3.size() == 9:
+		DUNGEON_FLOOR_BORDER_3X3 = m.dungeon_floor_border_3x3
+	if m.labyrinth_floor_border_3x3.size() == 9:
+		LABYRINTH_FLOOR_BORDER_3X3 = m.labyrinth_floor_border_3x3
 	if not m.dungeon_doorframe.is_empty():
 		DUNGEON_DOORFRAME = m.dungeon_doorframe
 	# Interior
@@ -395,6 +481,7 @@ static func _ensure_loaded() -> void:
 static var _overworld_ts: TileSet = null
 static var _city_ts: TileSet = null
 static var _dungeon_ts: TileSet = null
+static var _labyrinth_ts: TileSet = null
 static var _interior_ts: TileSet = null
 static var _runes_ts: TileSet = null
 
@@ -418,6 +505,13 @@ static func dungeon() -> TileSet:
 	if _dungeon_ts == null:
 		_dungeon_ts = _build(_sheet_for_view(&"dungeon"), DUNGEON_TERRAIN_CELLS, true)
 	return _dungeon_ts
+
+
+static func labyrinth() -> TileSet:
+	_ensure_loaded()
+	if _labyrinth_ts == null:
+		_labyrinth_ts = _build(get_sheet_path(&"labyrinth_terrain"), LABYRINTH_TERRAIN_CELLS, true)
+	return _labyrinth_ts
 
 
 static func interior() -> TileSet:
@@ -600,6 +694,7 @@ static func cell_for(view_kind: StringName, terrain: StringName) -> Vector2i:
 		&"overworld": d = OVERWORLD_TERRAIN_CELLS
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
+		&"labyrinth": d = LABYRINTH_TERRAIN_CELLS
 		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
@@ -624,6 +719,7 @@ static func cell_for_variant(view_kind: StringName, terrain: StringName, hash32:
 		&"overworld": d = OVERWORLD_TERRAIN_CELLS
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
+		&"labyrinth": d = LABYRINTH_TERRAIN_CELLS
 		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
