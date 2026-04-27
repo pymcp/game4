@@ -26,5 +26,12 @@
 		"crafter_domain": "alchemist",
 		"portrait_cell": [0, 0],
 		"can_follow": false
+	},
+	"story_teller": {
+		"id": "story_teller",
+		"display_name": "Story Teller",
+		"crafter_domain": "",
+		"portrait_cell": [0, 0],
+		"can_follow": false
 	}
 }

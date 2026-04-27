@@ -50,6 +50,7 @@ var _caravans: Array = []      ## index = player_id; Caravan node (null until pl
 var _caravan_datas: Array = [] ## index = player_id; CaravanData (persistent)
 var _warriors: Array = []      ## index = player_id; Warrior node (null until recruited)
 var _player_instance_key: Array = []  ## index = player_id; StringName
+var _player_view_kind: Array[StringName] = [&"", &""]
 var _pending_spawn: Array = []  ## index = player_id; Vector2i (or _NO_OVERRIDE)
 
 
@@ -66,6 +67,13 @@ func _ready() -> void:
 		_warriors.append(null)
 		_player_instance_key.append(&"")
 		_pending_spawn.append(_NO_OVERRIDE)
+	for pid in range(2):
+		var cd: CaravanData = _caravan_datas[pid]
+		cd.add_member(&"story_teller")
+		var name_rng := RandomNumberGenerator.new()
+		name_rng.seed = WorldManager.world_seed + pid * 1000
+		for member_id: StringName in PartyMemberRegistry.all_ids():
+			cd.member_names[member_id] = NamesRegistry.roll_name(member_id, name_rng)
 	for pid in range(2):
 		var p := _PlayerScene.instantiate() as PlayerController
 		p.player_id = pid
