@@ -41,9 +41,6 @@ func _load_lore_text() -> void:
 
 
 func _build_ui() -> void:
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
-
 	var vbox := VBoxContainer.new()
 	vbox.anchor_right = 1.0
 	vbox.anchor_bottom = 1.0
@@ -56,7 +53,7 @@ func _build_ui() -> void:
 	vbox.add_child(tab_row)
 
 	var tab_labels: Array[String] = ["Quests", "Voices Overheard", "Last Adventure"]
-	var tab_views: Array[int] = [View.QUESTS, View.VOICES, View.ADVENTURE]
+	var tab_views: Array[View] = [View.QUESTS, View.VOICES, View.ADVENTURE]
 	for i in 3:
 		var btn := Button.new()
 		btn.text = tab_labels[i]
@@ -78,6 +75,8 @@ func _build_ui() -> void:
 
 
 func _show_view(view: View) -> void:
+	if _content == null:
+		return
 	_current_view = view
 	for child in _content.get_children():
 		child.queue_free()
