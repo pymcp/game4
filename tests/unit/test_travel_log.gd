@@ -10,6 +10,11 @@ func test_starts_empty() -> void:
 	assert_true(_log.current_run.is_empty(), "current_run should start empty")
 	assert_true(_log.last_run.is_empty(), "last_run should start empty")
 
+func test_first_start_run_leaves_last_run_empty() -> void:
+	_log.start_run(&"dungeon", "0_0")
+	assert_true(_log.last_run.is_empty(),
+			"last_run should remain empty on the very first start_run")
+
 func test_start_run_moves_current_to_last() -> void:
 	_log.start_run(&"dungeon", "0_0")
 	_log.record_kill()
