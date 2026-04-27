@@ -128,6 +128,13 @@ extends Resource
 ## Missing keys fall back to the built-in default sheet.
 @export var sheet_overrides: Dictionary = {}
 
+# ─── Entity sprites ──────────────────────────────────────────────────────
+
+## Atlas cell(s) for the caravan wagon sprite on the overworld sheet.
+## Element [0] is the cell used by the Caravan entity. Editable via the
+## Game Editor → "Caravan Wagon" category.
+@export var caravan_wagon: Array[Vector2i] = []
+
 
 ## Returns a fresh `TileMappings` populated with the historical default
 ## values that previously lived as `const` tables in [TilesetCatalog].
@@ -321,6 +328,8 @@ static func default_mappings() -> TileMappings:
 
 	# No sheet overrides by default — everything uses the historical sheets.
 	m.sheet_overrides = {}
+
+	m.caravan_wagon = [Vector2i(10, 0)]
 
 	return m
 
