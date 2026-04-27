@@ -41,3 +41,13 @@ func to_dict() -> Dictionary:
 ## Restore from a save snapshot.
 func from_dict(d: Dictionary) -> void:
 	_flags = d.duplicate()
+
+
+## Returns the keys of all true flags that start with [param prefix].
+## Useful for enumerating "met_*" NPC flags or "lore_*" tidbit flags.
+func keys_with_prefix(prefix: String) -> Array[String]:
+	var result: Array[String] = []
+	for key in _flags.keys():
+		if key.begins_with(prefix) and _flags[key]:
+			result.append(key)
+	return result
