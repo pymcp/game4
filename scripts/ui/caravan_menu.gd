@@ -6,7 +6,7 @@
 ## Opened via Caravan.interacted signal or by game.gd directly.
 ## Closed by pressing p*_back.
 class_name CaravanMenu
-extends CanvasLayer
+extends Control
 
 ## The player who owns this menu.
 var _player: PlayerController = null
@@ -20,7 +20,9 @@ var _current_crafter: CrafterPanel = null
 
 
 func _ready() -> void:
-	layer = 45
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	z_index = 45
 	visible = false
 
 
@@ -162,7 +164,6 @@ func _refresh_members() -> void:
 
 
 func _on_member_selected(member_id: StringName) -> void:
-	# Clear the right panel.
 	for child in _right_panel.get_children():
 		child.queue_free()
 	_current_crafter = null
@@ -172,17 +173,24 @@ func _on_member_selected(member_id: StringName) -> void:
 		return
 
 	if def.crafter_domain != &"":
-		# Show a CrafterPanel.
 		_current_crafter = CrafterPanel.new()
 		_current_crafter.name = "ActiveCrafter"
 		_current_crafter.anchor_right = 1.0
 		_current_crafter.anchor_bottom = 1.0
 		_right_panel.add_child(_current_crafter)
 		_current_crafter.set_crafter(def.crafter_domain, _caravan_data)
+	elif member_id == &"story_teller":
+		var panel := StoryTellerPanel.new()
+		panel.name = "StoryTellerPanel"
+		panel.anchor_right = 1.0
+		panel.anchor_bottom = 1.0
+		_right_panel.add_child(panel)
+		panel.setup(_player, _caravan_data)
 	else:
-		# Show warrior status.
 		var label := Label.new()
-		label.text = "%s\nHP: Active companion" % def.display_name
+		var member_name: String = _caravan_data.get_member_name(member_id) \
+				if _caravan_data != null else String(member_id)
+		label.text = "%s\nHP: Active companion" % member_name
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.anchor_right = 1.0
 		label.anchor_bottom = 1.0
