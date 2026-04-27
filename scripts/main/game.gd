@@ -47,6 +47,8 @@ var _dungeon_map_p1: DungeonMapView = null
 var _dungeon_map_p2: DungeonMapView = null
 var _confirm_menu_p1: FloorConfirmMenu = null
 var _confirm_menu_p2: FloorConfirmMenu = null
+var _caravan_menu_p1: CaravanMenu = null
+var _caravan_menu_p2: CaravanMenu = null
 
 
 func _ready() -> void:
@@ -78,6 +80,8 @@ func _ready() -> void:
 	_dungeon_map_p2 = _build_dungeon_map_view(_container_p2)
 	_confirm_menu_p1 = _build_floor_confirm_menu(_container_p1)
 	_confirm_menu_p2 = _build_floor_confirm_menu(_container_p2)
+	_caravan_menu_p1 = _build_caravan_menu(_container_p1)
+	_caravan_menu_p2 = _build_caravan_menu(_container_p2)
 	call_deferred("_wire_hud_and_cameras")
 
 
@@ -182,6 +186,20 @@ func _wire_hud_and_cameras() -> void:
 			_dungeon_map_p2.set_player(p2)
 			p2.dungeon_map = _dungeon_map_p2
 		_camera_p2 = _make_camera(p2, _vp_p2)
+	# Wire caravan menu for P1.
+	if _caravan_menu_p1 != null and p1 != null:
+		_caravan_menu_p1.setup(p1, p1.caravan_data)
+		var caravan_p1: Caravan = _world.get_caravan(0)
+		if caravan_p1 != null:
+			caravan_p1.interacted.connect(
+					func(_by: PlayerController): _caravan_menu_p1.open())
+	# Wire caravan menu for P2.
+	if _caravan_menu_p2 != null and p2 != null:
+		_caravan_menu_p2.setup(p2, p2.caravan_data)
+		var caravan_p2: Caravan = _world.get_caravan(1)
+		if caravan_p2 != null:
+			caravan_p2.interacted.connect(
+					func(_by: PlayerController): _caravan_menu_p2.open())
 
 
 ## Creates a [Camera2D] parented to [param player] but pinned (via
@@ -245,6 +263,13 @@ func _build_dungeon_map_view(container: Control) -> DungeonMapView:
 func _build_floor_confirm_menu(container: Control) -> FloorConfirmMenu:
 	var menu := FloorConfirmMenu.new()
 	menu.name = "FloorConfirmMenu"
+	container.add_child(menu)
+	return menu
+
+
+func _build_caravan_menu(container: Control) -> CaravanMenu:
+	var menu := CaravanMenu.new()
+	menu.name = "CaravanMenu"
 	container.add_child(menu)
 	return menu
 
