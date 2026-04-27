@@ -13,7 +13,9 @@ class_name MainMenu
 const GameScene: PackedScene = preload("res://scenes/main/Game.tscn")
 
 var _seed_input: LineEdit = null
-var _btn_new: Button = null
+var _btn_new_2p: Button = null
+var _btn_new_p1: Button = null
+var _btn_new_p2: Button = null
 var _btn_continue: Button = null
 var _btn_quit: Button = null
 
@@ -88,10 +90,20 @@ func _build() -> void:
 	_seed_input.placeholder_text = "leave blank to randomise"
 	v.add_child(_seed_input)
 
-	_btn_new = Button.new()
-	_btn_new.text = "New Game"
-	_btn_new.pressed.connect(_on_new_game)
-	v.add_child(_btn_new)
+	_btn_new_2p = Button.new()
+	_btn_new_2p.text = "New Game (2 Players)"
+	_btn_new_2p.pressed.connect(_on_new_game_2p)
+	v.add_child(_btn_new_2p)
+
+	_btn_new_p1 = Button.new()
+	_btn_new_p1.text = "New Game (Player 1)"
+	_btn_new_p1.pressed.connect(_on_new_game_p1)
+	v.add_child(_btn_new_p1)
+
+	_btn_new_p2 = Button.new()
+	_btn_new_p2.text = "New Game (Player 2)"
+	_btn_new_p2.pressed.connect(_on_new_game_p2)
+	v.add_child(_btn_new_p2)
 
 	_btn_continue = Button.new()
 	_btn_continue.text = "Continue"
@@ -103,7 +115,7 @@ func _build() -> void:
 	_btn_quit.pressed.connect(_on_quit)
 	v.add_child(_btn_quit)
 
-	_btn_new.grab_focus()
+	_btn_new_2p.grab_focus()
 
 
 func _refresh_continue_state() -> void:
@@ -113,14 +125,36 @@ func _refresh_continue_state() -> void:
 
 # ---------- Button handlers ----------
 
-func _on_new_game() -> void:
+func _on_new_game_2p() -> void:
 	var seed_value := parse_seed(_seed_input.text if _seed_input != null else "")
+	PauseManager.set_player_enabled(0, true)
+	PauseManager.set_player_enabled(1, true)
+	GameSession.pending_load_slot = ""
+	GameSession.start_new_game(seed_value)
+	get_tree().change_scene_to_packed(GameScene)
+
+
+func _on_new_game_p1() -> void:
+	var seed_value := parse_seed(_seed_input.text if _seed_input != null else "")
+	PauseManager.set_player_enabled(0, true)
+	PauseManager.set_player_enabled(1, false)
+	GameSession.pending_load_slot = ""
+	GameSession.start_new_game(seed_value)
+	get_tree().change_scene_to_packed(GameScene)
+
+
+func _on_new_game_p2() -> void:
+	var seed_value := parse_seed(_seed_input.text if _seed_input != null else "")
+	PauseManager.set_player_enabled(0, false)
+	PauseManager.set_player_enabled(1, true)
 	GameSession.pending_load_slot = ""
 	GameSession.start_new_game(seed_value)
 	get_tree().change_scene_to_packed(GameScene)
 
 
 func _on_continue() -> void:
+	PauseManager.set_player_enabled(0, true)
+	PauseManager.set_player_enabled(1, true)
 	GameSession.pending_load_slot = SaveManager.DEFAULT_SLOT
 	get_tree().change_scene_to_packed(GameScene)
 
@@ -137,3 +171,15 @@ func get_continue_button() -> Button:
 
 func get_seed_input() -> LineEdit:
 	return _seed_input
+
+
+func get_new_game_2p_button() -> Button:
+	return _btn_new_2p
+
+
+func get_new_game_p1_button() -> Button:
+	return _btn_new_p1
+
+
+func get_new_game_p2_button() -> Button:
+	return _btn_new_p2
