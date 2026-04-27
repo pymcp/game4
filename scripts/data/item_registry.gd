@@ -273,8 +273,9 @@ static func _build_definition(id: StringName, entry: Dictionary) -> ItemDefiniti
 	if ss is Array and ss.size() >= 2:
 		def.shield_sprite = Vector2i(int(ss[0]), int(ss[1]))
 
-	# Icon texture — prefer hires PNG if available, fall back to icon_idx sheet.
-	var hires_tex: Texture2D = HiresIconRegistry.get_icon(id)
+	# Icon texture — prefer hires spritesheet cell (set by seed_hires_sheets.py),
+	# fall back to legacy icon_idx sheet.
+	var hires_tex: Texture2D = HiresIconRegistry.get_icon_from_entry(id, entry)
 	if hires_tex != null:
 		def.icon = hires_tex
 	else:

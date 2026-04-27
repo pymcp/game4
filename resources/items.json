@@ -6,6 +6,11 @@
 		],
 		"description_flavor": "Reduces damage taken to the body.",
 		"display_name": "Leather Armor",
+		"hires_cell": [
+			0,
+			0
+		],
+		"hires_sheet": "armor",
 		"parent": "base_armor",
 		"set_id": "leather",
 		"slot": "body",
@@ -15,11 +20,21 @@
 	"arrow": {
 		"description_flavor": "A simple wooden arrow.",
 		"display_name": "Arrow",
+		"hires_cell": [
+			0,
+			0
+		],
+		"hires_sheet": "items",
 		"slot": "none",
 		"stack_size": 99
 	},
 	"base_armor": {
 		"display_name": "Armor",
+		"hires_cell": [
+			1,
+			0
+		],
+		"hires_sheet": "armor",
 		"icon_idx": 29,
 		"power": 3,
 		"slot": "body",
@@ -30,6 +45,11 @@
 		"attack_type": "melee",
 		"display_name": "Axe",
 		"hands": 1,
+		"hires_cell": [
+			0,
+			0
+		],
+		"hires_sheet": "weapons",
 		"icon_idx": 22,
 		"knockback": 2,
 		"power": 5,
@@ -40,6 +60,11 @@
 	},
 	"base_boots": {
 		"display_name": "Boots",
+		"hires_cell": [
+			2,
+			0
+		],
+		"hires_sheet": "armor",
 		"icon_idx": 30,
 		"power": 1,
 		"slot": "feet",
@@ -50,6 +75,11 @@
 		"attack_type": "ranged",
 		"display_name": "Bow",
 		"hands": 2,
+		"hires_cell": [
+			1,
+			0
+		],
+		"hires_sheet": "weapons",
 		"icon_idx": 24,
 		"power": 3,
 		"reach": 80,
@@ -62,6 +92,11 @@
 		"attack_type": "melee",
 		"display_name": "Dagger",
 		"hands": 1,
+		"hires_cell": [
+			2,
+			0
+		],
+		"hires_sheet": "weapons",
 		"icon_idx": 26,
 		"power": 2,
 		"reach": 16,
@@ -71,6 +106,11 @@
 	},
 	"base_helmet": {
 		"display_name": "Helmet",
+		"hires_cell": [
+			3,
+			0
+		],
+		"hires_sheet": "armor",
 		"icon_idx": 28,
 		"power": 2,
 		"slot": "head",
@@ -78,6 +118,11 @@
 	},
 	"base_shield": {
 		"display_name": "Shield",
+		"hires_cell": [
+			4,
+			0
+		],
+		"hires_sheet": "armor",
 		"icon_idx": 27,
 		"power": 1,
 		"slot": "off_hand",
@@ -91,6 +136,11 @@
 		"attack_type": "melee",
 		"display_name": "Spear",
 		"hands": 2,
+		"hires_cell": [
+			3,
+			0
+		],
+		"hires_sheet": "weapons",
 		"icon_idx": 23,
 		"power": 3,
 		"reach": 40,
@@ -103,6 +153,11 @@
 		"attack_type": "ranged",
 		"display_name": "Staff",
 		"hands": 2,
+		"hires_cell": [
+			4,
+			0
+		],
+		"hires_sheet": "weapons",
 		"icon_idx": 25,
 		"power": 2,
 		"reach": 60,
@@ -115,6 +170,11 @@
 		"attack_type": "melee",
 		"display_name": "Sword",
 		"hands": 1,
+		"hires_cell": [
+			5,
+			0
+		],
+		"hires_sheet": "weapons",
 		"icon_idx": 21,
 		"power": 4,
 		"reach": 24,
@@ -125,6 +185,11 @@
 	"boots": {
 		"description_flavor": "Slightly increases movement speed.",
 		"display_name": "Leather Boots",
+		"hires_cell": [
+			5,
+			0
+		],
+		"hires_sheet": "armor",
 		"parent": "base_boots",
 		"set_id": "leather",
 		"tier": "leather"
@@ -132,6 +197,11 @@
 	"bow": {
 		"description_flavor": "Fires arrows at distant targets.",
 		"display_name": "Wooden Bow",
+		"hires_cell": [
+			6,
+			0
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_bow",
 		"weapon_sprite": [
 			52,
@@ -141,6 +211,11 @@
 	"copper_ore": {
 		"description_flavor": "A lump of unrefined copper.",
 		"display_name": "Copper Ore",
+		"hires_cell": [
+			1,
+			0
+		],
+		"hires_sheet": "items",
 		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
@@ -150,12 +225,22 @@
 		"description_flavor": "A pungent root used in herbal remedies.",
 		"display_name": "Fennel Root",
 		"heal_amount": 1,
+		"hires_cell": [
+			2,
+			0
+		],
+		"hires_sheet": "items",
 		"slot": "none",
 		"stack_size": 99
 	},
 	"fiber": {
 		"description_flavor": "Plant fibres for crafting.",
 		"display_name": "Fiber",
+		"hires_cell": [
+			3,
+			0
+		],
+		"hires_sheet": "items",
 		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
@@ -163,12 +248,22 @@
 	"fire_staff": {
 		"display_name": "Fire Staff",
 		"element": "fire",
+		"hires_cell": [
+			7,
+			0
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_staff",
 		"rarity": "uncommon"
 	},
 	"fire_sword": {
 		"display_name": "Fire Sword",
 		"element": "fire",
+		"hires_cell": [
+			0,
+			1
+		],
+		"hires_sheet": "weapons",
 		"parent": "sword",
 		"rarity": "rare",
 		"stat_bonuses": {
@@ -178,6 +273,11 @@
 	"gold": {
 		"description_flavor": "Shiny coins used for trade.",
 		"display_name": "Gold",
+		"hires_cell": [
+			4,
+			0
+		],
+		"hires_sheet": "items",
 		"icon_idx": 130,
 		"slot": "none",
 		"stack_size": 9999
@@ -185,6 +285,11 @@
 	"gold_ore": {
 		"description_flavor": "A gleaming nugget of gold.",
 		"display_name": "Gold Ore",
+		"hires_cell": [
+			5,
+			0
+		],
+		"hires_sheet": "items",
 		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
@@ -194,6 +299,11 @@
 		"description_flavor": "A fragrant herb with restorative properties.",
 		"display_name": "Healing Herb",
 		"heal_amount": 3,
+		"hires_cell": [
+			6,
+			0
+		],
+		"hires_sheet": "items",
 		"slot": "none",
 		"stack_size": 99
 	},
@@ -204,6 +314,11 @@
 		],
 		"description_flavor": "Reduces damage taken to the head.",
 		"display_name": "Leather Helmet",
+		"hires_cell": [
+			6,
+			0
+		],
+		"hires_sheet": "armor",
 		"parent": "base_helmet",
 		"set_id": "leather",
 		"tier": "leather"
@@ -211,11 +326,21 @@
 	"ice_staff": {
 		"display_name": "Ice Staff",
 		"element": "ice",
+		"hires_cell": [
+			1,
+			1
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_staff",
 		"rarity": "uncommon"
 	},
 	"iron_armor": {
 		"display_name": "Iron Armor",
+		"hires_cell": [
+			7,
+			0
+		],
+		"hires_sheet": "armor",
 		"parent": "base_armor",
 		"power": 5,
 		"rarity": "uncommon",
@@ -224,11 +349,21 @@
 	},
 	"iron_axe": {
 		"display_name": "Iron Axe",
+		"hires_cell": [
+			2,
+			1
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_axe",
 		"tier": "iron"
 	},
 	"iron_boots": {
 		"display_name": "Iron Boots",
+		"hires_cell": [
+			0,
+			1
+		],
+		"hires_sheet": "armor",
 		"parent": "base_boots",
 		"power": 2,
 		"rarity": "uncommon",
@@ -237,11 +372,21 @@
 	},
 	"iron_dagger": {
 		"display_name": "Iron Dagger",
+		"hires_cell": [
+			3,
+			1
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_dagger",
 		"tier": "iron"
 	},
 	"iron_helmet": {
 		"display_name": "Iron Helmet",
+		"hires_cell": [
+			1,
+			1
+		],
+		"hires_sheet": "armor",
 		"parent": "base_helmet",
 		"power": 3,
 		"rarity": "uncommon",
@@ -251,12 +396,22 @@
 	"iron_ore": {
 		"description_flavor": "A lump of unrefined iron.",
 		"display_name": "Iron Ore",
+		"hires_cell": [
+			7,
+			0
+		],
+		"hires_sheet": "items",
 		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
 	},
 	"iron_shield": {
 		"display_name": "Iron Shield",
+		"hires_cell": [
+			2,
+			1
+		],
+		"hires_sheet": "armor",
 		"parent": "base_shield",
 		"power": 2,
 		"stat_bonuses": {
@@ -265,17 +420,32 @@
 	},
 	"iron_spear": {
 		"display_name": "Iron Spear",
+		"hires_cell": [
+			4,
+			1
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_spear",
 		"tier": "iron"
 	},
 	"lightning_staff": {
 		"display_name": "Lightning Staff",
 		"element": "lightning",
+		"hires_cell": [
+			5,
+			1
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_staff",
 		"rarity": "rare"
 	},
 	"longbow": {
 		"display_name": "Longbow",
+		"hires_cell": [
+			6,
+			1
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_bow",
 		"power": 4,
 		"rarity": "uncommon",
@@ -283,6 +453,11 @@
 	},
 	"mithril_sword": {
 		"display_name": "Mithril Sword",
+		"hires_cell": [
+			7,
+			1
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_sword",
 		"power": 9,
 		"rarity": "rare",
@@ -293,6 +468,11 @@
 	"pickaxe": {
 		"description_flavor": "Doubles mining damage against rocks and ore veins.",
 		"display_name": "Iron Pickaxe",
+		"hires_cell": [
+			0,
+			1
+		],
+		"hires_sheet": "items",
 		"power": 2,
 		"slot": "tool",
 		"stack_size": 1,
@@ -304,6 +484,11 @@
 	"poison_dagger": {
 		"display_name": "Poison Dagger",
 		"element": "poison",
+		"hires_cell": [
+			0,
+			2
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_dagger",
 		"rarity": "rare",
 		"stat_bonuses": {
@@ -312,6 +497,11 @@
 	},
 	"steel_shield": {
 		"display_name": "Steel Shield",
+		"hires_cell": [
+			3,
+			1
+		],
+		"hires_sheet": "armor",
 		"parent": "base_shield",
 		"power": 3,
 		"rarity": "uncommon",
@@ -321,6 +511,11 @@
 	},
 	"steel_sword": {
 		"display_name": "Steel Sword",
+		"hires_cell": [
+			1,
+			2
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_sword",
 		"power": 6,
 		"rarity": "uncommon",
@@ -333,6 +528,11 @@
 	"stone": {
 		"description_flavor": "A heavy chunk of rock.",
 		"display_name": "Stone",
+		"hires_cell": [
+			1,
+			1
+		],
+		"hires_sheet": "items",
 		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
@@ -340,6 +540,11 @@
 	"sword": {
 		"description_flavor": "A balanced blade for combat.",
 		"display_name": "Iron Sword",
+		"hires_cell": [
+			2,
+			2
+		],
+		"hires_sheet": "weapons",
 		"parent": "base_sword",
 		"tier": "iron",
 		"weapon_sprite": [
@@ -352,6 +557,11 @@
 		"attack_type": "melee",
 		"display_name": "War Hammer",
 		"hands": 1,
+		"hires_cell": [
+			3,
+			2
+		],
+		"hires_sheet": "weapons",
 		"icon_idx": 1,
 		"knockback": 12,
 		"power": 5,
@@ -362,12 +572,22 @@
 	"wood": {
 		"description_flavor": "A bundle of sturdy logs.",
 		"display_name": "Wood",
+		"hires_cell": [
+			2,
+			1
+		],
+		"hires_sheet": "items",
 		"is_crafting_ingredient": true,
 		"slot": "none",
 		"stack_size": 99
 	},
 	"wooden_shield": {
 		"display_name": "Wooden Shield",
+		"hires_cell": [
+			4,
+			1
+		],
+		"hires_sheet": "armor",
 		"parent": "base_shield",
 		"power": 1,
 		"stat_bonuses": {
