@@ -20,7 +20,6 @@ extends Resource
 
 func _init() -> void:
 	inventory = Inventory.new(48)  # 48 slots — larger than player (24)
-	travel_logs.clear()
 	travel_logs.append(TravelLog.new())
 	travel_logs.append(TravelLog.new())
 

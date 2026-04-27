@@ -23,7 +23,16 @@ func test_quest_tracker_data_saved_and_restored() -> void:
 	assert_eq(QuestTracker.get_objective_progress("herbalist_remedy", "get_fennel"), 2,
 			"Objective progress should survive save/load")
 
-func test_travel_log_data_in_caravan_save_data() -> void:
-	var csd := CaravanSaveData.new()
-	csd.travel_log_data = [{"current_run": {"enemies_killed": 5}}, {}]
-	assert_eq(csd.travel_log_data[0].get("current_run", {}).get("enemies_killed", 0), 5)
+func test_caravan_data_travel_log_round_trip() -> void:
+	var cd := CaravanData.new()
+	cd.travel_logs[0].start_run(&"dungeon", "0_0")
+	cd.travel_logs[0].record_kill()
+	cd.travel_logs[0].record_kill()
+	cd.member_names[&"warrior"] = "Derin"
+	var d := cd.to_dict()
+	var cd2 := CaravanData.new()
+	cd2.from_dict(d)
+	assert_eq(cd2.travel_logs[0].current_run.get("enemies_killed", 0), 2,
+			"Kill count should survive CaravanData to_dict/from_dict round-trip")
+	assert_eq(cd2.member_names.get(&"warrior", ""), "Derin",
+			"Member name should survive round-trip")

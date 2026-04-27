@@ -92,12 +92,14 @@ static func snapshot(world: WorldRoot) -> SaveGame:
 			var csd := CaravanSaveData.new()
 			csd.player_id = pid
 			csd.recruited_ids = caravan_data.recruited_ids.duplicate()
-			csd.inventory_data = caravan_data.to_dict().get("inventory", {})
+			var d := caravan_data.to_dict()
+			csd.inventory_data = d.get("inventory", {})
+			var tl_data: Array = d.get("travel_logs", [{}, {}])
 			csd.travel_log_data = [
-				caravan_data.travel_logs[0].to_dict() if caravan_data.travel_logs.size() > 0 else {},
-				caravan_data.travel_logs[1].to_dict() if caravan_data.travel_logs.size() > 1 else {},
+				tl_data[0] if tl_data.size() > 0 else {},
+				tl_data[1] if tl_data.size() > 1 else {},
 			]
-			csd.member_names = caravan_data.member_names.duplicate()
+			csd.member_names = d.get("member_names", {}).duplicate()
 			save.caravans.append(csd)
 	save.game_state_flags = GameState.to_dict()
 	save.quest_tracker_data = QuestTracker.to_dict()
@@ -164,7 +166,7 @@ func apply(world: WorldRoot = null) -> void:
 			if not csd.inventory_data.is_empty():
 				caravan_data.inventory.from_dict(csd.inventory_data)
 			if not csd.travel_log_data.is_empty() and caravan_data.travel_logs.size() >= 2:
-				caravan_data.travel_logs[0].from_dict(csd.travel_log_data[0] if csd.travel_log_data.size() > 0 else {})
+				caravan_data.travel_logs[0].from_dict(csd.travel_log_data[0])
 				caravan_data.travel_logs[1].from_dict(csd.travel_log_data[1] if csd.travel_log_data.size() > 1 else {})
 			caravan_data.member_names = csd.member_names.duplicate()
 	# Phase 9a: enter active interior in the live world (Game.gd's signal
