@@ -51,9 +51,9 @@ func _process(delta: float) -> void:
 	if dist_px > _TELEPORT_TILES * float(WorldConst.TILE_PX):
 		_teleport_to_owner()
 		return
-	# Walk toward a point just behind the owner.
+	# Walk toward a point just behind the owner using A* pathfinding.
 	var lag_point: Vector2 = _lag_position()
-	_step_toward(lag_point, delta)
+	_tick_follow(lag_point, delta)
 
 
 ## Returns the position the caravan should aim for (behind the player).
@@ -72,12 +72,30 @@ func _step_toward(target_pos: Vector2, delta: float) -> void:
 	var step: Vector2 = to_target.normalized() * _MOVE_SPEED_PX_S * delta
 	var new_pos: Vector2 = position + step
 	if _world != null:
-		var cell: Vector2i = Vector2i(
-				int(floor(new_pos.x / float(WorldConst.TILE_PX))),
-				int(floor(new_pos.y / float(WorldConst.TILE_PX))))
+		var cell: Vector2i = _pos_to_cell(new_pos)
 		if not _world.is_walkable(cell):
 			return
 	position = new_pos
+
+
+func _tick_follow(lag_point: Vector2, delta: float) -> void:
+	if position.distance_to(lag_point) <= _ARRIVE_DIST_PX:
+		return
+	_path_repath_timer -= delta
+	var goal_cell: Vector2i = _pos_to_cell(lag_point)
+	if _world != null and (_path.is_empty() or _path_repath_timer <= 0.0
+			or goal_cell != _path_target_cell):
+		var start_cell: Vector2i = _pos_to_cell(position)
+		_path = Pathfinder.find_path(start_cell, goal_cell,
+			func(c: Vector2i) -> bool: return _world.is_walkable(c))
+		_path_target_cell = goal_cell
+		_path_repath_timer = _PATH_REPATH_SEC
+	var dest_pos: Vector2 = lag_point
+	if not _path.is_empty():
+		var here: Vector2i = _pos_to_cell(position)
+		var nxt: Vector2i = Pathfinder.next_step(_path, here)
+		dest_pos = _cell_center(nxt)
+	_step_toward(dest_pos, delta)
 
 
 func _teleport_to_owner() -> void:
