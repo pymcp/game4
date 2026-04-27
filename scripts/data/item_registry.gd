@@ -205,8 +205,11 @@ static func _build_cache() -> void:
 		var def := _build_definition(id, entry)
 		_cache[id] = def
 
-	# Layer .tres overrides on top.
+	# Layer .tres overrides on top (may replace icon with hand-picked PNG).
 	_apply_tres_overrides()
+
+	# Apply hires spritesheet icons last — highest priority, always wins.
+	_apply_hires_icons()
 
 
 static func _build_definition(id: StringName, entry: Dictionary) -> ItemDefinition:
@@ -273,22 +276,31 @@ static func _build_definition(id: StringName, entry: Dictionary) -> ItemDefiniti
 	if ss is Array and ss.size() >= 2:
 		def.shield_sprite = Vector2i(int(ss[0]), int(ss[1]))
 
-	# Icon texture — prefer hires spritesheet cell (set by seed_hires_sheets.py),
-	# fall back to legacy icon_idx sheet.
-	var hires_tex: Texture2D = HiresIconRegistry.get_icon_from_entry(id, entry)
-	if hires_tex != null:
-		def.icon = hires_tex
-	else:
-		var icon_idx: int = int(entry.get("icon_idx", -1))
-		if icon_idx >= 0:
-			var path: String = _ICON_BASE % icon_idx
-			if ResourceLoader.exists(path):
-				def.icon = load(path) as Texture2D
+	# Icon texture — legacy icon_idx sheet (hires override applied in _apply_hires_icons).
+	var icon_idx: int = int(entry.get("icon_idx", -1))
+	if icon_idx >= 0:
+		var path: String = _ICON_BASE % icon_idx
+		if ResourceLoader.exists(path):
+			def.icon = load(path) as Texture2D
 
 	# Auto-generate description from fields.
 	def.description = def.generate_description()
 
 	return def
+
+
+## Apply hires spritesheet icons to every cached item.
+## Runs AFTER _apply_tres_overrides() so hires always takes highest priority.
+static func _apply_hires_icons() -> void:
+	for id_str in _resolved:
+		var id := StringName(id_str)
+		var def: ItemDefinition = _cache.get(id, null)
+		if def == null:
+			continue
+		var entry: Dictionary = _resolved[id_str]
+		var tex: Texture2D = HiresIconRegistry.get_icon_from_entry(id, entry)
+		if tex != null:
+			def.icon = tex
 
 
 static func _apply_tres_overrides() -> void:
