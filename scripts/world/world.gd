@@ -210,6 +210,7 @@ func _enter_view(pid: int, view_kind: StringName, region: Region,
 		elif view_kind == &"overworld" and was_dungeon:
 			if not tlog.current_run.is_empty():
 				tlog.last_run = tlog.current_run.duplicate()
+				tlog.current_run = {}
 	# Update tracked view kind.
 	if pid < _player_view_kind.size():
 		_player_view_kind[pid] = view_kind
