@@ -12,7 +12,7 @@
 class_name SaveGame
 extends Resource
 
-const VERSION: int = 2
+const VERSION: int = 3
 const _SAVE_DIR: String = "user://saves/"
 
 @export var version: int = VERSION
@@ -24,6 +24,7 @@ const _SAVE_DIR: String = "user://saves/"
 ## Array[Region]
 @export var regions: Array = []
 @export var players: Array[PlayerSaveData] = []
+@export var caravans: Array[CaravanSaveData] = []
 ## Phase 9a: persistent dungeon state.
 ## Array[InteriorMap] - every interior visited so generated layouts persist.
 @export var interiors: Array = []
@@ -78,12 +79,28 @@ static func snapshot(world: WorldRoot) -> SaveGame:
 			psd.fog_data = p.fog_of_war.to_dict()
 			psd.dungeon_fog_data = p.dungeon_fog.to_dict()
 			save.players.append(psd)
+	# Save caravan state.
+	save.caravans.clear()
+	var world_node: World = World.instance()
+	if world_node != null:
+		for pid in range(2):
+			var caravan_data: CaravanData = world_node.get_caravan_data(pid)
+			if caravan_data == null:
+				continue
+			var csd := CaravanSaveData.new()
+			csd.player_id = pid
+			csd.recruited_ids = caravan_data.recruited_ids.duplicate()
+			csd.inventory_data = caravan_data.to_dict().get("inventory", {})
+			save.caravans.append(csd)
 	save.game_state_flags = GameState.to_dict()
 	return save
 
 
 ## Apply this save to WorldManager + (optionally) `world`. Resets caches.
 func apply(world: WorldRoot = null) -> void:
+	# Version migration.
+	if version < 3:
+		caravans = []
 	WorldManager.reset(world_seed)
 	GameState.from_dict(game_state_flags)
 	for plan in plans:
@@ -122,6 +139,18 @@ func apply(world: WorldRoot = null) -> void:
 			p.fog_of_war.from_dict(psd.fog_data)
 		if not psd.dungeon_fog_data.is_empty():
 			p.dungeon_fog.from_dict(psd.dungeon_fog_data)
+	# Restore caravan state.
+	var world_node: World = World.instance() if world != null else null
+	if world_node != null:
+		for csd in caravans:
+			var caravan_data: CaravanData = world_node.get_caravan_data(csd.player_id)
+			if caravan_data == null:
+				continue
+			caravan_data.recruited_ids.clear()
+			for id_str in csd.recruited_ids:
+				caravan_data.recruited_ids.append(StringName(id_str))
+			if not csd.inventory_data.is_empty():
+				caravan_data.inventory.from_dict(csd.inventory_data)
 	# Phase 9a: enter active interior in the live world (Game.gd's signal
 	# handler will repaint the WorldRoot).
 	if active_interior_id != &"" and MapManager.interiors.has(active_interior_id) \
