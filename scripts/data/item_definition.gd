@@ -59,6 +59,9 @@ const RARITY_COLORS: Dictionary = {
 @export var heal_amount: int = 0
 @export var cure_status: StringName = &""
 
+# --- Caravan / crafting fields ---
+@export var is_crafting_ingredient: bool = false
+
 
 func generate_description() -> String:
 	var parts: PackedStringArray = []

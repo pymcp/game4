@@ -226,6 +226,9 @@ static func _build_definition(id: StringName, entry: Dictionary) -> ItemDefiniti
 	var cure_str: String = entry.get("cure_status", "")
 	def.cure_status = StringName(cure_str) if cure_str != "" else &""
 
+	# Caravan / crafting
+	def.is_crafting_ingredient = bool(entry.get("is_crafting_ingredient", false))
+
 	# Slot
 	var slot_str: String = entry.get("slot", "none").to_lower()
 	def.slot = _SLOT_MAP.get(slot_str, ItemDefinition.Slot.NONE)
