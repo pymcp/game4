@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://crafterpanel001"]
+
+[ext_resource type="Script" path="res://scripts/ui/crafter_panel.gd" id="1_cp"]
+
+[node name="CrafterPanel" type="Control"]
+script = ExtResource("1_cp")
