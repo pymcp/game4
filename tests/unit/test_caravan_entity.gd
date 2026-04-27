@@ -28,3 +28,14 @@ func test_lag_position_falls_back_gracefully() -> void:
 	# Should not crash.
 	var result: Vector2 = _caravan._lag_position()
 	assert_eq(result, _caravan.position)
+
+func test_path_is_empty_initially() -> void:
+	assert_true(_caravan._path.is_empty(), "_path should be empty on init")
+
+func test_path_target_cell_is_sentinel_initially() -> void:
+	assert_eq(_caravan._path_target_cell, Vector2i(0x7fffffff, 0x7fffffff),
+		"_path_target_cell should be sentinel on init")
+
+func test_path_repath_timer_is_zero_initially() -> void:
+	assert_eq(_caravan._path_repath_timer, 0.0,
+		"_path_repath_timer should be zero on init")

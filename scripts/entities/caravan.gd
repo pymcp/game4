@@ -19,6 +19,7 @@ const _FOLLOW_DIST_PX: float = 28.0   ## Start moving when farther than this.
 const _ARRIVE_DIST_PX: float = 8.0    ## Stop moving when this close to lag point.
 const _MOVE_SPEED_PX_S: float = 60.0
 const _TELEPORT_TILES: float = 25.0   ## Snap to owner when this many tiles away.
+const _PATH_REPATH_SEC: float = 0.5
 
 ## Set by world.gd when the caravan is created.
 @export var owner_player: PlayerController = null
@@ -27,6 +28,9 @@ const _TELEPORT_TILES: float = 25.0   ## Snap to owner when this many tiles away
 
 var _world: WorldRoot = null
 var _sprite: Sprite2D = null
+var _path: Array = []
+var _path_target_cell: Vector2i = Vector2i(0x7fffffff, 0x7fffffff)
+var _path_repath_timer: float = 0.0
 
 ## Emitted when player interacts with the caravan.
 ## world.gd / game.gd connects this to open the CaravanMenu.
@@ -80,6 +84,18 @@ func _teleport_to_owner() -> void:
 	if owner_player == null:
 		return
 	position = owner_player.position + Vector2(0.0, float(WorldConst.TILE_PX) * 1.5)
+	_path.clear()
+	_path_target_cell = Vector2i(0x7fffffff, 0x7fffffff)
+
+
+static func _pos_to_cell(pos: Vector2) -> Vector2i:
+	var t: int = WorldConst.TILE_PX
+	return Vector2i(int(floor(pos.x / float(t))), int(floor(pos.y / float(t))))
+
+
+static func _cell_center(cell: Vector2i) -> Vector2:
+	var t: float = float(WorldConst.TILE_PX)
+	return Vector2((cell.x + 0.5) * t, (cell.y + 0.5) * t)
 
 
 ## Called by WorldRoot._try_interact when the player is adjacent.
