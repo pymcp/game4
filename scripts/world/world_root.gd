@@ -258,29 +258,56 @@ func apply_view(view_kind: StringName, region: Region, interior: InteriorMap) ->
 
 func _attach_overworld_tilesets() -> void:
 	var ts: TileSet = TilesetCatalog.overworld()
+	var sf: float = TilesetCatalog.scale_for_sheet(
+			TilesetCatalog.get_sheet_path(&"overworld_terrain"))
+	var sv := Vector2(sf, sf)
 	ground.tile_set = ts
+	ground.scale = sv
 	patch.tile_set = ts
+	patch.scale = sv
 	decoration.tile_set = ts
+	decoration.scale = sv
 	canopy.tile_set = ts
+	canopy.scale = sv
 	overlay.tile_set = TilesetCatalog.runes()
+	overlay.scale = Vector2.ONE
 
 
 func _attach_interior_tilesets(view_kind: StringName) -> void:
 	var ts: TileSet
+	var sheet_field: StringName
 	match view_kind:
-		&"city": ts = TilesetCatalog.city()
-		&"house": ts = TilesetCatalog.interior()
-		&"dungeon":   ts = TilesetCatalog.dungeon()
-		&"labyrinth": ts = TilesetCatalog.labyrinth()
-		_: ts = TilesetCatalog.dungeon()
+		&"city":
+			ts = TilesetCatalog.city()
+			sheet_field = &"city_terrain"
+		&"house":
+			ts = TilesetCatalog.interior()
+			sheet_field = &"interior_terrain"
+		&"dungeon":
+			ts = TilesetCatalog.dungeon()
+			sheet_field = &"dungeon_terrain"
+		&"labyrinth":
+			ts = TilesetCatalog.labyrinth()
+			sheet_field = &"labyrinth_terrain"
+		_:
+			ts = TilesetCatalog.dungeon()
+			sheet_field = &"dungeon_terrain"
+	var sf: float = TilesetCatalog.scale_for_sheet(
+			TilesetCatalog.get_sheet_path(sheet_field))
+	var sv := Vector2(sf, sf)
 	ground.tile_set = ts
+	ground.scale = sv
 	decoration.tile_set = ts
+	decoration.scale = sv
 	# Patch layer is overworld-only; clearing the tile_set guarantees
 	# any leftover overworld patch cells aren't rendered over interior
 	# tile coords with mismatched atlas data.
 	patch.tile_set = null
+	patch.scale = Vector2.ONE
 	canopy.tile_set = null
+	canopy.scale = Vector2.ONE
 	overlay.tile_set = TilesetCatalog.runes()
+	overlay.scale = Vector2.ONE
 
 
 # --- Overworld loading & painting ----------------------------------
