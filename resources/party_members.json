@@ -1,0 +1,30 @@
+{
+	"warrior": {
+		"id": "warrior",
+		"display_name": "Warrior",
+		"crafter_domain": "",
+		"portrait_cell": [0, 0],
+		"can_follow": true
+	},
+	"blacksmith": {
+		"id": "blacksmith",
+		"display_name": "Blacksmith",
+		"crafter_domain": "blacksmith",
+		"portrait_cell": [0, 0],
+		"can_follow": false
+	},
+	"cook": {
+		"id": "cook",
+		"display_name": "Cook",
+		"crafter_domain": "cook",
+		"portrait_cell": [0, 0],
+		"can_follow": false
+	},
+	"alchemist": {
+		"id": "alchemist",
+		"display_name": "Alchemist",
+		"crafter_domain": "alchemist",
+		"portrait_cell": [0, 0],
+		"can_follow": false
+	}
+}
