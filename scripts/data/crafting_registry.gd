@@ -25,6 +25,15 @@ static func all_recipes() -> Array:
 	return _cache.values()
 
 
+static func get_by_domain(domain: StringName) -> Array:
+	_ensure_loaded()
+	var result: Array = []
+	for recipe in _cache.values():
+		if recipe.crafter_domain == domain:
+			result.append(recipe)
+	return result
+
+
 static func all_ids() -> Array:
 	_ensure_loaded()
 	return _cache.keys()
@@ -100,4 +109,5 @@ static func _build_cache() -> void:
 			inputs.append({"id": StringName(inp.get("id", "")),
 				"count": int(inp.get("count", 1))})
 		r.inputs = inputs
+		r.crafter_domain = StringName(entry.get("crafter_domain", ""))
 		_cache[id] = r
