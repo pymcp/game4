@@ -35,7 +35,7 @@ const EQUIPMENT_SLOT_ORDER: Array = [
 	ItemDefinition.Slot.TOOL,
 ]
 
-enum Tab { EQUIPMENT, ALL, WEAPONS, ARMOR, TOOLS, MATERIALS, CRAFTING, CHARACTER }
+enum Tab { EQUIPMENT, ALL, WEAPONS, ARMOR, TOOLS, MATERIALS, CHARACTER }
 
 const TAB_LABELS: Array = [
 	"Equipment",
@@ -44,7 +44,6 @@ const TAB_LABELS: Array = [
 	"Armor",
 	"Tools",
 	"Materials",
-	"Crafting",
 	"Character",
 ]
 
@@ -81,14 +80,12 @@ var _tab_column: VBoxContainer = null
 var _content_stack: Control = null
 var _eq_page: Control = null
 var _grid_page: VBoxContainer = null
-var _craft_page: VBoxContainer = null
 var _inv_slots: Array[HotbarSlot] = []
 var _eq_slots: Array[HotbarSlot] = []
 var _eq_labels: Array[Label] = []
 var _grid: GridContainer = null
 var _grid_scroll: ScrollContainer = null
 var _paperdoll: Control = null
-var _crafting: CraftingPanel = null
 var _char_page: VBoxContainer = null
 var _char_preview_root: Node2D = null
 var _char_preview_viewport: SubViewport = null
@@ -175,8 +172,6 @@ func set_player(p: PlayerController) -> void:
 			_player.inventory.contents_changed.connect(_refresh)
 		if _player.equipment != null:
 			_player.equipment.contents_changed.connect(_refresh)
-	if _crafting != null:
-		_crafting.set_player(_player)
 	_refresh()
 
 
@@ -337,10 +332,6 @@ func _build() -> void:
 
 	_grid_page = _build_grid_page()
 	_content_stack.add_child(_grid_page)
-
-	_craft_page = _build_crafting_page()
-	_craft_page.visible = false
-	_content_stack.add_child(_craft_page)
 
 	_char_page = _build_character_page()
 	_char_page.visible = false
@@ -563,19 +554,6 @@ func _silhouette_part(x: float, y: float, w: float, h: float,
 	return p
 
 
-func _build_crafting_page() -> VBoxContainer:
-	var page := VBoxContainer.new()
-	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	page.anchor_right = 1.0
-	page.anchor_bottom = 1.0
-	_crafting = CraftingPanel.new()
-	page.add_child(_crafting)
-	if _player != null:
-		_crafting.set_player(_player)
-	return page
-
-
 func _build_controls_bar() -> PanelContainer:
 	var bar := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
@@ -635,8 +613,7 @@ func _select_tab(tab_idx: int) -> void:
 
 	# Show the appropriate content page.
 	_eq_page.visible = (tab_idx == Tab.EQUIPMENT)
-	_grid_page.visible = (tab_idx not in [Tab.EQUIPMENT, Tab.CRAFTING, Tab.CHARACTER])
-	_craft_page.visible = (tab_idx == Tab.CRAFTING)
+	_grid_page.visible = (tab_idx not in [Tab.EQUIPMENT, Tab.CHARACTER])
 	_char_page.visible = (tab_idx == Tab.CHARACTER)
 	if tab_idx == Tab.CHARACTER:
 		_load_char_opts_from_session()
@@ -659,8 +636,6 @@ func _move_cursor(dx: int, dy: int) -> void:
 		# Navigate equipment slots (5 slots, vertical list).
 		_cursor = clampi(_cursor + dy + dx, 0, EQUIPMENT_SLOT_ORDER.size() - 1)
 		_refresh_cursor()
-		return
-	if _current_tab == Tab.CRAFTING:
 		return
 	if _current_tab == Tab.CHARACTER:
 		_move_char_cursor(dx, dy)
@@ -688,11 +663,6 @@ func _refresh_cursor() -> void:
 			_cursor_panel.global_position = slot.global_position - Vector2(2, 2)
 			_cursor_panel.size = slot.size + Vector2(4, 4)
 		_update_detail_equipment()
-		return
-
-	if _current_tab == Tab.CRAFTING:
-		_cursor_panel.visible = false
-		_clear_detail("")
 		return
 
 	if _current_tab == Tab.CHARACTER:
@@ -787,9 +757,6 @@ func _interact_cursor() -> void:
 				_player.inventory.add(eq_id, 1)
 		return
 
-	if _current_tab == Tab.CRAFTING:
-		return
-
 	if _current_tab == Tab.CHARACTER:
 		return
 
@@ -837,9 +804,6 @@ func _drop_cursor() -> void:
 			if eq_id != &"":
 				_player.equipment.unequip(slot_type)
 				_spawn_loot_pickup(eq_id, 1)
-		return
-
-	if _current_tab == Tab.CRAFTING:
 		return
 
 	if _current_tab == Tab.CHARACTER:
@@ -1318,5 +1282,3 @@ func get_eq_slots() -> Array[HotbarSlot]:
 	return _eq_slots
 
 
-func get_crafting_panel() -> CraftingPanel:
-	return _crafting
