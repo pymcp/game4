@@ -12,7 +12,7 @@
 class_name SaveGame
 extends Resource
 
-const VERSION: int = 3
+const VERSION: int = 4
 const _SAVE_DIR: String = "user://saves/"
 
 @export var version: int = VERSION
@@ -31,6 +31,8 @@ const _SAVE_DIR: String = "user://saves/"
 ## StringName id of the active interior, or &"" if on the overworld.
 @export var active_interior_id: StringName = &""
 @export var game_state_flags: Dictionary = {}
+## Serialized QuestTracker state (branch + objective progress per active quest).
+@export var quest_tracker_data: Dictionary = {}
 
 
 static func slot_path(slot: String) -> String:
@@ -91,8 +93,14 @@ static func snapshot(world: WorldRoot) -> SaveGame:
 			csd.player_id = pid
 			csd.recruited_ids = caravan_data.recruited_ids.duplicate()
 			csd.inventory_data = caravan_data.to_dict().get("inventory", {})
+			csd.travel_log_data = [
+				caravan_data.travel_logs[0].to_dict() if caravan_data.travel_logs.size() > 0 else {},
+				caravan_data.travel_logs[1].to_dict() if caravan_data.travel_logs.size() > 1 else {},
+			]
+			csd.member_names = caravan_data.member_names.duplicate()
 			save.caravans.append(csd)
 	save.game_state_flags = GameState.to_dict()
+	save.quest_tracker_data = QuestTracker.to_dict()
 	return save
 
 
@@ -101,8 +109,12 @@ func apply(world: WorldRoot = null) -> void:
 	# Version migration.
 	if version < 3:
 		caravans = []
+	if version < 4:
+		quest_tracker_data = {}
 	WorldManager.reset(world_seed)
 	GameState.from_dict(game_state_flags)
+	if not quest_tracker_data.is_empty():
+		QuestTracker.from_dict(quest_tracker_data)
 	for plan in plans:
 		WorldManager.plans[plan.region_id] = plan
 	for region in regions:
@@ -151,6 +163,10 @@ func apply(world: WorldRoot = null) -> void:
 				caravan_data.recruited_ids.append(StringName(id_str))
 			if not csd.inventory_data.is_empty():
 				caravan_data.inventory.from_dict(csd.inventory_data)
+			if not csd.travel_log_data.is_empty() and caravan_data.travel_logs.size() >= 2:
+				caravan_data.travel_logs[0].from_dict(csd.travel_log_data[0] if csd.travel_log_data.size() > 0 else {})
+				caravan_data.travel_logs[1].from_dict(csd.travel_log_data[1] if csd.travel_log_data.size() > 1 else {})
+			caravan_data.member_names = csd.member_names.duplicate()
 	# Phase 9a: enter active interior in the live world (Game.gd's signal
 	# handler will repaint the WorldRoot).
 	if active_interior_id != &"" and MapManager.interiors.has(active_interior_id) \

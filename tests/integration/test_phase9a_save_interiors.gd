@@ -80,4 +80,4 @@ func test_roundtrip_to_disk_preserves_interiors() -> void:
 
 
 func test_version_bumped() -> void:
-	assert_eq(SaveGame.VERSION, 3)
+	assert_eq(SaveGame.VERSION, 4)
