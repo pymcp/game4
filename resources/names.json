@@ -1,0 +1,7 @@
+{
+  "story_teller": ["Edda", "Lira", "Sorren", "Vael", "Myr"],
+  "warrior":      ["Derin", "Kael", "Brynn", "Torva", "Grath"],
+  "blacksmith":   ["Gund", "Petra", "Orin", "Mave", "Skor"],
+  "cook":         ["Hessie", "Tam", "Brix", "Corla", "Wynn"],
+  "alchemist":    ["Syle", "Fenn", "Cress", "Vix", "Nael"]
+}
