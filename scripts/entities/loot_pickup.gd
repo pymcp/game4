@@ -95,6 +95,8 @@ func _process(delta: float) -> void:
 		var leftover: int = p.inventory.add(item_id, count)
 		if leftover < count:
 			_consumed = true
+			if p.caravan_data != null and p.caravan_data.travel_logs.size() > p.player_id:
+				p.caravan_data.travel_logs[p.player_id].record_loot(count)
 			# Float the label away before freeing.
 			if _label != null:
 				_label.reparent(get_parent())

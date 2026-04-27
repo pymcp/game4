@@ -152,6 +152,7 @@ func transition_player(pid: int, view_kind: StringName, region: Region,
 
 func _enter_view(pid: int, view_kind: StringName, region: Region,
 		interior: InteriorMap) -> void:
+	var prev_view_kind: StringName = _player_view_kind[pid] if pid < _player_view_kind.size() else &""
 	var resolved_region: Region = region
 	if view_kind == &"overworld":
 		resolved_region = _resolve_land_region(region)
@@ -194,6 +195,24 @@ func _enter_view(pid: int, view_kind: StringName, region: Region,
 			p.trigger_overworld_transfer()
 	# Warrior: everywhere, but only if recruited.
 	_ensure_warrior_for_player(pid, inst, view_kind)
+	# TravelLog: track dungeon entry, floor transitions, and overworld return.
+	var _cd: CaravanData = _caravan_datas[pid] if pid < _caravan_datas.size() else null
+	if _cd != null and _cd.travel_logs.size() > pid:
+		var tlog: TravelLog = _cd.travel_logs[pid]
+		var is_dungeon: bool = (view_kind == &"dungeon" or view_kind == &"labyrinth")
+		var was_dungeon: bool = (prev_view_kind == &"dungeon" or prev_view_kind == &"labyrinth")
+		var rid_str: String = "%d_%d" % [region.region_id.x, region.region_id.y] \
+				if region != null else "0_0"
+		if is_dungeon and not was_dungeon:
+			tlog.start_run(view_kind, rid_str)
+		elif is_dungeon and was_dungeon:
+			tlog.record_floor()
+		elif view_kind == &"overworld" and was_dungeon:
+			if not tlog.current_run.is_empty():
+				tlog.last_run = tlog.current_run.duplicate()
+	# Update tracked view kind.
+	if pid < _player_view_kind.size():
+		_player_view_kind[pid] = view_kind
 
 
 func _instance_key(view_kind: StringName, region: Region,

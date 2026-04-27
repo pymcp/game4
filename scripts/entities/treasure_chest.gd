@@ -38,6 +38,10 @@ func open(player: Node) -> void:
 	is_opened = true
 	_refresh_sprite(true)
 
+	if player is PlayerController:
+		var pc := player as PlayerController
+		if pc.caravan_data != null and pc.caravan_data.travel_logs.size() > pc.player_id:
+			pc.caravan_data.travel_logs[pc.player_id].record_chest()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(position.x * 7.0 + position.y * 13.0 + floor_num * 97)
 	var count: int = rng.randi_range(2, 3)

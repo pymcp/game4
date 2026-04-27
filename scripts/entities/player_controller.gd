@@ -551,6 +551,10 @@ func _auto_attack_melee(weapon_id: StringName, def: ItemDefinition) -> void:
 		var power: int = max(1, get_effective_stat(&"strength")) if def == null else max(1, def.power + get_effective_stat(&"strength"))
 		var elem: int = def.element if def != null else 0
 		best.call("take_hit", power, self, elem)
+		var entity_health: Variant = best.get("health")
+		if entity_health != null and int(entity_health) <= 0 and caravan_data != null \
+				and caravan_data.travel_logs.size() > player_id:
+			caravan_data.travel_logs[player_id].record_kill()
 	if def != null and def.knockback > 0:
 		_apply_knockback(best, def.knockback)
 	_play_action_vfx(target_cell, false, {})
@@ -588,6 +592,10 @@ func _auto_attack_ranged(weapon_id: StringName, def: ItemDefinition) -> void:
 				power = max(1, def.power + get_effective_stat(&"strength"))
 			var elem: int = def.element if def != null else 0
 			n.call("take_hit", power, self, elem)
+			var entity_health: Variant = n.get("health")
+			if entity_health != null and int(entity_health) <= 0 and caravan_data != null \
+					and caravan_data.travel_logs.size() > player_id:
+				caravan_data.travel_logs[player_id].record_kill()
 		if def != null and def.knockback > 0:
 			_apply_knockback(n as Node2D, def.knockback)
 		break  # One target per shot.
@@ -671,6 +679,10 @@ func try_attack() -> Dictionary:
 		var power: int = max(1, get_effective_stat(&"strength")) if wdef == null else max(1, wdef.power + get_effective_stat(&"strength"))
 		var elem: int = wdef.element if wdef != null else 0
 		hit_entity.call("take_hit", power, self, elem)
+		var entity_health: Variant = hit_entity.get("health")
+		if entity_health != null and int(entity_health) <= 0 and caravan_data != null \
+				and caravan_data.travel_logs.size() > player_id:
+			caravan_data.travel_logs[player_id].record_kill()
 		if wdef != null and wdef.knockback > 0:
 			_apply_knockback(hit_entity, wdef.knockback)
 		res["hit_entity"] = true
