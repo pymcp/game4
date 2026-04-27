@@ -10,3 +10,7 @@ extends Resource
 @export var recruited_ids: Array[StringName] = []
 ## Serialized caravan inventory (from CaravanData.inventory.to_dict()).
 @export var inventory_data: Dictionary = {}
+## Serialized TravelLog data (array of 2 dicts, index = player_id).
+@export var travel_log_data: Array[Dictionary] = []
+## Rolled member names (StringName string keys → name strings).
+@export var member_names: Dictionary = {}
