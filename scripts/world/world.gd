@@ -164,9 +164,12 @@ func _enter_view(pid: int, view_kind: StringName, region: Region,
 	var p: PlayerController = _players[pid]
 	if p != null:
 		p.caravan_data = _caravan_datas[pid]
-	# Caravan: only on overworld.
+	# Caravan: only on overworld. Auto-transfer crafting ingredients from
+	# player inventory to caravan when entering the overworld.
 	if view_kind == &"overworld":
 		_ensure_caravan_for_player(pid, inst)
+		if p != null:
+			p.trigger_overworld_transfer()
 	# Warrior: everywhere, but only if recruited.
 	_ensure_warrior_for_player(pid, inst, view_kind)
 
