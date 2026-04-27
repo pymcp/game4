@@ -136,6 +136,29 @@ func set_world(w: WorldRoot) -> void:
 		_action_vfx._world = w
 
 
+## Transfer all crafting ingredient items from this player's inventory to the
+## caravan's shared inventory. Called automatically when the player transitions
+## back to the overworld. No-op if caravan_data is null.
+func trigger_overworld_transfer() -> void:
+	if caravan_data == null or caravan_data.inventory == null:
+		return
+	# Collect items to transfer first — do not modify slots during iteration.
+	var to_transfer: Array = []
+	for i in inventory.size:
+		var slot = inventory.slots[i]
+		if slot == null:
+			continue
+		var item_id: StringName = slot["id"]
+		var def: ItemDefinition = ItemRegistry.get_item(item_id)
+		if def != null and def.is_crafting_ingredient:
+			to_transfer.append({"id": item_id, "count": slot["count"]})
+	# Transfer collected items.
+	for entry in to_transfer:
+		var removed: int = inventory.remove(entry["id"], entry["count"])
+		if removed > 0:
+			caravan_data.inventory.add(entry["id"], removed)
+
+
 func _update_weapon_sprite() -> void:
 	if _weapon_sprite == null:
 		return
