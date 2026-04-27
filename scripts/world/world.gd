@@ -98,6 +98,13 @@ func get_caravan_data(pid: int) -> CaravanData:
 	return _caravan_datas[pid]
 
 
+## Returns the [Caravan] node for [param pid], or null if not yet created.
+func get_caravan(pid: int) -> Caravan:
+	if pid < 0 or pid >= _caravans.size():
+		return null
+	return _caravans[pid]
+
+
 ## Singleton-ish accessor: returns the active [World] from the scene
 ## tree (added to the [&"world"] group in [_ready]). Returns null
 ## before [Game] has finished setting up.
