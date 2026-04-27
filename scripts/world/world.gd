@@ -91,6 +91,13 @@ func get_player_world(pid: int) -> WorldRoot:
 	return _instances.get(_player_instance_key[pid])
 
 
+## Returns the [CaravanData] resource for [param pid].
+func get_caravan_data(pid: int) -> CaravanData:
+	if pid < 0 or pid >= _caravan_datas.size():
+		return null
+	return _caravan_datas[pid]
+
+
 ## Singleton-ish accessor: returns the active [World] from the scene
 ## tree (added to the [&"world"] group in [_ready]). Returns null
 ## before [Game] has finished setting up.
