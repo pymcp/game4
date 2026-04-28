@@ -32,19 +32,19 @@ func test_continue_button_disabled_without_save() -> void:
 	if FileAccess.file_exists(path):
 		# Don't delete the user's real save — instead check has_save matches
 		# the button state.
-		var menu := MainMenu.new()
+		var menu := preload("res://scenes/ui/MainMenu.tscn").instantiate() as MainMenu
 		add_child_autofree(menu)
 		await get_tree().process_frame
 		assert_false(menu.get_continue_button().disabled)
 	else:
-		var menu := MainMenu.new()
+		var menu := preload("res://scenes/ui/MainMenu.tscn").instantiate() as MainMenu
 		add_child_autofree(menu)
 		await get_tree().process_frame
 		assert_true(menu.get_continue_button().disabled)
 
 
 func test_seed_input_present() -> void:
-	var menu := MainMenu.new()
+	var menu := preload("res://scenes/ui/MainMenu.tscn").instantiate() as MainMenu
 	add_child_autofree(menu)
 	await get_tree().process_frame
 	assert_not_null(menu.get_seed_input())

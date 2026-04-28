@@ -45,9 +45,6 @@ static func has_save(slot: String) -> bool:
 # ---------- Lifecycle ----------
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_PASS
-	anchor_right = 1.0
-	anchor_bottom = 1.0
 	_btn_new_2p.pressed.connect(_on_new_game_2p)
 	_btn_new_p1.pressed.connect(_on_new_game_p1)
 	_btn_new_p2.pressed.connect(_on_new_game_p2)
