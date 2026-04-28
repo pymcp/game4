@@ -1,22 +1,28 @@
 ## CaravanMenu
 ##
-## CanvasLayer (layer 45) overlay opened when the player interacts with
-## their caravan wagon. Shows party member panels and caravan inventory.
+## Full-keyboard-navigable overlay opened when the player interacts with
+## their caravan wagon. Two focus zones: LEFT (member list) and RIGHT (active panel).
 ##
-## Opened via Caravan.interacted signal or by game.gd directly.
-## Closed by pressing p*_back.
+## LEFT zone: UP/DOWN moves member cursor, INTERACT selects and shifts focus RIGHT.
+## RIGHT zone: navigation delegated to the active sub-panel via navigate(verb).
+## BACK returns from RIGHT→LEFT, or closes from LEFT.
 class_name CaravanMenu
 extends Control
 
-## The player who owns this menu.
+enum _Focus { LEFT, RIGHT }
+
 var _player: PlayerController = null
 var _player_id: int = 0
 var _caravan_data: CaravanData = null
 
 var _root_panel: PanelContainer = null
 var _member_buttons: Array[Button] = []
+var _member_ids: Array[StringName] = []
 var _right_panel: Control = null
 var _current_crafter: CrafterPanel = null
+
+var _member_cursor: int = 0
+var _focus: _Focus = _Focus.LEFT
 
 
 func _ready() -> void:
@@ -37,8 +43,11 @@ func open() -> void:
 	if _caravan_data == null:
 		return
 	_refresh_members()
+	_member_cursor = 0
+	_focus = _Focus.LEFT
 	visible = true
-	InputContext.set_context(_player_id, InputContext.Context.MENU)
+	InputContext.set_context(_player_id, InputContext.Context.INVENTORY)
+	_refresh_member_cursor()
 
 
 func close() -> void:
@@ -49,9 +58,50 @@ func close() -> void:
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
-	if Input.is_action_just_pressed(PlayerActions.action(_player_id, PlayerActions.BACK)):
-		close()
-		get_viewport().set_input_as_handled()
+
+	if _focus == _Focus.LEFT:
+		if PlayerActions.just_pressed(event, _player_id, PlayerActions.UP):
+			_member_cursor = wrapi(_member_cursor - 1, 0, max(1, _member_buttons.size()))
+			_refresh_member_cursor()
+			get_viewport().set_input_as_handled()
+		elif PlayerActions.just_pressed(event, _player_id, PlayerActions.DOWN):
+			_member_cursor = wrapi(_member_cursor + 1, 0, max(1, _member_buttons.size()))
+			_refresh_member_cursor()
+			get_viewport().set_input_as_handled()
+		elif PlayerActions.just_pressed(event, _player_id, PlayerActions.INTERACT):
+			if _member_cursor < _member_ids.size():
+				_on_member_selected(_member_ids[_member_cursor])
+				_focus = _Focus.RIGHT
+			get_viewport().set_input_as_handled()
+		elif PlayerActions.just_pressed(event, _player_id, PlayerActions.BACK):
+			close()
+			get_viewport().set_input_as_handled()
+
+	else:  # _Focus.RIGHT
+		if PlayerActions.just_pressed(event, _player_id, PlayerActions.BACK) \
+				or PlayerActions.just_pressed(event, _player_id, PlayerActions.LEFT):
+			_focus = _Focus.LEFT
+			_refresh_member_cursor()
+			get_viewport().set_input_as_handled()
+		else:
+			# Delegate navigation verbs to the active right-panel widget.
+			var panel: Node = _get_active_right_panel()
+			if panel != null and panel.has_method("navigate"):
+				for verb: StringName in [PlayerActions.UP, PlayerActions.DOWN,
+						PlayerActions.LEFT, PlayerActions.RIGHT, PlayerActions.INTERACT,
+						PlayerActions.TAB_PREV, PlayerActions.TAB_NEXT]:
+					if PlayerActions.just_pressed(event, _player_id, verb):
+						panel.call("navigate", verb)
+						get_viewport().set_input_as_handled()
+						break
+
+
+func _get_active_right_panel() -> Node:
+	if _right_panel == null:
+		return null
+	if _current_crafter != null:
+		return _current_crafter
+	return _right_panel.get_child(0) if _right_panel.get_child_count() > 0 else null
 
 
 func _build_ui() -> void:
@@ -138,6 +188,7 @@ func _refresh_members() -> void:
 	for child in members_container.get_children():
 		child.queue_free()
 	_member_buttons.clear()
+	_member_ids.clear()
 
 	# Show buttons only for recruited members.
 	for id: StringName in _caravan_data.recruited_ids:
@@ -146,9 +197,11 @@ func _refresh_members() -> void:
 			continue
 		var btn := Button.new()
 		btn.text = def.display_name
+		btn.focus_mode = Control.FOCUS_NONE
 		btn.pressed.connect(_on_member_selected.bind(id))
 		members_container.add_child(btn)
 		_member_buttons.append(btn)
+		_member_ids.append(id)
 
 	# Refresh caravan inventory display.
 	var inv_list: Label = left_panel.get_node_or_null("InvList") as Label
@@ -160,6 +213,16 @@ func _refresh_members() -> void:
 				var item_name: String = item_def.display_name if item_def != null else String(slot["id"])
 				lines.append("%s ×%d" % [item_name, slot["count"]])
 		inv_list.text = "\n".join(lines) if not lines.is_empty() else "(empty)"
+
+
+func _refresh_member_cursor() -> void:
+	for i in _member_buttons.size():
+		var btn: Button = _member_buttons[i]
+		var is_selected: bool = (i == _member_cursor and _focus == _Focus.LEFT)
+		if is_selected:
+			btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		else:
+			btn.remove_theme_color_override("font_color")
 
 
 func _on_member_selected(member_id: StringName) -> void:
