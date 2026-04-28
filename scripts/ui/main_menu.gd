@@ -54,20 +54,24 @@ func _ready() -> void:
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
+	var vp := get_viewport()
 	if PlayerActions.either_just_pressed(event, PlayerActions.UP):
 		_cursor = wrapi(_cursor - 1, 0, _nav_buttons.size())
 		_skip_disabled(-1)
 		_refresh_cursor()
-		get_viewport().set_input_as_handled()
+		if vp != null:
+			vp.set_input_as_handled()
 	elif PlayerActions.either_just_pressed(event, PlayerActions.DOWN):
 		_cursor = wrapi(_cursor + 1, 0, _nav_buttons.size())
 		_skip_disabled(1)
 		_refresh_cursor()
-		get_viewport().set_input_as_handled()
+		if vp != null:
+			vp.set_input_as_handled()
 	elif PlayerActions.either_just_pressed(event, PlayerActions.INTERACT):
 		if _cursor < _nav_buttons.size() and not _nav_buttons[_cursor].disabled:
 			_nav_buttons[_cursor].pressed.emit()
-		get_viewport().set_input_as_handled()
+		if vp != null:
+			vp.set_input_as_handled()
 
 
 func _build() -> void:
