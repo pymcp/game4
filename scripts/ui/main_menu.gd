@@ -18,6 +18,8 @@ var _btn_new_p1: Button = null
 var _btn_new_p2: Button = null
 var _btn_continue: Button = null
 var _btn_quit: Button = null
+var _nav_buttons: Array[Button] = []
+var _cursor: int = 0
 
 
 # ---------- Pure helpers ----------
@@ -47,6 +49,25 @@ func _ready() -> void:
 	anchor_bottom = 1.0
 	_build()
 	_refresh_continue_state()
+
+
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if PlayerActions.either_just_pressed(event, PlayerActions.UP):
+		_cursor = wrapi(_cursor - 1, 0, _nav_buttons.size())
+		_skip_disabled(-1)
+		_refresh_cursor()
+		get_viewport().set_input_as_handled()
+	elif PlayerActions.either_just_pressed(event, PlayerActions.DOWN):
+		_cursor = wrapi(_cursor + 1, 0, _nav_buttons.size())
+		_skip_disabled(1)
+		_refresh_cursor()
+		get_viewport().set_input_as_handled()
+	elif PlayerActions.either_just_pressed(event, PlayerActions.INTERACT):
+		if _cursor < _nav_buttons.size() and not _nav_buttons[_cursor].disabled:
+			_nav_buttons[_cursor].pressed.emit()
+		get_viewport().set_input_as_handled()
 
 
 func _build() -> void:
@@ -115,12 +136,38 @@ func _build() -> void:
 	_btn_quit.pressed.connect(_on_quit)
 	v.add_child(_btn_quit)
 
-	_btn_new_2p.grab_focus()
+	for btn: Button in [_btn_new_2p, _btn_new_p1, _btn_new_p2, _btn_continue, _btn_quit]:
+		btn.focus_mode = Control.FOCUS_NONE
+	_nav_buttons = [_btn_new_2p, _btn_new_p1, _btn_new_p2, _btn_continue, _btn_quit]
+	_cursor = 0
+	_refresh_cursor()
 
 
 func _refresh_continue_state() -> void:
 	if _btn_continue != null:
 		_btn_continue.disabled = not has_save(SaveManager.DEFAULT_SLOT)
+	if not _nav_buttons.is_empty():
+		_skip_disabled(1)
+		_refresh_cursor()
+
+
+# ---------- Cursor helpers ----------
+
+func _skip_disabled(direction: int) -> void:
+	var n := _nav_buttons.size()
+	var tries := 0
+	while tries < n and _nav_buttons[_cursor].disabled:
+		_cursor = wrapi(_cursor + direction, 0, n)
+		tries += 1
+
+
+func _refresh_cursor() -> void:
+	for i in _nav_buttons.size():
+		var btn: Button = _nav_buttons[i]
+		if i == _cursor and not btn.disabled:
+			btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		else:
+			btn.remove_theme_color_override("font_color")
 
 
 # ---------- Button handlers ----------
