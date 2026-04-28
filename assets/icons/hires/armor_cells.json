@@ -1,0 +1,54 @@
+{
+	"armor": [
+		0,
+		0
+	],
+	"base_armor": [
+		1,
+		0
+	],
+	"base_boots": [
+		2,
+		0
+	],
+	"base_helmet": [
+		3,
+		0
+	],
+	"base_shield": [
+		4,
+		0
+	],
+	"boots": [
+		5,
+		0
+	],
+	"helmet": [
+		6,
+		0
+	],
+	"iron_armor": [
+		7,
+		0
+	],
+	"iron_boots": [
+		0,
+		1
+	],
+	"iron_helmet": [
+		1,
+		1
+	],
+	"iron_shield": [
+		2,
+		1
+	],
+	"steel_shield": [
+		3,
+		1
+	],
+	"wooden_shield": [
+		4,
+		1
+	]
+}

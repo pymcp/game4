@@ -1,104 +1,219 @@
 {
 	"bat": {
-		"anchor": [
-			8,
-			14
+		"anchor_ratio": [
+			0.5,
+			0.95
 		],
+		"attack_damage": 1,
+		"attack_range_tiles": 1.25,
+		"attack_speed": 0.8,
+		"attack_style": "thrust",
 		"footprint": [
 			1,
 			1
 		],
-		"region": [
-			0,
-			0,
-			32,
-			16
-		],
 		"scale": [
-			0.55,
-			0.55
+			0.25,
+			0.25
 		],
-		"sheet": "res://assets/tiles/roguelike/monster_animals2.png",
 		"tint": [
 			0.4,
 			0.3,
 			0.5,
 			1
 		],
-		"attack_style": "thrust",
-		"attack_damage": 1,
-		"attack_speed": 0.8,
-		"attack_range_tiles": 1.25
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			260,
+			130,
+			64,
+			64
+		]
 	},
-	"fire_elemental": {
-		"anchor": [
-			8,
-			14
+	"bear": {
+		"anchor_ratio": [
+			0.5,
+			0.95
 		],
-		"facing_right": true,
+		"attack_damage": 4,
+		"attack_range_tiles": 1.25,
+		"attack_speed": 1.5,
+		"attack_style": "slam",
 		"footprint": [
 			1,
 			1
 		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"tint": [
+			0.6,
+			0.4,
+			0.2,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
 		"region": [
-			85,
 			0,
-			48,
-			48
+			260,
+			64,
+			64
+		]
+	},
+	"dragon": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 8,
+		"attack_range_tiles": 6.0,
+		"attack_speed": 2.0,
+		"attack_style": "projectile",
+		"boss_adds": [
+			{
+				"creature": "imp",
+				"count": 2
+			},
+			{
+				"creature": "fire_elemental",
+				"count": 1
+			}
+		],
+		"element": "fire",
+		"facing_right": true,
+		"footprint": [
+			2,
+			2
+		],
+		"is_boss": true,
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sprite_tiles": [
+			2,
+			2
+		],
+		"tint": [
+			0.9,
+			0.2,
+			0.1,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			130,
+			130,
+			129,
+			129
+		]
+	},
+	"fire_elemental": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 3,
+		"attack_range_tiles": 5.0,
+		"attack_speed": 1.5,
+		"attack_style": "projectile",
+		"element": "fire",
+		"facing_right": true,
+		"footprint": [
+			2,
+			2
 		],
 		"scale": [
-			0.9,
-			0.9
+			0.25,
+			0.25
 		],
-		"sheet": "res://assets/tiles/roguelike/monster_animals2.png",
+		"sprite_tiles": [
+			2,
+			2
+		],
 		"tint": [
-			1,
+			1.0,
 			0.4,
 			0.1,
 			1
 		],
-		"attack_style": "projectile",
-		"attack_damage": 3,
-		"attack_speed": 1.5,
-		"attack_range_tiles": 5.0,
-		"element": "fire"
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			0,
+			0,
+			129,
+			129
+		]
 	},
 	"goblin": {
-		"anchor": [
-			8,
-			14
+		"anchor_ratio": [
+			0.5,
+			0.95
 		],
+		"attack_damage": 2,
+		"attack_range_tiles": 1.25,
+		"attack_speed": 1.0,
+		"attack_style": "swing",
 		"footprint": [
 			1,
 			1
 		],
-		"region": [
-			34,
-			17,
-			16,
-			16
-		],
 		"scale": [
-			0.75,
-			0.75
+			0.25,
+			0.25
 		],
-		"sheet": "res://assets/tiles/roguelike/monster_animals2.png",
 		"tint": [
 			0.5,
 			0.8,
 			0.3,
 			1
 		],
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			325,
+			130,
+			64,
+			64
+		]
+	},
+	"goblin_jester": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 1,
+		"attack_range_tiles": 1.25,
+		"attack_speed": 0.4,
 		"attack_style": "swing",
-		"attack_damage": 2,
-		"attack_speed": 1.0,
-		"attack_range_tiles": 1.25
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"tint": [
+			0.8,
+			0.7,
+			0.2,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			390,
+			195,
+			64,
+			64
+		]
 	},
 	"grasshopper": {
 		"anchor_ratio": [
 			0.5,
 			0.95
 		],
+		"attack_style": "none",
 		"can_jump": true,
 		"facing_right": true,
 		"footprint": [
@@ -106,17 +221,14 @@
 			1
 		],
 		"mount": true,
-		"region": [
-			34,
-			0,
-			32,
-			16
-		],
 		"rider_offset": [
 			0,
 			-12
 		],
-		"sheet": "res://assets/tiles/roguelike/monster_animals2.png",
+		"scale": [
+			0.25,
+			0.25
+		],
 		"speed_multiplier": 1.8,
 		"target_width_tiles": 2,
 		"tint": [
@@ -125,181 +237,508 @@
 			1,
 			1
 		],
-		"attack_style": "none"
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			65,
+			260,
+			64,
+			64
+		]
 	},
-	"ice_elemental": {
-		"anchor": [
-			8,
-			14
+	"harpy": {
+		"anchor_ratio": [
+			0.5,
+			0.95
 		],
+		"attack_damage": 2,
+		"attack_range_tiles": 4.0,
+		"attack_speed": 1.2,
+		"attack_style": "projectile",
 		"facing_right": true,
 		"footprint": [
 			1,
 			1
 		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"tint": [
+			0.7,
+			0.6,
+			0.5,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
 		"region": [
-			136,
-			0,
-			48,
-			48
+			390,
+			260,
+			64,
+			64
+		]
+	},
+	"ice_elemental": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 3,
+		"attack_range_tiles": 5.0,
+		"attack_speed": 1.5,
+		"attack_style": "projectile",
+		"element": "ice",
+		"facing_right": true,
+		"footprint": [
+			2,
+			2
 		],
 		"scale": [
-			0.9,
-			0.9
+			0.25,
+			0.25
 		],
-		"sheet": "res://assets/tiles/roguelike/monster_animals2.png",
+		"sprite_tiles": [
+			2,
+			2
+		],
 		"tint": [
 			0.3,
 			0.7,
-			1,
+			1.0,
 			1
 		],
-		"attack_style": "projectile",
-		"attack_damage": 3,
-		"attack_speed": 1.5,
-		"attack_range_tiles": 5.0,
-		"element": "ice"
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			130,
+			0,
+			129,
+			129
+		]
 	},
-	"ogre": {
-		"anchor": [
-			8,
-			14
+	"imp": {
+		"anchor_ratio": [
+			0.5,
+			0.95
 		],
-		"facing_right": true,
+		"attack_damage": 2,
+		"attack_range_tiles": 3.0,
+		"attack_speed": 1.2,
+		"attack_style": "projectile",
+		"element": "fire",
 		"footprint": [
 			1,
 			1
 		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"tint": [
+			0.9,
+			0.3,
+			0.2,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
 		"region": [
-			187,
-			0,
-			48,
-			48
+			455,
+			260,
+			64,
+			64
+		]
+	},
+	"ogre": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 4,
+		"attack_range_tiles": 1.5,
+		"attack_speed": 1.5,
+		"attack_style": "swing",
+		"facing_right": true,
+		"footprint": [
+			2,
+			2
 		],
 		"scale": [
-			1.2,
-			1.2
+			0.25,
+			0.25
 		],
-		"sheet": "res://assets/tiles/roguelike/monster_animals2.png",
+		"sprite_tiles": [
+			2,
+			2
+		],
 		"tint": [
 			0.7,
 			0.5,
 			0.3,
 			1
 		],
-		"attack_style": "swing",
-		"attack_damage": 4,
-		"attack_speed": 1.5,
-		"attack_range_tiles": 1.5
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			260,
+			0,
+			129,
+			129
+		]
 	},
-	"skeleton": {
-		"anchor": [
-			8,
-			14
+	"orc": {
+		"anchor_ratio": [
+			0.5,
+			0.95
 		],
+		"attack_damage": 3,
+		"attack_range_tiles": 1.25,
+		"attack_speed": 1.2,
+		"attack_style": "swing",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
 		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"tint": [
+			0.3,
+			0.5,
+			0.25,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
 		"region": [
-			17,
-			17,
-			16,
-			16
+			130,
+			260,
+			64,
+			64
+		]
+	},
+	"rat": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 1,
+		"attack_range_tiles": 1.0,
+		"attack_speed": 0.5,
+		"attack_style": "thrust",
+		"footprint": [
+			1,
+			1
 		],
 		"scale": [
-			0.75,
-			0.75
+			0.25,
+			0.25
 		],
-		"sheet": "res://assets/tiles/roguelike/monster_animals2.png",
+		"tint": [
+			0.5,
+			0.45,
+			0.4,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			325,
+			260,
+			64,
+			64
+		]
+	},
+	"skeleton": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 2,
+		"attack_range_tiles": 1.25,
+		"attack_speed": 1.0,
+		"attack_style": "swing",
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
 		"tint": [
 			0.9,
 			0.9,
 			0.85,
 			1
 		],
-		"attack_style": "swing",
-		"attack_damage": 2,
-		"attack_speed": 1.0,
-		"attack_range_tiles": 1.25
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			390,
+			130,
+			64,
+			64
+		]
 	},
-	"slime": {
-		"anchor": [
-			8,
-			14
+	"skeleton_mage": {
+		"anchor_ratio": [
+			0.5,
+			0.95
 		],
+		"attack_damage": 3,
+		"attack_range_tiles": 5.0,
+		"attack_speed": 1.5,
+		"attack_style": "projectile",
 		"footprint": [
 			1,
 			1
 		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"tint": [
+			0.7,
+			0.5,
+			0.9,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
 		"region": [
-			153,
-			51,
-			16,
-			16
+			325,
+			195,
+			64,
+			64
+		]
+	},
+	"slime": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 1,
+		"attack_range_tiles": 1.0,
+		"attack_speed": 1.2,
+		"attack_style": "slam",
+		"footprint": [
+			1,
+			1
 		],
 		"scale": [
-			0.75,
-			0.75
+			0.25,
+			0.25
 		],
-		"sheet": "res://assets/tiles/roguelike/monster_animals2.png",
 		"tint": [
 			0.4,
 			0.9,
 			0.3,
 			1
 		],
-		"attack_style": "slam",
-		"attack_damage": 1,
-		"attack_speed": 1.2,
-		"attack_range_tiles": 1.0
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			455,
+			130,
+			64,
+			64
+		]
 	},
 	"slime_king": {
-		"anchor": [12, 20],
-		"footprint": [2, 2],
-		"region": [0, 32, 48, 32],
-		"scale": [1.6, 1.6],
-		"sheet": "res://assets/tiles/roguelike/monster_animals2.png",
-		"tint": [0.3, 0.9, 0.3, 1.0],
-		"attack_style": "slam",
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
 		"attack_damage": 6,
-		"attack_speed": 2.0,
 		"attack_range_tiles": 1.5,
-		"is_boss": true,
+		"attack_speed": 2.0,
+		"attack_style": "slam",
 		"boss_adds": [
-			{"creature": "slime", "count": 3}
+			{
+				"creature": "slime",
+				"count": 3
+			}
+		],
+		"footprint": [
+			2,
+			2
+		],
+		"is_boss": true,
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sprite_tiles": [
+			2,
+			2
+		],
+		"tint": [
+			0.3,
+			0.9,
+			0.3,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			390,
+			0,
+			129,
+			129
+		]
+	},
+	"snake": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 2,
+		"attack_range_tiles": 1.0,
+		"attack_speed": 0.9,
+		"attack_style": "thrust",
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"tint": [
+			0.3,
+			0.7,
+			0.2,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			455,
+			195,
+			64,
+			64
+		]
+	},
+	"spider": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 1,
+		"attack_range_tiles": 1.25,
+		"attack_speed": 0.8,
+		"attack_style": "thrust",
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"tint": [
+			0.2,
+			0.15,
+			0.3,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			260,
+			260,
+			64,
+			64
+		]
+	},
+	"troll": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 5,
+		"attack_range_tiles": 1.5,
+		"attack_speed": 1.4,
+		"attack_style": "slam",
+		"facing_right": true,
+		"footprint": [
+			2,
+			2
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sprite_tiles": [
+			2,
+			2
+		],
+		"tint": [
+			0.4,
+			0.6,
+			0.3,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			0,
+			130,
+			129,
+			129
 		]
 	},
 	"wolf": {
-		"anchor": [
-			8,
-			14
+		"anchor_ratio": [
+			0.5,
+			0.95
 		],
+		"attack_damage": 2,
+		"attack_range_tiles": 1.25,
+		"attack_speed": 0.7,
+		"attack_style": "thrust",
 		"facing_right": true,
 		"footprint": [
 			1,
 			1
 		],
-		"region": [
-			204,
-			51,
-			32,
-			16
-		],
 		"scale": [
-			0.85,
-			0.85
+			0.25,
+			0.25
 		],
-		"sheet": "res://assets/tiles/roguelike/monster_animals2.png",
 		"tint": [
 			0.6,
 			0.55,
 			0.5,
 			1
 		],
-		"attack_style": "thrust",
-		"attack_damage": 2,
-		"attack_speed": 0.7,
-		"attack_range_tiles": 1.25
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			260,
+			195,
+			64,
+			64
+		]
+	},
+	"zombie": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 3,
+		"attack_range_tiles": 1.0,
+		"attack_speed": 1.8,
+		"attack_style": "slam",
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"tint": [
+			0.4,
+			0.6,
+			0.35,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			195,
+			260,
+			64,
+			64
+		]
 	}
 }

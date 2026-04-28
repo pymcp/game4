@@ -241,5 +241,335 @@
 			}
 		],
 		"health": 5
+	},
+	"bear": {
+		"display_name": "Bear",
+		"health": 8,
+		"drop_chance": 0.7,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"min": 2,
+				"max": 3,
+				"weight": 40
+			},
+			{
+				"item_id": "fennel_root",
+				"min": 1,
+				"max": 2,
+				"weight": 25
+			},
+			{
+				"item_id": "stone",
+				"min": 1,
+				"max": 2,
+				"weight": 10
+			}
+		]
+	},
+	"dragon": {
+		"display_name": "Dragon",
+		"health": 30,
+		"drop_chance": 1.0,
+		"drop_count": 3,
+		"drops": [
+			{
+				"item_id": "gold_ore",
+				"min": 2,
+				"max": 4,
+				"weight": 30
+			},
+			{
+				"item_id": "iron_ore",
+				"min": 2,
+				"max": 4,
+				"weight": 25
+			},
+			{
+				"item_id": "fire_sword",
+				"min": 1,
+				"max": 1,
+				"weight": 5
+			},
+			{
+				"item_id": "armor",
+				"min": 1,
+				"max": 1,
+				"weight": 4
+			}
+		],
+		"resistances": {
+			"1": 2,
+			"2": 0
+		}
+	},
+	"goblin_jester": {
+		"display_name": "Goblin Jester",
+		"health": 2,
+		"drop_chance": 0.7,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "copper_ore",
+				"min": 1,
+				"max": 2,
+				"weight": 30
+			},
+			{
+				"item_id": "gold_ore",
+				"min": 1,
+				"max": 1,
+				"weight": 8
+			},
+			{
+				"item_id": "fiber",
+				"min": 1,
+				"max": 2,
+				"weight": 20
+			}
+		]
+	},
+	"harpy": {
+		"display_name": "Harpy",
+		"health": 4,
+		"drop_chance": 0.7,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"min": 1,
+				"max": 2,
+				"weight": 35
+			},
+			{
+				"item_id": "fennel_root",
+				"min": 1,
+				"max": 1,
+				"weight": 20
+			},
+			{
+				"item_id": "copper_ore",
+				"min": 1,
+				"max": 1,
+				"weight": 15
+			}
+		]
+	},
+	"imp": {
+		"display_name": "Imp",
+		"health": 3,
+		"drop_chance": 0.75,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "copper_ore",
+				"min": 1,
+				"max": 2,
+				"weight": 30
+			},
+			{
+				"item_id": "fiber",
+				"min": 1,
+				"max": 2,
+				"weight": 20
+			},
+			{
+				"item_id": "fennel_root",
+				"min": 1,
+				"max": 1,
+				"weight": 10
+			}
+		]
+	},
+	"orc": {
+		"display_name": "Orc",
+		"health": 6,
+		"drop_chance": 0.8,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "iron_ore",
+				"min": 1,
+				"max": 3,
+				"weight": 30
+			},
+			{
+				"item_id": "copper_ore",
+				"min": 1,
+				"max": 2,
+				"weight": 25
+			},
+			{
+				"item_id": "wooden_sword",
+				"min": 1,
+				"max": 1,
+				"weight": 8
+			}
+		]
+	},
+	"rat": {
+		"display_name": "Rat",
+		"health": 1,
+		"drop_chance": 0.3,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"min": 1,
+				"max": 1,
+				"weight": 60
+			},
+			{
+				"item_id": "fennel_root",
+				"min": 1,
+				"max": 1,
+				"weight": 10
+			}
+		]
+	},
+	"skeleton_mage": {
+		"display_name": "Skeleton Mage",
+		"health": 4,
+		"drop_chance": 0.8,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "iron_ore",
+				"min": 1,
+				"max": 2,
+				"weight": 30
+			},
+			{
+				"item_id": "stone",
+				"min": 1,
+				"max": 3,
+				"weight": 25
+			},
+			{
+				"item_id": "copper_ore",
+				"min": 1,
+				"max": 2,
+				"weight": 15
+			}
+		]
+	},
+	"slime_king": {
+		"display_name": "Slime King",
+		"health": 20,
+		"drop_chance": 1.0,
+		"drop_count": 3,
+		"drops": [
+			{
+				"item_id": "gold_ore",
+				"min": 1,
+				"max": 3,
+				"weight": 30
+			},
+			{
+				"item_id": "iron_ore",
+				"min": 2,
+				"max": 4,
+				"weight": 30
+			},
+			{
+				"item_id": "copper_ore",
+				"min": 3,
+				"max": 5,
+				"weight": 20
+			}
+		]
+	},
+	"snake": {
+		"display_name": "Snake",
+		"health": 3,
+		"drop_chance": 0.5,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"min": 1,
+				"max": 2,
+				"weight": 50
+			},
+			{
+				"item_id": "fennel_root",
+				"min": 1,
+				"max": 1,
+				"weight": 20
+			}
+		]
+	},
+	"spider": {
+		"display_name": "Spider",
+		"health": 2,
+		"drop_chance": 0.5,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"min": 1,
+				"max": 3,
+				"weight": 50
+			},
+			{
+				"item_id": "fennel_root",
+				"min": 1,
+				"max": 1,
+				"weight": 15
+			}
+		]
+	},
+	"troll": {
+		"display_name": "Troll",
+		"health": 15,
+		"drop_chance": 0.9,
+		"drop_count": 2,
+		"drops": [
+			{
+				"item_id": "stone",
+				"min": 2,
+				"max": 4,
+				"weight": 40
+			},
+			{
+				"item_id": "iron_ore",
+				"min": 1,
+				"max": 3,
+				"weight": 30
+			},
+			{
+				"item_id": "gold_ore",
+				"min": 1,
+				"max": 2,
+				"weight": 10
+			}
+		]
+	},
+	"zombie": {
+		"display_name": "Zombie",
+		"health": 5,
+		"drop_chance": 0.6,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "iron_ore",
+				"min": 1,
+				"max": 2,
+				"weight": 25
+			},
+			{
+				"item_id": "stone",
+				"min": 1,
+				"max": 3,
+				"weight": 30
+			},
+			{
+				"item_id": "fiber",
+				"min": 1,
+				"max": 2,
+				"weight": 20
+			}
+		]
 	}
 }

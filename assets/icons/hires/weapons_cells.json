@@ -1,0 +1,82 @@
+{
+	"base_axe": [
+		0,
+		0
+	],
+	"base_bow": [
+		1,
+		0
+	],
+	"base_dagger": [
+		2,
+		0
+	],
+	"base_spear": [
+		3,
+		0
+	],
+	"base_staff": [
+		4,
+		0
+	],
+	"base_sword": [
+		5,
+		0
+	],
+	"bow": [
+		6,
+		0
+	],
+	"fire_staff": [
+		7,
+		0
+	],
+	"fire_sword": [
+		0,
+		1
+	],
+	"ice_staff": [
+		1,
+		1
+	],
+	"iron_axe": [
+		2,
+		1
+	],
+	"iron_dagger": [
+		3,
+		1
+	],
+	"iron_spear": [
+		4,
+		1
+	],
+	"lightning_staff": [
+		5,
+		1
+	],
+	"longbow": [
+		6,
+		1
+	],
+	"mithril_sword": [
+		7,
+		1
+	],
+	"poison_dagger": [
+		0,
+		2
+	],
+	"steel_sword": [
+		1,
+		2
+	],
+	"sword": [
+		2,
+		2
+	],
+	"test_hammer": [
+		3,
+		2
+	]
+}
