@@ -1,23 +1,25 @@
-[gd_scene load_steps=2 format=3 uid="uid://b2pausemenu1"]
+[gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="1_pm"]
+[ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="1_pause"]
 
 [node name="PauseMenu" type="CanvasLayer"]
 layer = 100
-script = ExtResource("1_pm")
+script = ExtResource("1_pause")
 
 [node name="Dim" type="ColorRect" parent="."]
 anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0, 0, 0, 0.55)
-mouse_filter = 2
+mouse_filter = 0
 
 [node name="Center" type="CenterContainer" parent="."]
 anchor_right = 1.0
 anchor_bottom = 1.0
+mouse_filter = 2
 
 [node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(360, 0)
+custom_minimum_size = Vector2(320, 0)
+theme_type_variation = &"WoodPanel"
 
 [node name="Margin" type="MarginContainer" parent="Center/Panel"]
 theme_override_constants/margin_left = 24
@@ -26,23 +28,34 @@ theme_override_constants/margin_top = 24
 theme_override_constants/margin_bottom = 24
 
 [node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="Title" type="Label" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"TitleLabel"
 text = "Paused"
 horizontal_alignment = 1
 
 [node name="Resume" type="Button" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
 text = "Resume"
 
 [node name="ToggleP1" type="Button" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
 text = "Disable Player 1"
 
 [node name="ToggleP2" type="Button" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
 text = "Disable Player 2"
 
 [node name="Save" type="Button" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
 text = "Save"
 
 [node name="Exit" type="Button" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
 text = "Exit"

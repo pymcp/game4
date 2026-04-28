@@ -12,12 +12,13 @@ class_name MainMenu
 
 const GameScene: PackedScene = preload("res://scenes/main/Game.tscn")
 
-var _seed_input: LineEdit = null
-var _btn_new_2p: Button = null
-var _btn_new_p1: Button = null
-var _btn_new_p2: Button = null
-var _btn_continue: Button = null
-var _btn_quit: Button = null
+@onready var _seed_input: LineEdit = $Center/Panel/Margin/VBox/SeedInput
+@onready var _btn_new_2p: Button = $Center/Panel/Margin/VBox/NewGame2P
+@onready var _btn_new_p1: Button = $Center/Panel/Margin/VBox/NewGameP1
+@onready var _btn_new_p2: Button = $Center/Panel/Margin/VBox/NewGameP2
+@onready var _btn_continue: Button = $Center/Panel/Margin/VBox/Continue
+@onready var _btn_quit: Button = $Center/Panel/Margin/VBox/Quit
+
 var _nav_buttons: Array[Button] = []
 var _cursor: int = 0
 
@@ -47,7 +48,13 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	anchor_right = 1.0
 	anchor_bottom = 1.0
-	_build()
+	_btn_new_2p.pressed.connect(_on_new_game_2p)
+	_btn_new_p1.pressed.connect(_on_new_game_p1)
+	_btn_new_p2.pressed.connect(_on_new_game_p2)
+	_btn_continue.pressed.connect(_on_continue)
+	_btn_quit.pressed.connect(_on_quit)
+	_nav_buttons = [_btn_new_2p, _btn_new_p1, _btn_new_p2, _btn_continue, _btn_quit]
+	_cursor = 0
 	_refresh_continue_state()
 
 
@@ -74,79 +81,6 @@ func _input(event: InputEvent) -> void:
 			vp.set_input_as_handled()
 
 
-func _build() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color(0.06, 0.06, 0.10, 1.0)
-	bg.anchor_right = 1.0
-	bg.anchor_bottom = 1.0
-	add_child(bg)
-
-	var center := CenterContainer.new()
-	center.anchor_right = 1.0
-	center.anchor_bottom = 1.0
-	add_child(center)
-
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(360, 0)
-	center.add_child(panel)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_bottom", 24)
-	panel.add_child(margin)
-
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 12)
-	margin.add_child(v)
-
-	var title := Label.new()
-	title.text = "Fantasy Iso Co-op"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 25)
-	v.add_child(title)
-
-	var seed_label := Label.new()
-	seed_label.text = "World seed (optional)"
-	v.add_child(seed_label)
-
-	_seed_input = LineEdit.new()
-	_seed_input.placeholder_text = "leave blank to randomise"
-	v.add_child(_seed_input)
-
-	_btn_new_2p = Button.new()
-	_btn_new_2p.text = "New Game (2 Players)"
-	_btn_new_2p.pressed.connect(_on_new_game_2p)
-	v.add_child(_btn_new_2p)
-
-	_btn_new_p1 = Button.new()
-	_btn_new_p1.text = "New Game (Player 1)"
-	_btn_new_p1.pressed.connect(_on_new_game_p1)
-	v.add_child(_btn_new_p1)
-
-	_btn_new_p2 = Button.new()
-	_btn_new_p2.text = "New Game (Player 2)"
-	_btn_new_p2.pressed.connect(_on_new_game_p2)
-	v.add_child(_btn_new_p2)
-
-	_btn_continue = Button.new()
-	_btn_continue.text = "Continue"
-	_btn_continue.pressed.connect(_on_continue)
-	v.add_child(_btn_continue)
-
-	_btn_quit = Button.new()
-	_btn_quit.text = "Quit"
-	_btn_quit.pressed.connect(_on_quit)
-	v.add_child(_btn_quit)
-
-	for btn: Button in [_btn_new_2p, _btn_new_p1, _btn_new_p2, _btn_continue, _btn_quit]:
-		btn.focus_mode = Control.FOCUS_NONE
-	_nav_buttons = [_btn_new_2p, _btn_new_p1, _btn_new_p2, _btn_continue, _btn_quit]
-	_cursor = 0
-	_refresh_cursor()
-
-
 func _refresh_continue_state() -> void:
 	if _btn_continue != null:
 		_btn_continue.disabled = not has_save(SaveManager.DEFAULT_SLOT)
@@ -169,7 +103,7 @@ func _refresh_cursor() -> void:
 	for i in _nav_buttons.size():
 		var btn: Button = _nav_buttons[i]
 		if i == _cursor and not btn.disabled:
-			btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+			btn.add_theme_color_override("font_color", UITheme.COL_CURSOR)
 		else:
 			btn.remove_theme_color_override("font_color")
 

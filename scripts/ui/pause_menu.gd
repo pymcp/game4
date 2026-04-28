@@ -91,7 +91,7 @@ func _refresh_cursor() -> void:
 	for i in _nav_buttons.size():
 		var btn: Button = _nav_buttons[i]
 		if i == _cursor and not btn.disabled:
-			btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+			btn.add_theme_color_override("font_color", UITheme.COL_CURSOR)
 		else:
 			btn.remove_theme_color_override("font_color")
 

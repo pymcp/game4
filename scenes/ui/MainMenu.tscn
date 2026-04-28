@@ -1,8 +1,70 @@
-[gd_scene load_steps=2 format=3 uid="uid://b3mainmenu0001"]
+[gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_mm"]
+[ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_main"]
 
 [node name="MainMenu" type="Control"]
 anchor_right = 1.0
 anchor_bottom = 1.0
-script = ExtResource("1_mm")
+mouse_filter = 1
+script = ExtResource("1_main")
+
+[node name="Bg" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.06, 0.06, 0.1, 1)
+mouse_filter = 2
+
+[node name="Center" type="CenterContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(360, 0)
+theme_type_variation = &"WoodPanel"
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"TitleLabel"
+text = "Fantasy Iso Co-op"
+horizontal_alignment = 1
+
+[node name="SeedLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"DimLabel"
+text = "World seed (optional)"
+
+[node name="SeedInput" type="LineEdit" parent="Center/Panel/Margin/VBox"]
+placeholder_text = "leave blank to randomise"
+
+[node name="NewGame2P" type="Button" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "New Game (2 Players)"
+
+[node name="NewGameP1" type="Button" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "New Game (Player 1)"
+
+[node name="NewGameP2" type="Button" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "New Game (Player 2)"
+
+[node name="Continue" type="Button" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Continue"
+
+[node name="Quit" type="Button" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Quit"
