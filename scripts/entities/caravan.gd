@@ -132,23 +132,31 @@ func can_interact_with(player: PlayerController) -> bool:
 
 func _build_sprite() -> void:
 	_sprite = Sprite2D.new()
-	var tex: Texture2D = load(_SHEET_PATH) as Texture2D
-	if tex == null:
-		push_warning("[Caravan] could not load sheet %s" % _SHEET_PATH)
-		return
-	_sprite.texture = tex
 	_sprite.centered = true
 	var cell: Vector2i = _FALLBACK_SPRITE_CELL
-	# Try to read from TileMappings if available.
+	var sheet_path: String = _SHEET_PATH
+	var tile_size: int = _TILE_SIZE
+	# Try to read from TileMappings — also respect sheet_overrides.
 	var tm: TileMappings = _load_tile_mappings()
 	if tm != null and not tm.caravan_wagon.is_empty():
 		cell = tm.caravan_wagon[0]
+	# Resolve sheet override (may point to a hires sheet with different tile_px).
+	sheet_path = TilesetCatalog.get_sheet_path(&"caravan_wagon")
+	if sheet_path.is_empty():
+		sheet_path = _SHEET_PATH
+	var spec: SheetSpec = SheetSpecReader.read(sheet_path)
+	tile_size = spec.tile_px if spec.tile_px > 0 else _TILE_SIZE
+	var tex: Texture2D = load(sheet_path) as Texture2D
+	if tex == null:
+		push_warning("[Caravan] could not load sheet %s" % sheet_path)
+		return
+	_sprite.texture = tex
 	_sprite.region_enabled = true
 	_sprite.region_rect = Rect2(
-			float(cell.x * _TILE_SIZE),
-			float(cell.y * _TILE_SIZE),
-			float(_TILE_SIZE),
-			float(_TILE_SIZE))
+			float(cell.x * tile_size),
+			float(cell.y * tile_size),
+			float(tile_size),
+			float(tile_size))
 	add_child(_sprite)
 
 

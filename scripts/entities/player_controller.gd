@@ -322,6 +322,9 @@ func _physics_process(delta: float) -> void:
 	_attack_cooldown = max(0.0, _attack_cooldown - delta)
 	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.INTERACT)):
 		_try_interact()
+		# Re-check context: interact may have opened a menu (caravan, shop, etc.).
+		if InputContext.get_context(player_id) != InputContext.Context.GAMEPLAY:
+			return
 	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.AUTO_MINE)):
 		auto_mine = not auto_mine
 	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.AUTO_ATTACK)):

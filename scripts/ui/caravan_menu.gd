@@ -26,6 +26,7 @@ var _focus: _Focus = _Focus.LEFT
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	z_index = 45
@@ -55,9 +56,22 @@ func close() -> void:
 	InputContext.set_context(_player_id, InputContext.Context.GAMEPLAY)
 
 
+func _is_my_event(event: InputEvent) -> bool:
+	for verb: StringName in [PlayerActions.UP, PlayerActions.DOWN, PlayerActions.LEFT,
+			PlayerActions.RIGHT, PlayerActions.INTERACT, PlayerActions.BACK,
+			PlayerActions.ATTACK, PlayerActions.INVENTORY, PlayerActions.TAB_PREV,
+			PlayerActions.TAB_NEXT, PlayerActions.AUTO_MINE, PlayerActions.AUTO_ATTACK]:
+		if event.is_action(PlayerActions.action(_player_id, verb)):
+			return true
+	return false
+
+
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
+	# Swallow all events for this player so nothing leaks to gameplay.
+	if _is_my_event(event):
+		get_viewport().set_input_as_handled()
 
 	if _focus == _Focus.LEFT:
 		if PlayerActions.just_pressed(event, _player_id, PlayerActions.UP):

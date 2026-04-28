@@ -318,17 +318,18 @@ func _weapon_flash_and_rotate(from_deg: float, to_deg: float, duration: float) -
 	if _weapon_sprite == null or not _weapon_sprite.visible:
 		_finish()
 		return
+	var base_scale: Vector2 = _weapon_sprite.scale
 	_weapon_sprite.rotation_degrees = from_deg
 	var tw := create_tween()
 	tw.set_parallel(true)
 	# Phase 1 (t=0): flash white + scale up + rotate arc.
 	tw.tween_property(_weapon_sprite, "modulate", Color(3, 3, 3, 1), 0.05)
-	tw.tween_property(_weapon_sprite, "scale", Vector2(_FLASH_SCALE, _FLASH_SCALE), 0.05)
+	tw.tween_property(_weapon_sprite, "scale", base_scale * _FLASH_SCALE, 0.05)
 	tw.tween_property(_weapon_sprite, "rotation_degrees", to_deg, duration)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	# Phase 2 (t=duration): restore — delayed so they start after the longest phase-1 step.
 	tw.tween_property(_weapon_sprite, "modulate", Color(1, 1, 1, 1), 0.08).set_delay(duration)
-	tw.tween_property(_weapon_sprite, "scale", Vector2(1.0, 1.0), 0.08).set_delay(duration)
+	tw.tween_property(_weapon_sprite, "scale", base_scale, 0.08).set_delay(duration)
 	tw.tween_property(_weapon_sprite, "rotation_degrees", 0.0, 0.06).set_delay(duration)
 	tw.tween_callback(_finish).set_delay(duration + 0.08)
 
@@ -338,6 +339,7 @@ func _weapon_flash_and_thrust(duration: float) -> void:
 	if _weapon_sprite == null or not _weapon_sprite.visible:
 		_finish()
 		return
+	var base_scale: Vector2 = _weapon_sprite.scale
 	var base_pos: Vector2 = _weapon_sprite.position
 	var push: Vector2 = _last_facing * _LUNGE_PX
 	var half: float = duration * 0.5
@@ -345,12 +347,12 @@ func _weapon_flash_and_thrust(duration: float) -> void:
 	tw.set_parallel(true)
 	# Phase 1 (t=0): flash white + scale up + thrust forward.
 	tw.tween_property(_weapon_sprite, "modulate", Color(3, 3, 3, 1), 0.05)
-	tw.tween_property(_weapon_sprite, "scale", Vector2(_FLASH_SCALE, _FLASH_SCALE), 0.05)
+	tw.tween_property(_weapon_sprite, "scale", base_scale * _FLASH_SCALE, 0.05)
 	tw.tween_property(_weapon_sprite, "position", base_pos + push, half)\
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	# Phase 2 (t=half): restore — delayed so they start after the thrust completes.
 	tw.tween_property(_weapon_sprite, "modulate", Color(1, 1, 1, 1), 0.08).set_delay(half)
-	tw.tween_property(_weapon_sprite, "scale", Vector2(1.0, 1.0), 0.08).set_delay(half)
+	tw.tween_property(_weapon_sprite, "scale", base_scale, 0.08).set_delay(half)
 	tw.tween_property(_weapon_sprite, "position", base_pos, half)\
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD).set_delay(half)
 	tw.tween_callback(_finish).set_delay(half + 0.08)

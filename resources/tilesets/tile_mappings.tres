@@ -204,6 +204,7 @@ interior_terrain = {
 "wall": [Vector2i(5, 1)]
 }
 sheet_overrides = {
-"_item_editor": "res://assets/characters/roguelike/characters_sheet.png"
+"_item_editor": "res://assets/characters/roguelike/characters_sheet.png",
+"caravan_wagon": "res://assets/icons/hires/items.png"
 }
-caravan_wagon = Array[Vector2i]([])
+caravan_wagon = Array[Vector2i]([Vector2i(3, 1)])

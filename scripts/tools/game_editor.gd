@@ -577,6 +577,7 @@ func _discover_sheets() -> void:
 		"res://assets/characters/mounts",
 		"res://assets/characters/pets",
 		"res://assets/characters/iso_miniature",
+		"res://assets/icons/hires",
 	]
 	for dir_path in dirs:
 		var da := DirAccess.open(dir_path)
