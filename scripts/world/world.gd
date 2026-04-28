@@ -403,3 +403,20 @@ func debug_add_all_party_members() -> void:
 			continue
 		var view_kind: StringName = ViewManager.get_view_kind(pid)
 		_ensure_warrior_for_player(pid, inst, view_kind)
+
+
+## Debug: give one of every weapon to both players' inventories.
+## Triggered by F9 (see pause_manager.gd).
+func debug_give_all_weapons() -> void:
+	var weapon_ids: Array[StringName] = []
+	for item_id in ItemRegistry.all_ids():
+		var def: ItemDefinition = ItemRegistry.get_item(item_id)
+		if def != null and def.slot == ItemDefinition.Slot.WEAPON:
+			weapon_ids.append(item_id)
+	for pid in range(2):
+		var player: PlayerController = _players[pid]
+		if player == null:
+			continue
+		for wid in weapon_ids:
+			player.inventory.add(wid, 1)
+		print("[F9] gave %d weapons to P%d" % [weapon_ids.size(), pid + 1])
