@@ -66,14 +66,14 @@ func _build() -> void:
 
 	_speaker_label = Label.new()
 	_speaker_label.name = "Speaker"
-	_speaker_label.add_theme_font_size_override("font_size", 18)
+	_speaker_label.add_theme_font_size_override("font_size", 19)
 	_speaker_label.add_theme_color_override("font_color", _COLOR_SPEAKER)
 	_vbox.add_child(_speaker_label)
 
 	_body_label = Label.new()
 	_body_label.name = "Body"
 	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_body_label.add_theme_font_size_override("font_size", 16)
+	_body_label.add_theme_font_size_override("font_size", 17)
 	_vbox.add_child(_body_label)
 
 	_choices_vbox = VBoxContainer.new()
@@ -84,7 +84,7 @@ func _build() -> void:
 	_hint_label = Label.new()
 	_hint_label.name = "Hint"
 	_hint_label.text = "[E] close"
-	_hint_label.add_theme_font_size_override("font_size", 12)
+	_hint_label.add_theme_font_size_override("font_size", 13)
 	_hint_label.add_theme_color_override("font_color", _COLOR_HINT)
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_vbox.add_child(_hint_label)
@@ -184,7 +184,7 @@ func _build_choices(raw_choices: Array) -> void:
 		_visible_choices.append(choice)
 		var lbl := Label.new()
 		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		lbl.add_theme_font_size_override("font_size", 14)
+		lbl.add_theme_font_size_override("font_size", 15)
 		# Build display text: "1. [Charisma 5] Convince her"
 		var prefix: String = "%d. " % (idx + 1)
 		var stat_tag: String = ""
