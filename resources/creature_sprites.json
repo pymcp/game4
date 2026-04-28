@@ -8,6 +8,7 @@
 		"attack_range_tiles": 1.25,
 		"attack_speed": 0.8,
 		"attack_style": "thrust",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
@@ -39,6 +40,7 @@
 		"attack_range_tiles": 1.25,
 		"attack_speed": 1.5,
 		"attack_style": "slam",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
@@ -70,6 +72,7 @@
 		"attack_range_tiles": 6.0,
 		"attack_speed": 2.0,
 		"attack_style": "projectile",
+		"facing_right": true,
 		"boss_adds": [
 			{
 				"creature": "imp",
@@ -81,7 +84,6 @@
 			}
 		],
 		"element": "fire",
-		"facing_right": true,
 		"footprint": [
 			2,
 			2
@@ -118,8 +120,8 @@
 		"attack_range_tiles": 5.0,
 		"attack_speed": 1.5,
 		"attack_style": "projectile",
-		"element": "fire",
 		"facing_right": true,
+		"element": "fire",
 		"footprint": [
 			2,
 			2
@@ -155,6 +157,7 @@
 		"attack_range_tiles": 1.25,
 		"attack_speed": 1.0,
 		"attack_style": "swing",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
@@ -186,6 +189,7 @@
 		"attack_range_tiles": 1.25,
 		"attack_speed": 0.4,
 		"attack_style": "swing",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
@@ -214,8 +218,8 @@
 			0.95
 		],
 		"attack_style": "none",
-		"can_jump": true,
 		"facing_right": true,
+		"can_jump": true,
 		"footprint": [
 			2,
 			1
@@ -286,8 +290,8 @@
 		"attack_range_tiles": 5.0,
 		"attack_speed": 1.5,
 		"attack_style": "projectile",
-		"element": "ice",
 		"facing_right": true,
+		"element": "ice",
 		"footprint": [
 			2,
 			2
@@ -323,6 +327,7 @@
 		"attack_range_tiles": 3.0,
 		"attack_speed": 1.2,
 		"attack_style": "projectile",
+		"facing_right": true,
 		"element": "fire",
 		"footprint": [
 			1,
@@ -423,6 +428,7 @@
 		"attack_range_tiles": 1.0,
 		"attack_speed": 0.5,
 		"attack_style": "thrust",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
@@ -454,6 +460,7 @@
 		"attack_range_tiles": 1.25,
 		"attack_speed": 1.0,
 		"attack_style": "swing",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
@@ -485,6 +492,7 @@
 		"attack_range_tiles": 5.0,
 		"attack_speed": 1.5,
 		"attack_style": "projectile",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
@@ -516,6 +524,7 @@
 		"attack_range_tiles": 1.0,
 		"attack_speed": 1.2,
 		"attack_style": "slam",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
@@ -547,6 +556,7 @@
 		"attack_range_tiles": 1.5,
 		"attack_speed": 2.0,
 		"attack_style": "slam",
+		"facing_right": true,
 		"boss_adds": [
 			{
 				"creature": "slime",
@@ -589,6 +599,7 @@
 		"attack_range_tiles": 1.0,
 		"attack_speed": 0.9,
 		"attack_style": "thrust",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
@@ -620,6 +631,7 @@
 		"attack_range_tiles": 1.25,
 		"attack_speed": 0.8,
 		"attack_style": "thrust",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
@@ -719,6 +731,7 @@
 		"attack_range_tiles": 1.0,
 		"attack_speed": 1.8,
 		"attack_style": "slam",
+		"facing_right": true,
 		"footprint": [
 			1,
 			1
