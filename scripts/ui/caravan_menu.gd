@@ -17,6 +17,7 @@ var _caravan_data: CaravanData = null
 
 @onready var _members_container: VBoxContainer = $Panel/HBox/LeftPanel/MembersContainer
 @onready var _inv_list: Label = $Panel/HBox/LeftPanel/InvList
+@onready var _left_panel: VBoxContainer = $Panel/HBox/LeftPanel
 @onready var _right_panel: Control = $Panel/HBox/RightPanel
 
 var _member_buttons: Array[Button] = []
@@ -43,10 +44,9 @@ func open() -> void:
 		return
 	_refresh_members()
 	_member_cursor = 0
-	_focus = _Focus.LEFT
 	visible = true
 	InputContext.set_context(_player_id, InputContext.Context.INVENTORY)
-	_refresh_member_cursor()
+	_set_focus(_Focus.LEFT)
 
 
 func close() -> void:
@@ -82,7 +82,7 @@ func _input(event: InputEvent) -> void:
 		elif PlayerActions.just_pressed(event, _player_id, PlayerActions.INTERACT):
 			if _member_cursor < _member_ids.size():
 				_on_member_selected(_member_ids[_member_cursor])
-				_focus = _Focus.RIGHT
+				_set_focus(_Focus.RIGHT)
 			get_viewport().set_input_as_handled()
 		elif PlayerActions.just_pressed(event, _player_id, PlayerActions.BACK):
 			close()
@@ -90,8 +90,7 @@ func _input(event: InputEvent) -> void:
 	else:  # _Focus.RIGHT
 		if PlayerActions.just_pressed(event, _player_id, PlayerActions.BACK) \
 				or PlayerActions.just_pressed(event, _player_id, PlayerActions.LEFT):
-			_focus = _Focus.LEFT
-			_refresh_member_cursor()
+			_set_focus(_Focus.LEFT)
 			get_viewport().set_input_as_handled()
 		else:
 			var panel: Node = _get_active_right_panel()
@@ -105,7 +104,22 @@ func _input(event: InputEvent) -> void:
 						break
 
 
-func _get_active_right_panel() -> Node:
+func _set_focus(new_focus: _Focus) -> void:
+	_focus = new_focus
+	_refresh_member_cursor()
+	_refresh_focus_visuals()
+
+
+func _refresh_focus_visuals() -> void:
+	var left_active: bool = (_focus == _Focus.LEFT)
+	var dim := Color(0.55, 0.55, 0.55, 1.0)
+	if _left_panel != null:
+		_left_panel.modulate = Color.WHITE if left_active else dim
+	if _right_panel != null:
+		_right_panel.modulate = Color.WHITE if not left_active else dim
+
+
+
 	if _right_panel == null:
 		return null
 	if _current_crafter != null:
