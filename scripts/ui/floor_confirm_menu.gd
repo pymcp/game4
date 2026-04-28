@@ -16,7 +16,11 @@ var _options: Array = []
 var _cursor: int = 0
 var _callback: Callable
 
-var _title_label: Label = null
+@onready var _title_label: Label = $PanelWrap/VBox/Title
+@onready var _opt0: Label = $PanelWrap/VBox/Option0
+@onready var _opt1: Label = $PanelWrap/VBox/Option1
+@onready var _opt2: Label = $PanelWrap/VBox/Option2
+
 var _option_labels: Array[Label] = []
 
 ## Maximum number of options this menu can display.
@@ -24,79 +28,8 @@ const MAX_OPTIONS: int = 3
 
 
 func _ready() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	z_index = 80
 	visible = false
-	_build_ui()
-
-
-func _build_ui() -> void:
-	# Dim background.
-	var bg := ColorRect.new()
-	bg.name = "Bg"
-	bg.color = Color(0.0, 0.0, 0.0, 0.55)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
-
-	# Centred panel — 80 % wide, vertically centred.
-	var panel_wrap := Control.new()
-	panel_wrap.name = "PanelWrap"
-	panel_wrap.anchor_left = 0.1
-	panel_wrap.anchor_right = 0.9
-	panel_wrap.anchor_top = 0.28
-	panel_wrap.anchor_bottom = 0.72
-	panel_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(panel_wrap)
-
-	var panel_bg := ColorRect.new()
-	panel_bg.name = "PanelBg"
-	panel_bg.color = Color(0.06, 0.06, 0.10, 0.92)
-	panel_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	panel_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel_wrap.add_child(panel_bg)
-
-	var vbox := VBoxContainer.new()
-	vbox.name = "VBox"
-	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vbox.offset_left = 12.0
-	vbox.offset_right = -12.0
-	vbox.offset_top = 10.0
-	vbox.offset_bottom = -10.0
-	vbox.add_theme_constant_override("separation", 10)
-	panel_wrap.add_child(vbox)
-
-	_title_label = Label.new()
-	_title_label.name = "Title"
-	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.add_theme_font_size_override("font_size", 15)
-	_title_label.add_theme_color_override("font_color", Color(0.9, 0.85, 0.6))
-	_title_label.add_theme_constant_override("outline_size", 1)
-	_title_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	vbox.add_child(_title_label)
-
-	var sep := HSeparator.new()
-	vbox.add_child(sep)
-
-	for _i in MAX_OPTIONS:
-		var lbl := Label.new()
-		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		lbl.add_theme_font_size_override("font_size", 13)
-		lbl.add_theme_color_override("font_color", Color.WHITE)
-		lbl.add_theme_constant_override("outline_size", 1)
-		lbl.add_theme_color_override("font_outline_color", Color.BLACK)
-		lbl.visible = false
-		vbox.add_child(lbl)
-		_option_labels.append(lbl)
-
-	var hint := Label.new()
-	hint.name = "Hint"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 11)
-	hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	hint.text = "↑↓ Move   Interact / E Confirm"
-	vbox.add_child(hint)
+	_option_labels = [_opt0, _opt1, _opt2]
 
 
 ## Show the menu for [param pid] with [param title], [param options] and a

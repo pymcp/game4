@@ -268,7 +268,8 @@ func _build_dungeon_map_view(container: Control) -> DungeonMapView:
 
 
 func _build_floor_confirm_menu(container: Control) -> FloorConfirmMenu:
-	var menu := FloorConfirmMenu.new()
+	var scene := load("res://scenes/ui/FloorConfirmMenu.tscn") as PackedScene
+	var menu := scene.instantiate() as FloorConfirmMenu
 	menu.name = "FloorConfirmMenu"
 	container.add_child(menu)
 	return menu
