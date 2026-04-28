@@ -24,7 +24,7 @@ class_name InventoryScreen
 const COLS: int = 6
 const ROWS: int = 5
 const TOTAL_SLOTS: int = COLS * ROWS
-const SLOT_SZ: float = 48.0
+const SLOT_SZ: float = UITheme.SLOT_SZ
 
 const EQUIPMENT_SLOT_ORDER: Array = [
 	ItemDefinition.Slot.HEAD,
@@ -57,19 +57,6 @@ const TAB_SLOT_FILTER: Dictionary = {
 	Tab.MATERIALS: [ItemDefinition.Slot.NONE],
 }
 
-# Fantasy UI colour palette (Pixel Adventure wood tones).
-const COL_BG        := Color(0.16, 0.11, 0.09, 0.95)
-const COL_FRAME     := Color(0.62, 0.42, 0.22)
-const COL_SLOT_BG   := Color(0.22, 0.14, 0.09, 0.85)
-const COL_SLOT_BRD  := Color(0.50, 0.34, 0.18)
-const COL_TITLE_BG  := Color(0.34, 0.21, 0.13)
-const COL_PARCHMENT := Color(0.28, 0.20, 0.14, 0.60)
-const COL_SILHOUETTE := Color(0.45, 0.34, 0.24, 0.35)
-const COL_LABEL     := Color(0.88, 0.82, 0.70)
-const COL_LABEL_DIM := Color(0.55, 0.48, 0.38)
-const COL_TAB_ACTIVE   := Color(0.34, 0.21, 0.13)
-const COL_TAB_INACTIVE := Color(0.20, 0.14, 0.10)
-const COL_CURSOR    := Color(0.95, 0.85, 0.45, 0.9)
 
 var _player: PlayerController = null
 var _current_tab: int = Tab.ALL
@@ -285,7 +272,7 @@ func _build() -> void:
 	# Main panel with fantasy frame.
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(720, 460)
-	panel.add_theme_stylebox_override("panel", _make_frame_style())
+	panel.theme_type_variation = &"WoodPanel"
 	center.add_child(panel)
 
 	var outer := VBoxContainer.new()
@@ -306,7 +293,11 @@ func _build() -> void:
 	content_row.add_child(_tab_column)
 
 	# Separator.
-	content_row.add_child(_make_vsep())
+	var vsep := Panel.new()
+	vsep.custom_minimum_size = Vector2(2, 0)
+	vsep.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vsep.theme_type_variation = &"WoodSep"
+	content_row.add_child(vsep)
 
 	# Right: content stack (only one child visible at a time).
 	var content_margin := MarginContainer.new()
@@ -342,20 +333,11 @@ func _build() -> void:
 
 func _build_title_bar() -> PanelContainer:
 	var bar := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = COL_TITLE_BG
-	sb.content_margin_left = 12.0
-	sb.content_margin_right = 12.0
-	sb.content_margin_top = 6.0
-	sb.content_margin_bottom = 6.0
-	sb.corner_radius_top_left = 4
-	sb.corner_radius_top_right = 4
-	bar.add_theme_stylebox_override("panel", sb)
+	bar.theme_type_variation = &"TitleBar"
 	var lbl := Label.new()
 	lbl.text = "Equipment & Inventory"
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_color_override("font_color", COL_LABEL)
-	lbl.add_theme_font_size_override("font_size", 16)
+	lbl.theme_type_variation = &"TitleLabel"
 	bar.add_child(lbl)
 	return bar
 
@@ -384,12 +366,7 @@ func _build_tab_column() -> VBoxContainer:
 		btn.flat = true
 		btn.custom_minimum_size = Vector2(108, 30)
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.add_theme_color_override("font_color", Color.WHITE if is_default else COL_LABEL_DIM)
-		btn.add_theme_color_override("font_hover_color", Color.WHITE)
-		btn.add_theme_font_size_override("font_size", 13)
-		btn.add_theme_stylebox_override("normal", _make_vtab_style(is_default))
-		btn.add_theme_stylebox_override("hover", _make_vtab_style(true))
-		btn.add_theme_stylebox_override("pressed", _make_vtab_style(true))
+		btn.theme_type_variation = &"WoodTabButtonActive" if is_default else &"WoodTabButton"
 		btn.pressed.connect(_on_tab_button.bind(i))
 		inner.add_child(btn)
 		_tab_buttons.append(btn)
@@ -428,7 +405,7 @@ func _build_grid_page() -> VBoxContainer:
 	_cursor_panel = Panel.new()
 	_cursor_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_cursor_panel.size = Vector2(SLOT_SZ, SLOT_SZ)
-	_cursor_panel.add_theme_stylebox_override("panel", _make_cursor_style())
+	_cursor_panel.theme_type_variation = &"CursorPanel"
 	_cursor_panel.z_index = 10
 	page.add_child(_cursor_panel)
 
@@ -439,14 +416,12 @@ func _build_grid_page() -> VBoxContainer:
 	detail_box.custom_minimum_size = Vector2(0, 48)
 
 	_detail_name_label = Label.new()
-	_detail_name_label.add_theme_color_override("font_color", COL_LABEL)
-	_detail_name_label.add_theme_font_size_override("font_size", 13)
+	_detail_name_label.theme_type_variation = &"DimLabel"
 	_detail_name_label.text = ""
 	detail_box.add_child(_detail_name_label)
 
 	_detail_desc_label = Label.new()
-	_detail_desc_label.add_theme_color_override("font_color", COL_LABEL_DIM)
-	_detail_desc_label.add_theme_font_size_override("font_size", 11)
+	_detail_desc_label.theme_type_variation = &"HintLabel"
 	_detail_desc_label.text = "(empty)"
 	_detail_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_desc_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -479,7 +454,7 @@ func _build_paperdoll() -> Control:
 	bg.anchor_right = 1.0
 	bg.anchor_bottom = 1.0
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.add_theme_stylebox_override("panel", _make_paperdoll_bg_style())
+	bg.theme_type_variation = &"WoodInnerPanel"
 	doll.add_child(bg)
 
 	var silhouette := _build_silhouette()
@@ -506,7 +481,7 @@ func _build_paperdoll() -> Control:
 		var lbl := Label.new()
 		lbl.text = slot_label(s)
 		lbl.add_theme_font_size_override("font_size", 10)
-		lbl.add_theme_color_override("font_color", COL_LABEL_DIM)
+		lbl.add_theme_color_override("font_color", UITheme.COL_LABEL_DIM)
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lbl.position = Vector2(pos.x - 4.0, pos.y + SLOT_SZ + 1.0)
 		lbl.custom_minimum_size = Vector2(SLOT_SZ + 8.0, 0)
@@ -543,7 +518,7 @@ func _silhouette_part(x: float, y: float, w: float, h: float,
 	p.size = Vector2(w, h)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = COL_SILHOUETTE
+	sb.bg_color = UITheme.COL_SILHOUETTE
 	sb.corner_radius_top_left = corner
 	sb.corner_radius_top_right = corner
 	sb.corner_radius_bottom_left = corner
@@ -554,25 +529,15 @@ func _silhouette_part(x: float, y: float, w: float, h: float,
 
 func _build_controls_bar() -> PanelContainer:
 	var bar := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = COL_TITLE_BG
-	sb.content_margin_left = 12.0
-	sb.content_margin_right = 12.0
-	sb.content_margin_top = 5.0
-	sb.content_margin_bottom = 5.0
-	sb.corner_radius_bottom_left = 4
-	sb.corner_radius_bottom_right = 4
-	bar.add_theme_stylebox_override("panel", sb)
-
+	bar.theme_type_variation = &"TitleBar"
 	_controls_label = RichTextLabel.new()
 	_controls_label.bbcode_enabled = true
 	_controls_label.fit_content = true
 	_controls_label.scroll_active = false
 	_controls_label.custom_minimum_size = Vector2(0, 18)
 	_controls_label.add_theme_font_size_override("normal_font_size", 13)
-	_controls_label.add_theme_color_override("default_color", COL_LABEL_DIM)
+	_controls_label.add_theme_color_override("default_color", UITheme.COL_LABEL_DIM)
 	bar.add_child(_controls_label)
-
 	_update_controls_text()
 	return bar
 
@@ -603,10 +568,8 @@ func _select_tab(tab_idx: int) -> void:
 	# Update button styles and text color.
 	for i in _tab_buttons.size():
 		var active: bool = (i == tab_idx)
-		_tab_buttons[i].add_theme_stylebox_override("normal",
-			_make_vtab_style(active))
-		_tab_buttons[i].add_theme_color_override("font_color",
-			Color.WHITE if active else COL_LABEL_DIM)
+		_tab_buttons[i].theme_type_variation = \
+			&"WoodTabButtonActive" if active else &"WoodTabButton"
 
 	# Show the appropriate content page.
 	_eq_page.visible = (tab_idx == Tab.EQUIPMENT)
@@ -735,7 +698,7 @@ func _show_item_detail(def: ItemDefinition, prefix: String = "") -> void:
 
 func _clear_detail(text: String = "(empty)") -> void:
 	_detail_name_label.text = ""
-	_detail_name_label.add_theme_color_override("font_color", COL_LABEL)
+	_detail_name_label.add_theme_color_override("font_color", UITheme.COL_LABEL)
 	_detail_desc_label.text = text
 
 
@@ -951,7 +914,7 @@ func _build_character_page() -> VBoxContainer:
 	var preview_panel := PanelContainer.new()
 	preview_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	preview_panel.custom_minimum_size = Vector2(120, 0)
-	preview_panel.add_theme_stylebox_override("panel", _make_paperdoll_bg_style())
+	preview_panel.theme_type_variation = &"WoodInnerPanel"
 	content.add_child(preview_panel)
 
 	_char_preview_viewport = SubViewport.new()
@@ -987,8 +950,7 @@ func _build_character_page() -> VBoxContainer:
 		var name_label := Label.new()
 		name_label.text = row_data[1]
 		name_label.custom_minimum_size.x = 100
-		name_label.add_theme_color_override("font_color", COL_LABEL_DIM)
-		name_label.add_theme_font_size_override("font_size", 13)
+		name_label.theme_type_variation = &"DimLabel"
 		row_hbox.add_child(name_label)
 		_char_row_labels.append(name_label)
 
@@ -1001,8 +963,7 @@ func _build_character_page() -> VBoxContainer:
 		var value_label := Label.new()
 		value_label.custom_minimum_size.x = 80
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		value_label.add_theme_color_override("font_color", COL_LABEL)
-		value_label.add_theme_font_size_override("font_size", 13)
+		value_label.theme_type_variation = &"DimLabel"
 		row_hbox.add_child(value_label)
 		_char_value_labels.append(value_label)
 
@@ -1126,7 +1087,7 @@ func _refresh_char_labels() -> void:
 		# Highlight active row.
 		if i < _char_row_labels.size():
 			_char_row_labels[i].add_theme_color_override("font_color",
-				COL_LABEL if i == _char_cursor else COL_LABEL_DIM)
+				UITheme.COL_LABEL if i == _char_cursor else UITheme.COL_LABEL_DIM)
 	# Dim beard shape when no facial hair.
 	var face_row: int = _CHAR_ROWS.size() - 1
 	if face_row < _char_row_labels.size():
@@ -1162,78 +1123,12 @@ func _apply_char_opts_to_player() -> void:
 
 # ---------- Style helpers ----------
 
-func _make_frame_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = COL_BG
-	sb.border_color = COL_FRAME
-	sb.border_width_left = 3
-	sb.border_width_right = 3
-	sb.border_width_top = 3
-	sb.border_width_bottom = 3
-	sb.corner_radius_top_left = 6
-	sb.corner_radius_top_right = 6
-	sb.corner_radius_bottom_left = 6
-	sb.corner_radius_bottom_right = 6
-	sb.shadow_color = Color(0, 0, 0, 0.4)
-	sb.shadow_size = 6
-	return sb
-
-
-func _make_paperdoll_bg_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = COL_PARCHMENT
-	sb.border_color = COL_FRAME.darkened(0.2)
-	sb.border_width_left = 2
-	sb.border_width_right = 2
-	sb.border_width_top = 2
-	sb.border_width_bottom = 2
-	sb.corner_radius_top_left = 4
-	sb.corner_radius_top_right = 4
-	sb.corner_radius_bottom_left = 4
-	sb.corner_radius_bottom_right = 4
-	return sb
-
-
-func _make_vtab_style(active: bool) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = COL_TAB_ACTIVE if active else COL_TAB_INACTIVE
-	sb.border_color = COL_FRAME if active else COL_FRAME.darkened(0.3)
-	sb.border_width_left = 4 if active else 1
-	sb.border_width_right = 1
-	sb.border_width_top = 1
-	sb.border_width_bottom = 1
-	if active:
-		sb.border_color = Color(0.95, 0.80, 0.40)  # Gold accent on left edge.
-	sb.content_margin_left = 8.0
-	sb.content_margin_right = 8.0
-	sb.content_margin_top = 4.0
-	sb.content_margin_bottom = 4.0
-	sb.corner_radius_top_left = 3
-	sb.corner_radius_bottom_left = 3
-	return sb
-
-
-func _make_cursor_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0, 0, 0, 0)
-	sb.border_color = COL_CURSOR
-	sb.border_width_left = 3
-	sb.border_width_right = 3
-	sb.border_width_top = 3
-	sb.border_width_bottom = 3
-	sb.corner_radius_top_left = 4
-	sb.corner_radius_top_right = 4
-	sb.corner_radius_bottom_left = 4
-	sb.corner_radius_bottom_right = 4
-	return sb
-
-
 func _make_slot() -> HotbarSlot:
 	var slot := HotbarSlot.new()
-	slot.custom_minimum_size = Vector2(SLOT_SZ, SLOT_SZ)
-	var bg := ColorRect.new()
-	bg.name = "Bg"
-	bg.color = COL_SLOT_BG
+	slot.custom_minimum_size = Vector2(UITheme.SLOT_SZ, UITheme.SLOT_SZ)
+	var bg := Panel.new()
+	bg.name = "BgPanel"
+	bg.theme_type_variation = &"SlotPanel"
 	bg.anchor_right = 1.0
 	bg.anchor_bottom = 1.0
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1248,25 +1143,14 @@ func _make_slot() -> HotbarSlot:
 	slot.add_child(icon)
 	var count_label := Label.new()
 	count_label.name = "Count"
+	count_label.theme_type_variation = &"HintLabel"
 	count_label.anchor_right = 1.0
 	count_label.anchor_bottom = 1.0
 	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	count_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	count_label.add_theme_color_override("font_color", COL_LABEL)
-	count_label.add_theme_font_size_override("font_size", 11)
 	count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(count_label)
 	return slot
-
-
-func _make_vsep() -> Panel:
-	var sep := Panel.new()
-	sep.custom_minimum_size = Vector2(2, 0)
-	sep.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = COL_FRAME.darkened(0.3)
-	sep.add_theme_stylebox_override("panel", sb)
-	return sep
 
 
 # ---------- Test helpers ----------

@@ -62,6 +62,7 @@ func _build() -> void:
 	for recipe in ordered_by_domain(_domain):
 		_ordered_ids.append(recipe.id)
 		var btn := Button.new()
+		btn.theme_type_variation = &"WoodButton"
 		btn.text = CraftingPanel.format_recipe_label(recipe)
 		btn.pressed.connect(_on_pressed.bind(recipe.id))
 		v.add_child(btn)
@@ -112,6 +113,6 @@ func _refresh_cursor() -> void:
 	for i in _buttons.size():
 		var btn: Button = _buttons[i]
 		if i == _cursor:
-			btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+			btn.add_theme_color_override("font_color", UITheme.COL_CURSOR)
 		else:
 			btn.remove_theme_color_override("font_color")

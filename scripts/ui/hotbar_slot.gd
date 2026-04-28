@@ -14,7 +14,8 @@ var count: int = 0
 @onready var _count_label: Label = $Count
 @onready var _bg: ColorRect = $Bg
 var _bg_panel: Panel = null
-const _DEFAULT_BORDER := Color(0.62, 0.42, 0.22)
+static var _DEFAULT_BORDER: Color:
+	get: return UITheme.COL_FRAME
 
 
 func _ready() -> void:
@@ -25,8 +26,6 @@ func _ready() -> void:
 
 
 func _apply_polish() -> void:
-	# Replace plain Bg ColorRect with a Panel using a brown wood
-	# StyleBoxFlat (Pixel Adventure UI palette) for a 9-slice feel.
 	if _bg == null or not is_instance_valid(_bg):
 		return
 	var panel := Panel.new()
@@ -34,20 +33,27 @@ func _apply_polish() -> void:
 	panel.anchor_right = 1.0
 	panel.anchor_bottom = 1.0
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.34, 0.21, 0.13)
-	sb.border_color = _DEFAULT_BORDER
-	sb.border_width_left = 2
-	sb.border_width_right = 2
-	sb.border_width_top = 2
-	sb.border_width_bottom = 2
-	sb.corner_radius_top_left = 3
-	sb.corner_radius_top_right = 3
-	sb.corner_radius_bottom_left = 3
-	sb.corner_radius_bottom_right = 3
+	# Duplicate the theme stylebox so rarity can modify border color per-instance
+	# without mutating the shared Theme resource.
+	var base_sb: StyleBoxFlat = get_theme_stylebox(&"panel", &"SlotPanel") as StyleBoxFlat
+	var sb: StyleBoxFlat
+	if base_sb != null:
+		sb = base_sb.duplicate() as StyleBoxFlat
+	else:
+		# Fallback if theme not yet loaded (e.g. headless unit tests).
+		sb = StyleBoxFlat.new()
+		sb.bg_color = UITheme.COL_SLOT_BG
+		sb.border_color = UITheme.COL_SLOT_BRD
+		sb.border_width_left = 2
+		sb.border_width_right = 2
+		sb.border_width_top = 2
+		sb.border_width_bottom = 2
+		sb.corner_radius_top_left = 3
+		sb.corner_radius_top_right = 3
+		sb.corner_radius_bottom_left = 3
+		sb.corner_radius_bottom_right = 3
 	panel.add_theme_stylebox_override("panel", sb)
 	_bg.add_sibling(panel)
-	panel.show_behind_parent = false
 	_bg.queue_free()
 	_bg = null
 	_bg_panel = panel

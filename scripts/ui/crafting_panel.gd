@@ -94,6 +94,7 @@ func _build() -> void:
 	for recipe in ordered_recipes():
 		_ordered_ids.append(recipe.id)
 		var btn := Button.new()
+		btn.theme_type_variation = &"WoodButton"
 		btn.text = format_recipe_label(recipe)
 		btn.pressed.connect(_on_pressed.bind(recipe.id))
 		_list.add_child(btn)
