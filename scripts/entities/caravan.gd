@@ -153,10 +153,13 @@ func _build_sprite() -> void:
 	_sprite.texture = tex
 	_sprite.region_enabled = true
 	_sprite.region_rect = Rect2(
-			float(cell.x * tile_size),
-			float(cell.y * tile_size),
-			float(tile_size),
-			float(tile_size))
+			float(cell.x * spec.stride),
+			float(cell.y * spec.stride),
+			float(spec.tile_px),
+			float(spec.tile_px))
+	var sf: float = spec.scale_factor()
+	if sf != 1.0:
+		_sprite.scale = Vector2(sf, sf)
 	add_child(_sprite)
 
 
