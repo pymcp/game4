@@ -963,7 +963,8 @@ func _build_character_page() -> VBoxContainer:
 		var value_label := Label.new()
 		value_label.custom_minimum_size.x = 80
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		value_label.theme_type_variation = &"DimLabel"
+		value_label.add_theme_color_override("font_color", UITheme.COL_LABEL)
+		value_label.add_theme_font_size_override("font_size", 13)
 		row_hbox.add_child(value_label)
 		_char_value_labels.append(value_label)
 
@@ -1126,9 +1127,9 @@ func _apply_char_opts_to_player() -> void:
 func _make_slot() -> HotbarSlot:
 	var slot := HotbarSlot.new()
 	slot.custom_minimum_size = Vector2(UITheme.SLOT_SZ, UITheme.SLOT_SZ)
-	var bg := Panel.new()
-	bg.name = "BgPanel"
-	bg.theme_type_variation = &"SlotPanel"
+	var bg := ColorRect.new()
+	bg.name = "Bg"
+	bg.color = UITheme.COL_SLOT_BG
 	bg.anchor_right = 1.0
 	bg.anchor_bottom = 1.0
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
