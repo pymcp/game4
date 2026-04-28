@@ -7,7 +7,7 @@
 ## RIGHT zone: navigation delegated to the active sub-panel via navigate(verb).
 ## BACK returns from RIGHT→LEFT, or closes from LEFT.
 class_name CaravanMenu
-extends CanvasLayer
+extends Control
 
 enum _Focus { LEFT, RIGHT }
 
@@ -30,6 +30,9 @@ var _focus: _Focus = _Focus.LEFT
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	anchor_right = 1.0
+	anchor_bottom = 1.0
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
 
 

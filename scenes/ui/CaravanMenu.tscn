@@ -2,8 +2,11 @@
 
 [ext_resource type="Script" path="res://scripts/ui/caravan_menu.gd" id="1_caravan"]
 
-[node name="CaravanMenu" type="CanvasLayer"]
-layer = 45
+[node name="CaravanMenu" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+z_index = 45
 script = ExtResource("1_caravan")
 
 [node name="Bg" type="ColorRect" parent="."]
