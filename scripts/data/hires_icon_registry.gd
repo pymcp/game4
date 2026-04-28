@@ -59,8 +59,8 @@ static func _from_cell(sheet_name: String, col: int, row: int) -> Texture2D:
 	var atlas := AtlasTexture.new()
 	atlas.atlas = sheet_tex
 	atlas.region = Rect2(
-		float(col * spec.tile_px),
-		float(row * spec.tile_px),
+		float(col * spec.stride),
+		float(row * spec.stride),
 		float(spec.tile_px),
 		float(spec.tile_px))
 	_atlas_cache[cache_key] = atlas
