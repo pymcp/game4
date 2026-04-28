@@ -70,7 +70,7 @@ func _ready() -> void:
 	_controls_p2 = _build_controls_hud(_container_p2, 1)
 	_hearts_p1 = _build_heart_display(_container_p1)
 	_hearts_p2 = _build_heart_display(_container_p2)
-	_math_death = MathDeathScreen.new()
+	_math_death = load("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	_math_death.name = "MathDeathScreen"
 	_math_death.answered_correctly.connect(_on_math_answer_correct)
 	add_child(_math_death)

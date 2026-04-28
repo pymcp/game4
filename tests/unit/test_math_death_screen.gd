@@ -5,7 +5,7 @@ extends GutTest
 # --- Problem generation -------------------------------------------
 
 func test_generate_problem_sets_answer() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	screen.show_for_player(0)
 	# Answer should be set (non-default).
@@ -16,7 +16,7 @@ func test_generate_problem_sets_answer() -> void:
 
 
 func test_addition_answer_is_correct() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	# Force an addition problem by calling _generate multiple times
 	# until we get one with "+".
@@ -35,7 +35,7 @@ func test_addition_answer_is_correct() -> void:
 
 
 func test_subtraction_answer_is_correct() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	for i in 50:
 		screen._generate_problem()
@@ -52,7 +52,7 @@ func test_subtraction_answer_is_correct() -> void:
 
 
 func test_subtraction_never_negative() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	for i in 200:
 		screen._generate_problem()
@@ -61,7 +61,7 @@ func test_subtraction_never_negative() -> void:
 
 
 func test_numbers_under_100() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	for i in 100:
 		screen._generate_problem()
@@ -75,7 +75,7 @@ func test_numbers_under_100() -> void:
 # --- Answer checking ----------------------------------------------
 
 func test_correct_answer_emits_signal() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	screen.show_for_player(1)
 	var received := [false, -1]
@@ -91,7 +91,7 @@ func test_correct_answer_emits_signal() -> void:
 
 
 func test_wrong_answer_shows_feedback() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	screen.show_for_player(0)
 	screen._input_field.text = str(screen.get_answer() + 1)
@@ -101,7 +101,7 @@ func test_wrong_answer_shows_feedback() -> void:
 
 
 func test_non_numeric_input_shows_feedback() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	screen.show_for_player(0)
 	screen._input_field.text = "abc"
@@ -111,7 +111,7 @@ func test_non_numeric_input_shows_feedback() -> void:
 
 
 func test_empty_input_shows_feedback() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	screen.show_for_player(0)
 	screen._input_field.text = ""
@@ -122,13 +122,13 @@ func test_empty_input_shows_feedback() -> void:
 # --- Visibility lifecycle -----------------------------------------
 
 func test_starts_hidden() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	assert_false(screen.visible, "should start hidden")
 
 
 func test_show_for_player_makes_visible() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	screen.show_for_player(0)
 	assert_true(screen.visible)
@@ -136,7 +136,7 @@ func test_show_for_player_makes_visible() -> void:
 
 
 func test_hide_screen_clears_state() -> void:
-	var screen := MathDeathScreen.new()
+	var screen := preload("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	add_child_autofree(screen)
 	screen.show_for_player(1)
 	screen.hide_screen()
