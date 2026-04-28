@@ -192,6 +192,10 @@ p2_worldmap={
 
 common/physics_ticks_per_second=60
 
+[gui]
+
+theme/custom="res://resources/ui/game_theme.tres"
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

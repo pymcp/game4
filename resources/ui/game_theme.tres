@@ -1,0 +1,182 @@
+[gd_resource type="Theme" load_steps=12 format=3]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8w816"]
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.95, 0.85, 0.45, 0.9)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ax14e"]
+bg_color = Color(0.22, 0.14, 0.09, 0.85)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5, 0.34, 0.18, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j5vaa"]
+content_margin_left = 12.0
+content_margin_top = 6.0
+content_margin_right = 12.0
+content_margin_bottom = 6.0
+bg_color = Color(0.34, 0.21, 0.13, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gdcsa"]
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.95, 0.85, 0.45, 0.9)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8ih3q"]
+content_margin_left = 10.0
+content_margin_top = 5.0
+content_margin_right = 10.0
+content_margin_bottom = 5.0
+bg_color = Color(0.34, 0.21, 0.13, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.62, 0.42, 0.22, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gnjs8"]
+content_margin_left = 10.0
+content_margin_top = 5.0
+content_margin_right = 10.0
+content_margin_bottom = 5.0
+bg_color = Color(0.2, 0.14, 0.1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.62, 0.42, 0.22, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_y0e0c"]
+bg_color = Color(0.28, 0.2, 0.14, 0.6)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.496, 0.336, 0.176, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_acx0x"]
+bg_color = Color(0.16, 0.11, 0.09, 0.95)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.62, 0.42, 0.22, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.4)
+shadow_size = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xv3pb"]
+bg_color = Color(0.434, 0.294, 0.154, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rwlfy"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.2, 0.14, 0.1, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.434, 0.294, 0.154, 1)
+corner_radius_top_left = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_p1g7c"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.34, 0.21, 0.13, 1)
+border_width_left = 4
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.8, 0.4, 1)
+corner_radius_top_left = 3
+corner_radius_bottom_left = 3
+
+[resource]
+CursorPanel/base_type = &"Panel"
+CursorPanel/styles/panel = SubResource("StyleBoxFlat_8w816")
+DimLabel/base_type = &"Label"
+DimLabel/colors/font_color = Color(0.55, 0.48, 0.38, 1)
+DimLabel/font_sizes/font_size = 13
+HintLabel/base_type = &"Label"
+HintLabel/colors/font_color = Color(0.55, 0.48, 0.38, 1)
+HintLabel/font_sizes/font_size = 11
+SlotPanel/base_type = &"Panel"
+SlotPanel/styles/panel = SubResource("StyleBoxFlat_ax14e")
+TitleBar/base_type = &"PanelContainer"
+TitleBar/styles/panel = SubResource("StyleBoxFlat_j5vaa")
+TitleLabel/base_type = &"Label"
+TitleLabel/colors/font_color = Color(0.88, 0.82, 0.7, 1)
+TitleLabel/font_sizes/font_size = 16
+WoodButton/base_type = &"Button"
+WoodButton/colors/font_color = Color(0.88, 0.82, 0.7, 1)
+WoodButton/colors/font_disabled_color = Color(0.55, 0.48, 0.38, 1)
+WoodButton/colors/font_hover_color = Color(1, 1, 1, 1)
+WoodButton/colors/font_pressed_color = Color(1, 1, 1, 1)
+WoodButton/font_sizes/font_size = 13
+WoodButton/styles/focus = SubResource("StyleBoxFlat_gdcsa")
+WoodButton/styles/hover = SubResource("StyleBoxFlat_8ih3q")
+WoodButton/styles/normal = SubResource("StyleBoxFlat_gnjs8")
+WoodButton/styles/pressed = SubResource("StyleBoxFlat_8ih3q")
+WoodInnerPanel/base_type = &"PanelContainer"
+WoodInnerPanel/styles/panel = SubResource("StyleBoxFlat_y0e0c")
+WoodPanel/base_type = &"PanelContainer"
+WoodPanel/styles/panel = SubResource("StyleBoxFlat_acx0x")
+WoodSep/base_type = &"Panel"
+WoodSep/styles/panel = SubResource("StyleBoxFlat_xv3pb")
+WoodTabButton/base_type = &"Button"
+WoodTabButton/colors/font_color = Color(0.55, 0.48, 0.38, 1)
+WoodTabButton/colors/font_hover_color = Color(1, 1, 1, 1)
+WoodTabButton/font_sizes/font_size = 13
+WoodTabButton/styles/hover = SubResource("StyleBoxFlat_rwlfy")
+WoodTabButton/styles/normal = SubResource("StyleBoxFlat_rwlfy")
+WoodTabButton/styles/pressed = SubResource("StyleBoxFlat_rwlfy")
+WoodTabButtonActive/base_type = &"Button"
+WoodTabButtonActive/colors/font_color = Color(1, 1, 1, 1)
+WoodTabButtonActive/colors/font_hover_color = Color(1, 1, 1, 1)
+WoodTabButtonActive/font_sizes/font_size = 13
+WoodTabButtonActive/styles/hover = SubResource("StyleBoxFlat_p1g7c")
+WoodTabButtonActive/styles/normal = SubResource("StyleBoxFlat_p1g7c")
+WoodTabButtonActive/styles/pressed = SubResource("StyleBoxFlat_p1g7c")
