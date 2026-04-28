@@ -134,16 +134,15 @@ func _update_cursor() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
-	var prefix: String = "p%d_" % (_pid + 1)
-	if event.is_action_pressed(StringName(prefix + "up")):
+	if event.is_action_pressed(PlayerActions.action(_pid, PlayerActions.UP)):
 		_cursor = (_cursor - 1 + _options.size()) % _options.size()
 		_update_cursor()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed(StringName(prefix + "down")):
+	elif event.is_action_pressed(PlayerActions.action(_pid, PlayerActions.DOWN)):
 		_cursor = (_cursor + 1) % _options.size()
 		_update_cursor()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed(StringName(prefix + "interact")):
+	elif event.is_action_pressed(PlayerActions.action(_pid, PlayerActions.INTERACT)):
 		_confirm()
 		get_viewport().set_input_as_handled()
 

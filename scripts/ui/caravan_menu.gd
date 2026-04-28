@@ -49,8 +49,7 @@ func close() -> void:
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
-	var prefix: String = "p%d_" % (_player_id + 1)
-	if Input.is_action_just_pressed(StringName(prefix + "back")):
+	if Input.is_action_just_pressed(PlayerActions.action(_player_id, PlayerActions.BACK)):
 		close()
 		get_viewport().set_input_as_handled()
 

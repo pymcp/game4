@@ -299,10 +299,9 @@ func _physics_process(delta: float) -> void:
 		_bob_t = 0.0
 		_sprite_root.position = Vector2.ZERO
 		# Still allow the interact key to dismiss / advance dialogue.
-		var prefix: String = "p%d_" % (player_id + 1)
-		if Input.is_action_just_pressed(StringName(prefix + "interact")):
+		if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.INTERACT)):
 			_try_interact()
-		elif Input.is_action_just_pressed(StringName(prefix + "back")):
+		elif Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.BACK)):
 			_world.hide_dialogue()
 		return
 	# Skip all gameplay input when this player isn't in GAMEPLAY context
@@ -316,14 +315,13 @@ func _physics_process(delta: float) -> void:
 		_sprite_root.position = Vector2.ZERO
 		return
 	_attack_cooldown = max(0.0, _attack_cooldown - delta)
-	var prefix: String = "p%d_" % (player_id + 1)
-	if Input.is_action_just_pressed(StringName(prefix + "interact")):
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.INTERACT)):
 		_try_interact()
-	if Input.is_action_just_pressed(StringName(prefix + "auto_mine")):
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.AUTO_MINE)):
 		auto_mine = not auto_mine
-	if Input.is_action_just_pressed(StringName(prefix + "auto_attack")):
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.AUTO_ATTACK)):
 		auto_attack = not auto_attack
-	if Input.is_action_just_pressed(StringName(prefix + "attack")):
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.ATTACK)):
 		if is_mounted and _mount != null and _mount.can_jump:
 			_mount.try_hop(_facing_dir)
 		elif _attack_cooldown <= 0.0:
@@ -336,10 +334,10 @@ func _physics_process(delta: float) -> void:
 	if auto_attack and _attack_cooldown <= 0.0:
 		_tick_auto_attack()
 	var input := Vector2(
-		Input.get_action_strength(StringName(prefix + "right"))
-			- Input.get_action_strength(StringName(prefix + "left")),
-		Input.get_action_strength(StringName(prefix + "down"))
-			- Input.get_action_strength(StringName(prefix + "up")),
+		Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.RIGHT))
+			- Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.LEFT)),
+		Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.DOWN))
+			- Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.UP)),
 	)
 	var moving: bool = input.length_squared() > 0.0001
 	if moving:
@@ -365,7 +363,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	var map_action: StringName = &"p1_worldmap" if player_id == 0 else &"p2_worldmap"
+	var map_action: StringName = PlayerActions.action(player_id, PlayerActions.WORLDMAP)
 	if event.is_action_pressed(map_action):
 		if _world != null and _world.is_in_interior():
 			if dungeon_map != null:

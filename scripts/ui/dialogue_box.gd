@@ -149,16 +149,13 @@ func show_node(node: DialogueNode, stats: Dictionary = {}) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _open:
 		return
-	var prefix: String = "p%d_" % (player_id + 1)
-
-	# Arrow / WASD navigation within choices.
 	if _visible_choices.size() > 0:
-		if event.is_action_pressed(StringName(prefix + "up")):
+		if event.is_action_pressed(PlayerActions.action(player_id, PlayerActions.UP)):
 			_selected_idx = max(0, _selected_idx - 1)
 			_highlight(_selected_idx)
 			get_viewport().set_input_as_handled()
 			return
-		if event.is_action_pressed(StringName(prefix + "down")):
+		if event.is_action_pressed(PlayerActions.action(player_id, PlayerActions.DOWN)):
 			_selected_idx = min(_visible_choices.size() - 1, _selected_idx + 1)
 			_highlight(_selected_idx)
 			get_viewport().set_input_as_handled()

@@ -61,7 +61,7 @@ func is_open() -> bool:
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
-	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("p1_inventory"):
+	if event.is_action_pressed("ui_cancel") or (_player != null and event.is_action_pressed(PlayerActions.action(_player.player_id, PlayerActions.INVENTORY))):
 		close()
 		get_viewport().set_input_as_handled()
 

@@ -178,10 +178,8 @@ func set_player(p: PlayerController) -> void:
 func _input(event: InputEvent) -> void:
 	if _player == null:
 		return
-	var prefix: String = "p%d_" % (_player.player_id + 1)
-
 	# Toggle open/close — always check this action.
-	if Input.is_action_just_pressed(StringName(prefix + "inventory")):
+	if Input.is_action_just_pressed(PlayerActions.action(_player.player_id, PlayerActions.INVENTORY)):
 		toggle()
 		get_viewport().set_input_as_handled()
 		return
@@ -190,7 +188,7 @@ func _input(event: InputEvent) -> void:
 	# gameplay — but don't eat the other player's inputs.
 	if not visible:
 		return
-	if not _is_my_event(prefix, event):
+	if not _is_my_event(event):
 		return
 	get_viewport().set_input_as_handled()
 
@@ -199,43 +197,43 @@ func _input(event: InputEvent) -> void:
 		return
 
 	# Tab cycling.
-	if Input.is_action_just_pressed(StringName(prefix + "tab_prev")):
+	if Input.is_action_just_pressed(PlayerActions.action(_player.player_id, PlayerActions.TAB_PREV)):
 		_cycle_tab(-1)
 		return
-	if Input.is_action_just_pressed(StringName(prefix + "tab_next")):
+	if Input.is_action_just_pressed(PlayerActions.action(_player.player_id, PlayerActions.TAB_NEXT)):
 		_cycle_tab(1)
 		return
 
 	# Cursor navigation (arrow keys).
-	if Input.is_action_just_pressed(StringName(prefix + "up")):
+	if Input.is_action_just_pressed(PlayerActions.action(_player.player_id, PlayerActions.UP)):
 		_move_cursor(0, -1)
 		return
-	if Input.is_action_just_pressed(StringName(prefix + "down")):
+	if Input.is_action_just_pressed(PlayerActions.action(_player.player_id, PlayerActions.DOWN)):
 		_move_cursor(0, 1)
 		return
-	if Input.is_action_just_pressed(StringName(prefix + "left")):
+	if Input.is_action_just_pressed(PlayerActions.action(_player.player_id, PlayerActions.LEFT)):
 		_move_cursor(-1, 0)
 		return
-	if Input.is_action_just_pressed(StringName(prefix + "right")):
+	if Input.is_action_just_pressed(PlayerActions.action(_player.player_id, PlayerActions.RIGHT)):
 		_move_cursor(1, 0)
 		return
 
 	# Interact — equip / use.
-	if Input.is_action_just_pressed(StringName(prefix + "interact")):
+	if Input.is_action_just_pressed(PlayerActions.action(_player.player_id, PlayerActions.INTERACT)):
 		_interact_cursor()
 		return
 
 	# Back key — drop in inventory context.
-	if Input.is_action_just_pressed(StringName(prefix + "back")):
+	if Input.is_action_just_pressed(PlayerActions.action(_player.player_id, PlayerActions.BACK)):
 		_drop_cursor()
 		return
 
 
 ## True if [param event] matches any action bound to this player's prefix.
-func _is_my_event(prefix: String, event: InputEvent) -> bool:
+func _is_my_event(event: InputEvent) -> bool:
 	var actions := InputContext.get_active_actions(_player.player_id)
 	# Also include inventory toggle which is always checked.
-	actions.append(StringName(prefix + "inventory"))
+	actions.append(PlayerActions.action(_player.player_id, PlayerActions.INVENTORY))
 	for action in actions:
 		if event.is_action(action):
 			return true
@@ -582,12 +580,11 @@ func _build_controls_bar() -> PanelContainer:
 func _update_controls_text() -> void:
 	if _controls_label == null or _player == null:
 		return
-	var prefix: String = "p%d_" % (_player.player_id + 1)
-	var interact_key := InputContext.get_key_label(StringName(prefix + "interact"))
-	var attack_key := InputContext.get_key_label(StringName(prefix + "attack"))
-	var tab_prev := InputContext.get_key_label(StringName(prefix + "tab_prev"))
-	var tab_next := InputContext.get_key_label(StringName(prefix + "tab_next"))
-	var inv_key := InputContext.get_key_label(StringName(prefix + "inventory"))
+	var interact_key := InputContext.get_key_label(PlayerActions.action(_player.player_id, PlayerActions.INTERACT))
+	var attack_key := InputContext.get_key_label(PlayerActions.action(_player.player_id, PlayerActions.ATTACK))
+	var tab_prev := InputContext.get_key_label(PlayerActions.action(_player.player_id, PlayerActions.TAB_PREV))
+	var tab_next := InputContext.get_key_label(PlayerActions.action(_player.player_id, PlayerActions.TAB_NEXT))
+	var inv_key := InputContext.get_key_label(PlayerActions.action(_player.player_id, PlayerActions.INVENTORY))
 	_controls_label.text = "[center][color=white][%s][/color] Equip/Use   [color=white][%s][/color] Drop   [color=white][%s/%s][/color] Tab   [color=white][%s][/color] Close[/center]" % [
 		interact_key, attack_key, tab_prev, tab_next, inv_key]
 

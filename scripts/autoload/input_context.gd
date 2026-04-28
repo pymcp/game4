@@ -36,38 +36,38 @@ func set_context(player_id: int, ctx: Context) -> void:
 ## Used by HUD to render dynamic control hints.
 func get_active_actions(player_id: int) -> Array[StringName]:
 	var ctx := _contexts[player_id]
-	var prefix := "p%d_" % (player_id + 1)
 	match ctx:
 		Context.GAMEPLAY:
 			return [
-				StringName(prefix + "up"),
-				StringName(prefix + "down"),
-				StringName(prefix + "left"),
-				StringName(prefix + "right"),
-				StringName(prefix + "interact"),
-				StringName(prefix + "attack"),
-				StringName(prefix + "back"),
-				StringName(prefix + "inventory"),
-				StringName(prefix + "auto_mine"),
-				StringName(prefix + "auto_attack"),
+				PlayerActions.action(player_id, PlayerActions.UP),
+				PlayerActions.action(player_id, PlayerActions.DOWN),
+				PlayerActions.action(player_id, PlayerActions.LEFT),
+				PlayerActions.action(player_id, PlayerActions.RIGHT),
+				PlayerActions.action(player_id, PlayerActions.INTERACT),
+				PlayerActions.action(player_id, PlayerActions.ATTACK),
+				PlayerActions.action(player_id, PlayerActions.BACK),
+				PlayerActions.action(player_id, PlayerActions.INVENTORY),
+				PlayerActions.action(player_id, PlayerActions.AUTO_MINE),
+				PlayerActions.action(player_id, PlayerActions.AUTO_ATTACK),
 			]
 		Context.INVENTORY:
 			return [
-				StringName(prefix + "up"),
-				StringName(prefix + "down"),
-				StringName(prefix + "left"),
-				StringName(prefix + "right"),
-				StringName(prefix + "interact"),
-				StringName(prefix + "back"),
-				StringName(prefix + "tab_prev"),
-				StringName(prefix + "tab_next"),
-				StringName(prefix + "inventory"),
+				PlayerActions.action(player_id, PlayerActions.UP),
+				PlayerActions.action(player_id, PlayerActions.DOWN),
+				PlayerActions.action(player_id, PlayerActions.LEFT),
+				PlayerActions.action(player_id, PlayerActions.RIGHT),
+				PlayerActions.action(player_id, PlayerActions.INTERACT),
+				PlayerActions.action(player_id, PlayerActions.BACK),
+				PlayerActions.action(player_id, PlayerActions.TAB_PREV),
+				PlayerActions.action(player_id, PlayerActions.TAB_NEXT),
+				PlayerActions.action(player_id, PlayerActions.INVENTORY),
 			]
 		Context.MENU:
 			return [
-				StringName(prefix + "up"),
-				StringName(prefix + "down"),
-				StringName(prefix + "interact"),
+				PlayerActions.action(player_id, PlayerActions.UP),
+				PlayerActions.action(player_id, PlayerActions.DOWN),
+				PlayerActions.action(player_id, PlayerActions.INTERACT),
+				PlayerActions.action(player_id, PlayerActions.BACK),
 			]
 		Context.DISABLED:
 			return []
@@ -96,7 +96,7 @@ const _KP_LABELS: Dictionary = {
 func _action_verb(action: StringName) -> String:
 	var s := String(action)
 	# Strip p1_/p2_ prefix.
-	if s.begins_with("p1_") or s.begins_with("p2_"):
+	if s.begins_with(PlayerActions.prefix(0)) or s.begins_with(PlayerActions.prefix(1)):
 		s = s.substr(3)
 	match s:
 		"up", "down", "left", "right":

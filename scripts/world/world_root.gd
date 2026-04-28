@@ -1015,7 +1015,7 @@ func _process(delta: float) -> void:
 		var input_ctx: InputContext.Context = InputContext.get_context(pid)
 		if input_ctx != InputContext.Context.GAMEPLAY:
 			continue
-		var action: StringName = &"p1_interact" if pid == 0 else &"p2_interact"
+		var action: StringName = PlayerActions.action(pid, PlayerActions.INTERACT)
 		if not Input.is_action_just_pressed(action):
 			continue
 		var player: PlayerController = get_player(pid)

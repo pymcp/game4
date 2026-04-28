@@ -78,12 +78,12 @@ func _is_toggle_active(short_name: StringName) -> bool:
 func _refresh() -> void:
 	if _label == null:
 		return
-	var prefix := "p%d_" % (player_id + 1)
+	var pfx := PlayerActions.prefix(player_id)
 	var lines: Array[String] = ["P%d Controls" % (player_id + 1)]
 	for action in InputContext.get_active_actions(player_id):
 		var s: String = String(action)
-		if s.begins_with(prefix):
-			s = s.substr(prefix.length())
+		if s.begins_with(pfx):
+			s = s.substr(pfx.length())
 		var pretty: String = _ACTION_LABELS.get(StringName(s), s)
 		var key_label: String = InputContext.get_key_label(action)
 		var short: StringName = StringName(s)
