@@ -33,6 +33,25 @@ engine renders from the new sheets — no code changes required.
 | `armor` | `resources/items.json` | effective slot: `head/body/feet/off_hand` | `hires_sheet`, `hires_cell` |
 | `creatures` | `resources/creature_sprites.json` | all entries | `sheet`, `region`, `anchor_ratio`, `scale` |
 
+### Multi-tile creatures
+
+Add `"sprite_tiles": [w, h]` to a `creature_sprites.json` entry to make it occupy a
+multi-cell block on the sheet (e.g. `[2, 2]` = 2 tiles wide × 2 tiles tall).
+
+```json
+"ogre": {
+  "sprite_tiles": [2, 2],
+  "footprint": [2, 2],
+  ...
+}
+```
+
+The tool computes the region automatically:
+- 2×2 block → `stub_w = 2*64 + 1 = 129 px`, region `[col*65, row*65, 129, 129]`
+- `scale = [0.25, 0.25]` → 129 × 0.25 ≈ 32 px in-world = 2 game tiles ✓
+
+Currently 2×2 creatures: `fire_elemental`, `ice_elemental`, `ogre`, `slime_king`, `troll`, `dragon`.
+
 ## Usage
 
 ```bash
@@ -48,13 +67,21 @@ The tool is idempotent. Re-running it after adding new entities or JSON entries 
 
 ## Cell Assignment File
 
-Each category stores its `{entity_id: [col, row]}` map in:
+Each category stores its `{entity_id: {"cell": [col, row], "size": [w, h]}}` map in:
 ```
 assets/icons/hires/<category>_cells.json
 ```
 
 Cell assignments are **stable across re-runs** — new entities are appended to the next
 available slot; existing assignments never move.  Commit this file alongside the PNG.
+
+For multi-tile creatures, the `size` field controls how many sheet cells the entity occupies
+(e.g. `[2, 2]` = a 2×2 block).  The tool packs multi-tile blocks into the sheet without
+overlapping adjacent single-tile cells.  The old flat `[col, row]` format is auto-migrated
+on first read.
+
+You can also **manually pre-assign cells** by editing `<category>_cells.json` before running
+the tool — useful when you need a specific layout (e.g. all bosses together in the top rows).
 
 ## Stub → Real Art Workflow
 
@@ -94,9 +121,30 @@ display_px = tile_px × scale × render_zoom
 3. Paste real art into that cell; re-run tool to confirm preservation.
 
 **Creature:**
-1. Add entry to `resources/creature_sprites.json` (any sheet/region values are fine as placeholders).
-2. Run `python3 tools/gen_hires_sheet.py creatures`.
-3. The entry now points at `creatures.png`.  Paste real art; re-run.
+1. Add entry to `resources/creature_sprites.json` with all combat fields (`attack_style`, `attack_damage`, etc.) and `footprint`.
+   - For a multi-tile creature, also set `"sprite_tiles": [w, h]` to match `footprint`.
+2. Add the creature to `resources/loot_tables.json` (`display_name`, `health`, `drop_chance`, `drop_count`, `drops`).
+3. Add the creature to `resources/encounter_tables.json` under the dungeon type(s) (`min_floor`, `max_floor`, `weight`).
+4. Run `python3 tools/gen_hires_sheet.py creatures` — new stub cell(s) appear and JSON is patched.
+5. Paste real art; re-run to confirm preservation.
+
+**Forcing a stub re-draw** (e.g. after manual edits left bad pixels in a cell):
+```python
+from PIL import Image
+SENTINEL = (70, 30, 100)  # creature sentinel inner color is ~(91, 39, 130)
+STRIDE, TILE = 65, 64
+img = Image.open("assets/icons/hires/creatures.png").convert("RGBA")
+# repaint the 2×2 block at cell (col, row) as a stub:
+col, row, size_w, size_h = 0, 0, 2, 2
+stub_w = size_w*TILE + (size_w-1)*1  # 129
+stub_h = size_h*TILE + (size_h-1)*1
+# fill with sentinel so the next gen_hires_sheet.py run re-generates it cleanly
+for x in range(stub_w):
+    for y in range(stub_h):
+        img.putpixel((col*STRIDE+x, row*STRIDE+y), (*SENTINEL, 255))
+img.save("assets/icons/hires/creatures.png")
+```
+Then re-run `python3 tools/gen_hires_sheet.py creatures` to paint a proper labelled stub.
 
 ## Adding a New Category
 

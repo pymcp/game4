@@ -86,7 +86,7 @@ See [docs/conventions.md](docs/conventions.md) for full details. Critical points
 | `CharacterBuilder` | RefCounted | Paper-doll sprite stack from [character-atlas.md](docs/character-atlas.md) |
 
 ### Creature Combat Data
-- `resources/creature_sprites.json` — each creature entry has optional combat fields: `attack_style` (swing/thrust/slam/projectile/none), `attack_damage`, `attack_speed`, `attack_range_tiles`, `element` (fire/ice/none).
+- `resources/creature_sprites.json` — each creature entry has optional combat fields: `attack_style` (swing/thrust/slam/projectile/none), `attack_damage`, `attack_speed`, `attack_range_tiles`, `element` (fire/ice/none). `sprite_tiles: [w, h]` (default [1,1]) marks multi-tile hires sprites — set to [2,2] for large creatures and match `footprint`. All sheets point to `assets/icons/hires/creatures.png`; regenerate with `python3 tools/gen_hires_sheet.py creatures`.
 - `CreatureSpriteRegistry` — static accessors: `get_attack_style()`, `get_attack_damage()`, `get_attack_speed()`, `get_attack_range_tiles()`, `get_element()`. All have sensible defaults for missing data.
 - `Monster._ready()` loads combat stats from the registry. `_tick_attack()` deals damage and spawns VFX via `ActionVFX.play_creature_attack()`.
 - `NPC._tick_attack()` uses `ActionVFX.play_creature_attack()` for attack VFX.
