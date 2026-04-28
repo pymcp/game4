@@ -304,6 +304,11 @@ func _physics_process(delta: float) -> void:
 		elif Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.BACK)):
 			_world.hide_dialogue()
 		return
+	# BACK from GAMEPLAY context triggers the pause menu.
+	if InputContext.get_context(player_id) == InputContext.Context.GAMEPLAY \
+			and Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.BACK)):
+		PauseManager.toggle_pause()
+		return
 	# Skip all gameplay input when this player isn't in GAMEPLAY context
 	# (inventory open, disabled by pause menu, etc.).
 	if InputContext.get_context(player_id) != InputContext.Context.GAMEPLAY:

@@ -16,6 +16,8 @@ const PLAYER_COUNT := 2
 
 var _is_paused: bool = false
 var _player_enabled: Array[bool] = [true, true]
+## Stores each player's InputContext before pausing so we can restore it on unpause.
+var _pre_pause_contexts: Array[int] = [0, 0]
 
 
 func _ready() -> void:
@@ -72,6 +74,20 @@ func set_paused(value: bool) -> void:
 	if not value and not _any_player_enabled():
 		return
 	_is_paused = value
+	if value:
+		# Save current contexts and switch all active players to MENU.
+		for pid in InputContext.PLAYER_COUNT:
+			_pre_pause_contexts[pid] = int(InputContext.get_context(pid))
+			InputContext.set_context(pid, InputContext.Context.MENU)
+	else:
+		# Restore pre-pause contexts. Only GAMEPLAY and DISABLED are safe to restore;
+		# any INVENTORY/MENU context gets reset to GAMEPLAY.
+		for pid in InputContext.PLAYER_COUNT:
+			var saved: InputContext.Context = _pre_pause_contexts[pid] as InputContext.Context
+			if saved == InputContext.Context.GAMEPLAY or saved == InputContext.Context.DISABLED:
+				InputContext.set_context(pid, saved)
+			else:
+				InputContext.set_context(pid, InputContext.Context.GAMEPLAY)
 	get_tree().paused = value
 	pause_state_changed.emit(value)
 
