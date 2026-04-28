@@ -13,15 +13,14 @@ var _player: PlayerController = null
 var _npc: Node2D = null
 var _shop_data: Dictionary = {}
 
-# UI refs
-var _title_label: Label = null
-var _gold_label: Label = null
-var _shop_list: ItemList = null
-var _player_list: ItemList = null
-var _buy_btn: Button = null
-var _sell_btn: Button = null
-var _close_btn: Button = null
-var _info_label: Label = null
+@onready var _title_label: Label = $VBox/TitleRow/TitleLabel
+@onready var _gold_label: Label = $VBox/TitleRow/GoldLabel
+@onready var _shop_list: ItemList = $VBox/Split/Left/ShopList
+@onready var _player_list: ItemList = $VBox/Split/Right/PlayerList
+@onready var _buy_btn: Button = $VBox/Split/Left/BuyBtn
+@onready var _sell_btn: Button = $VBox/Split/Right/SellBtn
+@onready var _close_btn: Button = $VBox/CloseBtn
+@onready var _info_label: Label = $VBox/InfoLabel
 
 # Cached filtered arrays for the two lists.
 var _shop_entries: Array = []  # Array of {item_id, stock, price}
@@ -30,7 +29,11 @@ var _player_entries: Array = []  # Array of {item_id, count, sell_price}
 
 func _ready() -> void:
 	visible = false
-	_build_ui()
+	_shop_list.item_selected.connect(_on_shop_item_selected)
+	_player_list.item_selected.connect(_on_player_item_selected)
+	_buy_btn.pressed.connect(_on_buy)
+	_sell_btn.pressed.connect(_on_sell)
+	_close_btn.pressed.connect(close)
 
 
 func open(player: PlayerController, shop_id: String, npc: Node2D = null) -> void:
@@ -64,101 +67,6 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel") or (_player != null and event.is_action_pressed(PlayerActions.action(_player.player_id, PlayerActions.INVENTORY))):
 		close()
 		get_viewport().set_input_as_handled()
-
-
-# ═══════════════════════════════════════════════════════════════════════
-#  UI CONSTRUCTION
-# ═══════════════════════════════════════════════════════════════════════
-
-func _build_ui() -> void:
-	anchor_right = 1.0
-	anchor_bottom = 1.0
-
-	var bg := ColorRect.new()
-	bg.color = Color(0.05, 0.06, 0.1, 0.92)
-	bg.anchor_right = 1.0
-	bg.anchor_bottom = 1.0
-	add_child(bg)
-
-	var vbox := VBoxContainer.new()
-	vbox.anchor_right = 1.0
-	vbox.anchor_bottom = 1.0
-	vbox.offset_left = 40
-	vbox.offset_right = -40
-	vbox.offset_top = 30
-	vbox.offset_bottom = -30
-	add_child(vbox)
-
-	# Title row.
-	var title_row := HBoxContainer.new()
-	_title_label = Label.new()
-	_title_label.text = "Shop"
-	_title_label.add_theme_font_size_override("font_size", 22)
-	title_row.add_child(_title_label)
-	title_row.add_child(HSeparator.new())
-	_gold_label = Label.new()
-	_gold_label.text = "Gold: 0"
-	_gold_label.add_theme_font_size_override("font_size", 18)
-	_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
-	title_row.add_child(_gold_label)
-	vbox.add_child(title_row)
-
-	vbox.add_child(HSeparator.new())
-
-	# Two-column layout.
-	var split := HSplitContainer.new()
-	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	split.split_offset = 300
-	vbox.add_child(split)
-
-	# Left: Shop items.
-	var left := VBoxContainer.new()
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var shop_header := Label.new()
-	shop_header.text = "Shop Stock"
-	shop_header.add_theme_font_size_override("font_size", 16)
-	left.add_child(shop_header)
-	_shop_list = ItemList.new()
-	_shop_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_shop_list.item_selected.connect(_on_shop_item_selected)
-	left.add_child(_shop_list)
-	_buy_btn = Button.new()
-	_buy_btn.text = "Buy"
-	_buy_btn.pressed.connect(_on_buy)
-	left.add_child(_buy_btn)
-	split.add_child(left)
-
-	# Right: Player inventory.
-	var right := VBoxContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var inv_header := Label.new()
-	inv_header.text = "Your Items"
-	inv_header.add_theme_font_size_override("font_size", 16)
-	right.add_child(inv_header)
-	_player_list = ItemList.new()
-	_player_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_player_list.item_selected.connect(_on_player_item_selected)
-	right.add_child(_player_list)
-	_sell_btn = Button.new()
-	_sell_btn.text = "Sell"
-	_sell_btn.pressed.connect(_on_sell)
-	right.add_child(_sell_btn)
-	split.add_child(right)
-
-	# Info label.
-	_info_label = Label.new()
-	_info_label.text = ""
-	_info_label.add_theme_font_size_override("font_size", 14)
-	_info_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.85))
-	vbox.add_child(_info_label)
-
-	# Close button.
-	_close_btn = Button.new()
-	_close_btn.text = "Close Shop"
-	_close_btn.pressed.connect(close)
-	vbox.add_child(_close_btn)
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -1541,7 +1541,7 @@ var _shop_screen: ShopScreen = null
 func open_shop(player: PlayerController, shop_id: String, npc: Node2D = null) -> void:
 	_begin_conversation(player, npc)
 	if _shop_screen == null:
-		_shop_screen = ShopScreen.new()
+		_shop_screen = load("res://scenes/ui/ShopScreen.tscn").instantiate() as ShopScreen
 		_shop_screen.name = "ShopScreen"
 		_shop_screen.closed.connect(_on_shop_closed)
 		add_child(_shop_screen)
