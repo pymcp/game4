@@ -1491,7 +1491,7 @@ func get_dialogue_box() -> DialogueBox:
 func _ensure_dialogue_box() -> DialogueBox:
 	if _dialogue_box != null and is_instance_valid(_dialogue_box):
 		return _dialogue_box
-	_dialogue_box = DialogueBox.new()
+	_dialogue_box = load("res://scenes/ui/DialogueBox.tscn").instantiate() as DialogueBox
 	_dialogue_box.name = "DialogueBox"
 	add_child(_dialogue_box)
 	return _dialogue_box

@@ -21,12 +21,13 @@ signal choice_selected(choice: DialogueChoice, passed: bool)
 ## Emitted when the dialogue closes (leaf dismiss or hide_line).
 signal dismissed
 
-var _panel: PanelContainer = null
-var _vbox: VBoxContainer = null
-var _speaker_label: Label = null
-var _body_label: Label = null
-var _choices_vbox: VBoxContainer = null
-var _hint_label: Label = null
+@onready var _panel: PanelContainer = $Panel
+@onready var _vbox: VBoxContainer = $Panel/VBox
+@onready var _speaker_label: Label = $Panel/VBox/Speaker
+@onready var _body_label: Label = $Panel/VBox/Body
+@onready var _choices_vbox: VBoxContainer = $Panel/VBox/Choices
+@onready var _hint_label: Label = $Panel/VBox/Hint
+
 var _open: bool = false
 
 ## Currently displayed choices (filtered, in display order).
@@ -45,51 +46,6 @@ const _COLOR_SPEAKER := Color(1.0, 0.92, 0.6)  # gold
 const _COLOR_HINT := Color(0.7, 0.7, 0.7)
 
 
-func _ready() -> void:
-	layer = 40
-	_build()
-
-
-func _build() -> void:
-	_panel = PanelContainer.new()
-	_panel.name = "Panel"
-	_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	_panel.offset_left = _MARGIN_PX
-	_panel.offset_right = -_MARGIN_PX
-	_panel.offset_bottom = -_HOTBAR_CLEARANCE_PX
-	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_panel)
-
-	_vbox = VBoxContainer.new()
-	_vbox.add_theme_constant_override("separation", 4)
-	_panel.add_child(_vbox)
-
-	_speaker_label = Label.new()
-	_speaker_label.name = "Speaker"
-	_speaker_label.add_theme_font_size_override("font_size", 19)
-	_speaker_label.add_theme_color_override("font_color", _COLOR_SPEAKER)
-	_vbox.add_child(_speaker_label)
-
-	_body_label = Label.new()
-	_body_label.name = "Body"
-	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_body_label.add_theme_font_size_override("font_size", 17)
-	_vbox.add_child(_body_label)
-
-	_choices_vbox = VBoxContainer.new()
-	_choices_vbox.name = "Choices"
-	_choices_vbox.add_theme_constant_override("separation", 2)
-	_vbox.add_child(_choices_vbox)
-
-	_hint_label = Label.new()
-	_hint_label.name = "Hint"
-	_hint_label.text = "[E] close"
-	_hint_label.add_theme_font_size_override("font_size", 13)
-	_hint_label.add_theme_color_override("font_color", _COLOR_HINT)
-	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_vbox.add_child(_hint_label)
-
-	_panel.visible = false
 
 
 # ─── One-liner API (backward compat) ──────────────────────────────────
