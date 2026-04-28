@@ -200,6 +200,13 @@ func _wire_hud_and_cameras() -> void:
 		if caravan_p2 != null:
 			caravan_p2.interacted.connect(
 					func(_by: PlayerController): _caravan_menu_p2.open())
+	# Apply the enabled state that was set before this scene loaded.
+	# The PauseManager signal fired before game.gd existed, so any player
+	# that was disabled at startup needs to be hidden/frozen now.
+	if p1 != null and not PauseManager.is_player_enabled(0):
+		_set_player_world_active(p1, false)
+	if p2 != null and not PauseManager.is_player_enabled(1):
+		_set_player_world_active(p2, false)
 
 
 ## Creates a [Camera2D] parented to [param player] but pinned (via
