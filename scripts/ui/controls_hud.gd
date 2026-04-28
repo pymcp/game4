@@ -11,7 +11,7 @@ class_name ControlsHud
 
 const _ACTION_LABELS: Dictionary = {
 	&"up": "Up", &"down": "Down", &"left": "Left", &"right": "Right",
-	&"interact": "Interact", &"attack": "Attack", &"back": "Back/Drop",
+	&"interact": "Interact", &"attack": "Attack", &"back": "Drop",
 	&"inventory": "Inventory",
 	&"auto_mine": "Auto-Mine", &"auto_attack": "Auto-Attack",
 	&"tab_prev": "Tab ◀", &"tab_next": "Tab ▶",
@@ -34,8 +34,8 @@ func _ready() -> void:
 	_label.scroll_active = false
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_label.custom_minimum_size = Vector2(170, 0)
-	_label.add_theme_font_size_override("normal_font_size", 13)
-	_label.add_theme_font_size_override("bold_font_size", 13)
+	_label.add_theme_font_size_override("normal_font_size", 14)
+	_label.add_theme_font_size_override("bold_font_size", 14)
 	_label.add_theme_color_override("default_color", Color(0.95, 0.92, 0.78))
 	add_child(_label)
 	# Subtle dark backdrop.
@@ -87,8 +87,11 @@ func _refresh() -> void:
 		var pretty: String = _ACTION_LABELS.get(StringName(s), s)
 		var key_label: String = InputContext.get_key_label(action)
 		var short: StringName = StringName(s)
+		var is_pressed: bool = Input.is_action_pressed(action)
 		if short in _TOGGLE_ACTIONS and _is_toggle_active(short):
 			lines.append("[b][color=#5fff5f]%s — %s (ON)[/color][/b]" % [key_label, pretty])
+		elif is_pressed:
+			lines.append("[b][color=#ffe87c]%s — %s[/color][/b]" % [key_label, pretty])
 		else:
 			lines.append("%s — %s" % [key_label, pretty])
 	_label.text = "\n".join(lines)

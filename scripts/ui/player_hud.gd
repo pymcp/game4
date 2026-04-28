@@ -51,7 +51,7 @@ func _process(_delta: float) -> void:
 
 func _build() -> void:
 	# Heart-based health display in top-left corner.
-	_health_bar = HeartDisplay.new(18.0)
+	_health_bar = HeartDisplay.new(27.0)
 	_health_bar.name = "HeartDisplay"
 	_health_bar.position = Vector2(MARGIN, MARGIN)
 	add_child(_health_bar)
@@ -59,7 +59,7 @@ func _build() -> void:
 	# Status effect icons below hearts.
 	_status_container = HBoxContainer.new()
 	_status_container.name = "StatusEffects"
-	_status_container.position = Vector2(MARGIN, MARGIN + 16)
+	_status_container.position = Vector2(MARGIN, MARGIN + 24)
 	_status_container.add_theme_constant_override("separation", 6)
 	_status_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_status_container)
