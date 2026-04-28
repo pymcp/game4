@@ -275,7 +275,8 @@ func _build_floor_confirm_menu(container: Control) -> FloorConfirmMenu:
 
 
 func _build_caravan_menu(container: Control) -> CaravanMenu:
-	var menu := CaravanMenu.new()
+	var scene := load("res://scenes/ui/CaravanMenu.tscn") as PackedScene
+	var menu := scene.instantiate() as CaravanMenu
 	menu.name = "CaravanMenu"
 	container.add_child(menu)
 	return menu
