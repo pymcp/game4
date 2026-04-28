@@ -15,6 +15,7 @@ var _caravan_data: CaravanData = null
 var _teller_name: String = "The Story Teller"
 var _content: VBoxContainer = null
 var _lore_text: Dictionary = {}
+var _tab_buttons: Array[Button] = []
 
 enum View { QUESTS, VOICES, ADVENTURE }
 var _current_view: View = View.QUESTS
@@ -54,19 +55,27 @@ func _build_ui() -> void:
 
 	var tab_labels: Array[String] = ["Quests", "Voices Overheard", "Last Adventure"]
 	var tab_views: Array[View] = [View.QUESTS, View.VOICES, View.ADVENTURE]
+	_tab_buttons.clear()
 	for i in 3:
 		var btn := Button.new()
 		btn.text = tab_labels[i]
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.theme_type_variation = &"WoodTabButtonActive" if i == 0 else &"WoodTabButton"
 		btn.pressed.connect(_show_view.bind(tab_views[i]))
 		tab_row.add_child(btn)
+		_tab_buttons.append(btn)
 
 	vbox.add_child(HSeparator.new())
 
-	# Scrollable content area.
+	# Scrollable content area inside a styled panel.
+	var content_panel := PanelContainer.new()
+	content_panel.theme_type_variation = &"WoodInnerPanel"
+	content_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(content_panel)
+
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(scroll)
+	content_panel.add_child(scroll)
 
 	_content = VBoxContainer.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -78,6 +87,9 @@ func _show_view(view: View) -> void:
 	if _content == null:
 		return
 	_current_view = view
+	for i in _tab_buttons.size():
+		_tab_buttons[i].theme_type_variation = \
+				&"WoodTabButtonActive" if i == int(view) else &"WoodTabButton"
 	for child in _content.get_children():
 		child.queue_free()
 	match view:
@@ -137,7 +149,8 @@ func _add_quest_entry(quest_id: String, completed: bool) -> void:
 		return
 	var header := Label.new()
 	header.text = quest.get("display_name", quest_id)
-	header.modulate = Color(0.7, 0.7, 0.7) if completed else Color(1.0, 1.0, 1.0)
+	header.add_theme_color_override("font_color",
+			UITheme.COL_LABEL_DIM if completed else UITheme.COL_LABEL)
 	_content.add_child(header)
 
 	if not completed:
@@ -152,7 +165,8 @@ func _add_quest_entry(quest_id: String, completed: bool) -> void:
 			var check: String = "✓ " if done else "• "
 			line.text = "  %s%s (%d/%d)" % [check, obj.get("description", obj_id),
 					progress, target]
-			line.modulate = Color(0.5, 0.9, 0.5) if done else Color(0.85, 0.85, 0.85)
+			line.add_theme_color_override("font_color",
+					Color(0.5, 0.9, 0.5) if done else UITheme.COL_LABEL)
 			_content.add_child(line)
 	_content.add_child(HSeparator.new())
 
@@ -217,8 +231,9 @@ func _add_label(text: String, bold: bool = false) -> void:
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	lbl.theme_type_variation = &"DimLabel"
 	if bold:
-		lbl.modulate = Color(1.0, 0.85, 0.4)
+		lbl.add_theme_color_override("font_color", UITheme.COL_TAB_GOLD)
 	_content.add_child(lbl)
 
 
@@ -227,5 +242,6 @@ func _add_flavor_line(text: String) -> void:
 	lbl.bbcode_enabled = true
 	lbl.fit_content = true
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	lbl.add_theme_color_override("default_color", UITheme.COL_LABEL_DIM)
 	lbl.text = text
 	_content.add_child(lbl)
