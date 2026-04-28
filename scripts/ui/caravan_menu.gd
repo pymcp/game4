@@ -119,7 +119,7 @@ func _refresh_focus_visuals() -> void:
 		_right_panel.modulate = Color.WHITE if not left_active else dim
 
 
-
+func _get_active_right_panel() -> Node:
 	if _right_panel == null:
 		return null
 	if _current_crafter != null:
