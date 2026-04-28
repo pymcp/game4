@@ -89,6 +89,26 @@ func _show_view(view: View) -> void:
 			_build_adventure_view()
 
 
+## Called by CaravanMenu when this panel has keyboard focus.
+## [param verb] is a PlayerActions verb constant.
+func navigate(verb: StringName) -> void:
+	match verb:
+		PlayerActions.TAB_PREV:
+			var v: int = wrapi(int(_current_view) - 1, 0, 3)
+			_show_view(v as View)
+		PlayerActions.TAB_NEXT:
+			var v: int = wrapi(int(_current_view) + 1, 0, 3)
+			_show_view(v as View)
+		PlayerActions.UP:
+			if _content != null and _content.get_parent() is ScrollContainer:
+				var sc := _content.get_parent() as ScrollContainer
+				sc.scroll_vertical = max(0, sc.scroll_vertical - 32)
+		PlayerActions.DOWN:
+			if _content != null and _content.get_parent() is ScrollContainer:
+				var sc := _content.get_parent() as ScrollContainer
+				sc.scroll_vertical += 32
+
+
 func _build_quests_view() -> void:
 	var active_ids: Array[String] = []
 	var complete_ids: Array[String] = []

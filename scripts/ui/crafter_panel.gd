@@ -12,6 +12,7 @@ var _caravan_data: CaravanData = null
 var _list: VBoxContainer = null
 var _buttons: Array[Button] = []
 var _ordered_ids: Array[StringName] = []
+var _cursor: int = 0
 
 
 ## Returns all recipes for [param domain] in stable alphabetical order.
@@ -43,6 +44,7 @@ func _build() -> void:
 		child.queue_free()
 	_buttons.clear()
 	_ordered_ids.clear()
+	_cursor = 0
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 6)
@@ -64,6 +66,7 @@ func _build() -> void:
 		btn.pressed.connect(_on_pressed.bind(recipe.id))
 		v.add_child(btn)
 		_buttons.append(btn)
+	_refresh_cursor()
 
 
 func _refresh() -> void:
@@ -86,3 +89,29 @@ func _on_pressed(recipe_id: StringName) -> void:
 	if recipe == null:
 		return
 	recipe.craft(_caravan_data.inventory)
+
+
+## Called by CaravanMenu when this panel has keyboard focus.
+## [param verb] is a PlayerActions verb constant.
+func navigate(verb: StringName) -> void:
+	if _buttons.is_empty():
+		return
+	match verb:
+		PlayerActions.UP:
+			_cursor = wrapi(_cursor - 1, 0, _buttons.size())
+			_refresh_cursor()
+		PlayerActions.DOWN:
+			_cursor = wrapi(_cursor + 1, 0, _buttons.size())
+			_refresh_cursor()
+		PlayerActions.INTERACT:
+			if _cursor < _ordered_ids.size():
+				_on_pressed(_ordered_ids[_cursor])
+
+
+func _refresh_cursor() -> void:
+	for i in _buttons.size():
+		var btn: Button = _buttons[i]
+		if i == _cursor:
+			btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		else:
+			btn.remove_theme_color_override("font_color")
