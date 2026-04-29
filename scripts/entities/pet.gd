@@ -54,7 +54,7 @@ var _sprite: Sprite2D = null
 var _heart: Sprite2D = null
 var _attack_cooldown: float = 0.0
 var _happy_remaining: float = 0.0
-var _move_time: float = 0.0
+var _bob_t: float = 0.0
 var _facing_left: bool = false
 var _last_owner_x: float = NAN
 var _attack_target: NPC = null
@@ -122,7 +122,6 @@ static func find_nearest_hostile(world: WorldRoot, from: Vector2,
 func _process(delta: float) -> void:
 	if owner_player == null or not is_instance_valid(owner_player):
 		return
-	_move_time += delta
 	_attack_cooldown = max(0.0, _attack_cooldown - delta)
 	_happy_remaining = max(0.0, _happy_remaining - delta)
 
@@ -161,16 +160,22 @@ func _process(delta: float) -> void:
 			_teleport_to_owner()
 			state = PetState.State.IDLE  # resume normal logic next frame
 		PetState.State.FOLLOW:
+			_bob_t += delta
 			_step_toward(owner_pos, delta)
+			_sprite.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMPLITUDE_PX
 		PetState.State.ATTACK:
+			_bob_t += delta
 			_do_attack(delta)
+			_sprite.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMPLITUDE_PX
 		PetState.State.HAPPY:
+			_bob_t = 0.0
 			# Small hop driven by _happy_remaining.
 			var t: float = 1.0 - (_happy_remaining / PetState.HAPPY_DURATION_SEC)
 			_sprite.position.y = -sin(t * PI) * _HOP_HEIGHT_PX
 			_heart.visible = true
 		PetState.State.IDLE, _:
-			_sprite.position.y = sin(_move_time * _BOB_HZ * TAU) * _BOB_AMPLITUDE_PX
+			_bob_t = 0.0
+			_sprite.position.y = 0.0
 
 	if state != PetState.State.HAPPY:
 		_heart.visible = false
