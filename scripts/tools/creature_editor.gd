@@ -81,6 +81,9 @@ var _rider_pick_btn: Button = null
 var _is_boss_check: CheckBox = null
 var _boss_adds_edit: TextEdit = null
 
+# Pet section
+var _is_pet_check: CheckBox = null
+
 
 func _ready() -> void:
 	_load_data()
@@ -341,6 +344,17 @@ func _build_boss_section() -> void:
 	_is_boss_check.toggled.connect(func(v: bool) -> void: _set_field("is_boss", v))
 	is_boss_hbox.add_child(_is_boss_check)
 
+	# Is Pet toggle — lets any creature be promoted to a pet from the editor.
+	var is_pet_hbox := HBoxContainer.new()
+	_prop_panel.add_child(is_pet_hbox)
+	var is_pet_label := Label.new()
+	is_pet_label.text = "is_pet:"
+	is_pet_hbox.add_child(is_pet_label)
+	_is_pet_check = CheckBox.new()
+	_is_pet_check.name = "IsPetCheck"
+	_is_pet_check.toggled.connect(func(v: bool) -> void: _set_field("is_pet", v))
+	is_pet_hbox.add_child(_is_pet_check)
+
 	var adds_label := Label.new()
 	adds_label.text = "boss_adds (one per line: 'creature count'):"
 	_prop_panel.add_child(adds_label)
@@ -362,7 +376,12 @@ func _populate_list() -> void:
 	keys.sort()
 	for k in keys:
 		_creature_list.add_item(String(k))
-		_creature_list.set_item_metadata(_creature_list.item_count - 1, String(k))
+		var idx: int = _creature_list.item_count - 1
+		_creature_list.set_item_metadata(idx, String(k))
+		# Highlight pet entries in pastel green so they're visually distinct.
+		var entry: Dictionary = _data.get(String(k), {})
+		if entry.get("is_pet", false):
+			_creature_list.set_item_custom_fg_color(idx, Color(0.5, 1.0, 0.6))
 
 
 func _on_creature_selected(idx: int) -> void:
@@ -522,6 +541,7 @@ func _refresh_props() -> void:
 
 	# Boss fields
 	_is_boss_check.set_pressed_no_signal(bool(e.get("is_boss", false)))
+	_is_pet_check.set_pressed_no_signal(bool(e.get("is_pet", false)))
 	var adds_list: Array = e.get("boss_adds", [])
 	var adds_text: String = ""
 	for add in adds_list:
