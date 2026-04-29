@@ -138,6 +138,9 @@ const _MAPPINGS: Array = [
 	{"id": &"asset_browser",                      "label": "Import from Kenney",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_asset_browser",                    "kind": &"asset_browser"},
+	{"id": &"terrain_transition_editor",           "label": "Terrain Transitions",
+	 "sheet": "res://assets/tiles/roguelike/terrain_transitions_sheet.png",
+	 "field": &"_terrain_transition_editor",        "kind": &"terrain_transition_editor"},
 ]
 
 # Tile-sheet geometry. Matches WorldConst.TILE_PX (16) and the 1-px
@@ -170,6 +173,7 @@ var _dialogue_editor: DialogueEditor = null
 var _balance_overview: BalanceOverview = null
 var _encounter_table_editor: EncounterTableEditor = null
 var _chest_loot_editor: ChestLootEditor = null
+var _terrain_transition_editor: TerrainTransitionEditor = null
 
 # Quest TODO panel state.
 var _quest_panel: ScrollContainer = null
@@ -977,6 +981,13 @@ func _select_mapping(entry: Dictionary) -> void:
 		_status_label.text = "Browsing Kenney assets"
 		return
 
+	if kind == &"terrain_transition_editor":
+		_show_terrain_transition_editor()
+		_hide_all_editors_except(&"terrain_transition_editor")
+		_refresh_marks()
+		_status_label.text = "Terrain Transitions"
+		return
+
 	_hide_all_editors()
 	_slot_root.visible = true
 	_header_label.visible = true
@@ -996,7 +1007,7 @@ func _select_mapping(entry: Dictionary) -> void:
 func _build_slots(entry: Dictionary) -> Array:
 	var field: StringName = entry["field"]
 	var kind: StringName = entry["kind"]
-	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser" or kind == &"loot_table_editor" or kind == &"crafting_editor" or kind == &"armor_set_editor" or kind == &"biome_editor" or kind == &"shop_editor" or kind == &"quest_editor" or kind == &"dialogue_editor" or kind == &"balance_overview" or kind == &"encounter_table_editor" or kind == &"chest_loot_editor":
+	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser" or kind == &"loot_table_editor" or kind == &"crafting_editor" or kind == &"armor_set_editor" or kind == &"biome_editor" or kind == &"shop_editor" or kind == &"quest_editor" or kind == &"dialogue_editor" or kind == &"balance_overview" or kind == &"encounter_table_editor" or kind == &"chest_loot_editor" or kind == &"terrain_transition_editor":
 		return []  # These use their own editors.
 	var value: Variant = _mappings_resource.get(field)
 	var out: Array = []
@@ -2375,6 +2386,28 @@ func _on_chest_loot_dirty() -> void:
 	_mark_dirty()
 
 
+# ─── Terrain Transition editor integration ────────────────────────────
+
+func _show_terrain_transition_editor() -> void:
+	_hide_quest_panel()
+	_slot_root.visible = false
+	_header_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _terrain_transition_editor == null:
+		_terrain_transition_editor = TerrainTransitionEditor.new()
+		_slot_root.get_parent().get_parent().add_child(_terrain_transition_editor)
+	_terrain_transition_editor.visible = true
+
+
+func _hide_terrain_transition_editor() -> void:
+	if _terrain_transition_editor != null:
+		_terrain_transition_editor.visible = false
+
+
 # ─── Editor visibility helpers ────────────────────────────────────────
 
 func _hide_all_editors() -> void:
@@ -2393,6 +2426,7 @@ func _hide_all_editors() -> void:
 	_hide_balance_overview()
 	_hide_encounter_table_editor()
 	_hide_chest_loot_editor()
+	_hide_terrain_transition_editor()
 
 
 func _hide_all_editors_except(kind: StringName) -> void:
@@ -2426,6 +2460,8 @@ func _hide_all_editors_except(kind: StringName) -> void:
 		_hide_encounter_table_editor()
 	if kind != &"chest_loot_editor":
 		_hide_chest_loot_editor()
+	if kind != &"terrain_transition_editor":
+		_hide_terrain_transition_editor()
 
 
 func _on_navigate_to_mineable(resource_id: StringName) -> void:
