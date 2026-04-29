@@ -232,6 +232,34 @@ static func _carve_terrain(region: Region, plan: RegionPlan) -> void:
 					region.tiles[i] = primary
 					changed = true
 
+	# Same iterative erosion for water (interior shallow water cells driven
+	# by elevation noise). OCEAN is treated as the same "water family" so
+	# water touching the forced ocean ring is not stripped, but water
+	# protrusions that jut into land as 1-tile-wide columns/rows are
+	# dissolved back to primary terrain.
+	changed = true
+	while changed:
+		changed = false
+		var before_w: PackedByteArray = region.tiles.duplicate()
+		for y in size:
+			for x in size:
+				var i: int = y * size + x
+				if before_w[i] != TerrainCodes.WATER:
+					continue
+				# Neighbour counts — both WATER and OCEAN count as "water family".
+				var n_w: bool = y > 0         and (before_w[i - size] == TerrainCodes.WATER or before_w[i - size] == TerrainCodes.OCEAN)
+				var s_w: bool = y < size - 1  and (before_w[i + size] == TerrainCodes.WATER or before_w[i + size] == TerrainCodes.OCEAN)
+				var w_w: bool = x > 0         and (before_w[i - 1]    == TerrainCodes.WATER or before_w[i - 1]    == TerrainCodes.OCEAN)
+				var e_w: bool = x < size - 1  and (before_w[i + 1]    == TerrainCodes.WATER or before_w[i + 1]    == TerrainCodes.OCEAN)
+				var cnt: int = int(n_w) + int(s_w) + int(w_w) + int(e_w)
+				var is_protrusion: bool = (
+					cnt == 0 or cnt == 1
+					or (n_w and s_w and not w_w and not e_w)
+					or (w_w and e_w and not n_w and not s_w))
+				if is_protrusion:
+					region.tiles[i] = primary
+					changed = true
+
 
 static func _cell_on_bleed_edge(x: int, y: int, edges: int, size: int) -> bool:
 	if (edges & _N) != 0 and y < OCEAN_RING:
