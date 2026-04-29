@@ -63,6 +63,84 @@
 			64
 		]
 	},
+	"cat": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			0,
+			0,
+			64,
+			64
+		],
+		"attack_style": "swing",
+		"attack_damage": 1,
+		"attack_speed": 0.8,
+		"attack_range_tiles": 1.0
+	},
+	"chameleon": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			65,
+			0,
+			64,
+			64
+		],
+		"attack_style": "none",
+		"attack_damage": 0,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 0.0
+	},
+	"dog": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			130,
+			0,
+			64,
+			64
+		],
+		"attack_style": "none",
+		"attack_damage": 0,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 0.0
+	},
 	"dragon": {
 		"anchor_ratio": [
 			0.5,
@@ -110,6 +188,32 @@
 			129,
 			129
 		]
+	},
+	"duck": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			195,
+			0,
+			64,
+			64
+		],
+		"attack_style": "none",
+		"attack_damage": 0,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 0.0
 	},
 	"fire_elemental": {
 		"anchor_ratio": [
@@ -281,6 +385,32 @@
 			64
 		]
 	},
+	"hedgehog": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			260,
+			0,
+			64,
+			64
+		],
+		"attack_style": "none",
+		"attack_damage": 0,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 0.0
+	},
 	"ice_elemental": {
 		"anchor_ratio": [
 			0.5,
@@ -450,6 +580,32 @@
 			64,
 			64
 		]
+	},
+	"roly_poly": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			325,
+			0,
+			64,
+			64
+		],
+		"attack_style": "none",
+		"attack_damage": 0,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 0.0
 	},
 	"skeleton": {
 		"anchor_ratio": [
