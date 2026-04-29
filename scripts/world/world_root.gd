@@ -333,46 +333,76 @@ func _paint_region(region: Region) -> void:
 	# variant tiles every time, but DIFFERENT regions don't share the
 	# same flower-grass arrangement.
 	var seed_hash: int = region.seed
-	# Look up overlay-secondary settings: when a biome's secondary terrain
-	# (e.g. dirt for grass biome, dirt for desert biome) has a registered
-	# 3×3 patch set AND is walkable, we paint PRIMARY on Ground for those
-	# cells and the matching corner/edge tile on the Patch layer. The
-	# transparent corners of patch tiles let the underlying primary show
-	# through, producing soft rounded blob edges instead of hard squares.
 	var biome: BiomeDefinition = BiomeRegistry.get_biome(region.biome)
+
+	# ── Secondary-terrain blob setup ───────────────────────────────────────
+	# Determine if this biome has a secondary terrain that benefits from
+	# opaque transition tiles. Water-as-secondary is skipped here because
+	# the dedicated water-border pass handles those cells.
 	var overlay_code: int = -1
+	var prim_name: StringName = &""
+	var sec_name: StringName = &""
+	var transition_row: int = -1
+	# Old 9-tile transparent-overlay fallback (used when no transition row exists).
 	var primary_cell: Vector2i = Vector2i(-1, -1)
 	var patch_cells: Array = []
 	if biome != null:
-		var sec_name: StringName = TerrainCodes.to_terrain_type(
-			biome.secondary_terrain)
-		var prim_name: StringName = TerrainCodes.to_terrain_type(
-			biome.primary_terrain)
-		var pset: Variant = TilesetCatalog.OVERWORLD_TERRAIN_PATCH_3X3.get(
-			sec_name, null)
-		var sec_walkable: bool = bool(
-			TilesetCatalog.WALKABLE.get(sec_name, false))
-		if sec_walkable and pset is Array and (pset as Array).size() == 9:
-			patch_cells = pset
-			primary_cell = TilesetCatalog.cell_for(&"overworld", prim_name)
+		sec_name = TerrainCodes.to_terrain_type(biome.secondary_terrain)
+		prim_name = TerrainCodes.to_terrain_type(biome.primary_terrain)
+		if not _is_water_code(biome.secondary_terrain):
 			overlay_code = biome.secondary_terrain
+			var tkey: StringName = StringName(prim_name + "_" + sec_name)
+			transition_row = int(TilesetCatalog.TERRAIN_TRANSITION_ROWS.get(tkey, -1))
+			if transition_row < 0:
+				# Fallback: old transparent patch overlay system.
+				var pset: Variant = TilesetCatalog.OVERWORLD_TERRAIN_PATCH_3X3.get(sec_name, null)
+				var sec_walkable: bool = bool(TilesetCatalog.WALKABLE.get(sec_name, false))
+				if sec_walkable and pset is Array and (pset as Array).size() >= 9:
+					patch_cells = pset
+					primary_cell = TilesetCatalog.cell_for(&"overworld", prim_name)
+
 	for y in size:
 		for x in size:
 			var cell := Vector2i(x, y)
 			var code: int = region.tiles[y * size + x]
 			var terrain: StringName = TerrainCodes.to_terrain_type(code)
 			var hash32: int = seed_hash ^ (x * 73856093) ^ (y * 19349663)
-			if code == overlay_code and primary_cell.x >= 0:
-				# Paint primary terrain on Ground so the patch corners blend.
-				ground.set_cell(cell, 0, primary_cell, 0)
-				var idx: int = _patch_index_for_neighbors(
-					region, x, y, overlay_code, size)
-				patch.set_cell(cell, 0, patch_cells[idx], 0)
+
+			if overlay_code >= 0 and code == overlay_code:
+				# Secondary terrain blob cell.
+				var idx: int = _patch_index_for_neighbors(region, x, y, overlay_code, size)
+				if transition_row >= 0:
+					# New opaque blend system: paint directly on Ground.
+					if idx == 4:
+						# Center: use original secondary art from overworld sheet.
+						var ac := TilesetCatalog.cell_for_variant(&"overworld", terrain, hash32)
+						ground.set_cell(cell, 0, ac, 0)
+					else:
+						ground.set_cell(cell, TilesetCatalog.TRANSITIONS_SOURCE_ID,
+								Vector2i(idx, transition_row), 0)
+				elif primary_cell.x >= 0:
+					# Old fallback: paint primary under + transparent patch on top.
+					ground.set_cell(cell, 0, primary_cell, 0)
+					patch.set_cell(cell, 0, patch_cells[mini(idx, 8)], 0)
+				else:
+					var ac := TilesetCatalog.cell_for_variant(&"overworld", terrain, hash32)
+					ground.set_cell(cell, 0, ac, 0)
 			else:
 				var atlas_cell: Vector2i = TilesetCatalog.cell_for_variant(
-					&"overworld", terrain, hash32)
+						&"overworld", terrain, hash32)
 				if atlas_cell.x >= 0:
 					ground.set_cell(cell, 0, atlas_cell, 0)
+				# Phase 2 — biome border bleed cells: apply transition when this
+				# cell is a foreign-biome primary terrain intruding into this biome.
+				if biome != null and code != biome.primary_terrain and not _is_water_code(code):
+					var bleed_key := StringName(prim_name + "_" + terrain)
+					var bleed_row: int = int(
+							TilesetCatalog.TERRAIN_TRANSITION_ROWS.get(bleed_key, -1))
+					if bleed_row >= 0:
+						var idx: int = _patch_index_for_neighbors(region, x, y, code, size)
+						if idx != 4:
+							ground.set_cell(cell, TilesetCatalog.TRANSITIONS_SOURCE_ID,
+									Vector2i(idx, bleed_row), 0)
 	# Decoration pass — trees/rocks/veins from `region.decorations`.
 	for entry in region.decorations:
 		var kind: StringName = entry["kind"]
@@ -810,15 +840,29 @@ static func _patch_index_for_neighbors(region: Region, x: int, y: int,
 		and region.tiles[y * size + (x - 1)] == secondary)
 	var e_dirt: bool = (x < size - 1
 		and region.tiles[y * size + (x + 1)] == secondary)
-	if not n_dirt and not w_dirt: return 0  # NW
-	if not n_dirt and not e_dirt: return 2  # NE
-	if not s_dirt and not w_dirt: return 6  # SW
-	if not s_dirt and not e_dirt: return 8  # SE
+	if not n_dirt and not w_dirt: return 0  # NW outer
+	if not n_dirt and not e_dirt: return 2  # NE outer
+	if not s_dirt and not w_dirt: return 6  # SW outer
+	if not s_dirt and not e_dirt: return 8  # SE outer
 	if not n_dirt: return 1  # N edge
 	if not s_dirt: return 7  # S edge
 	if not w_dirt: return 3  # W edge
 	if not e_dirt: return 5  # E edge
-	return 4  # fully surrounded
+	# All 4 cardinals are secondary — check diagonals for inner corners.
+	# A single diagonal being primary means this cell is at a concave corner
+	# of the blob and needs an inner-corner transition tile.
+	# Out-of-bounds diagonals are treated as primary (consistent with cardinal logic).
+	var nw_prim: bool = x == 0 or y == 0 or region.tiles[(y - 1) * size + (x - 1)] != secondary
+	var ne_prim: bool = x == size - 1 or y == 0 or region.tiles[(y - 1) * size + (x + 1)] != secondary
+	var sw_prim: bool = x == 0 or y == size - 1 or region.tiles[(y + 1) * size + (x - 1)] != secondary
+	var se_prim: bool = x == size - 1 or y == size - 1 or region.tiles[(y + 1) * size + (x + 1)] != secondary
+	var cnt: int = int(nw_prim) + int(ne_prim) + int(sw_prim) + int(se_prim)
+	if cnt == 1:  # exactly one concave corner — use inner-corner tile
+		if nw_prim: return 9
+		if ne_prim: return 10
+		if sw_prim: return 11
+		if se_prim: return 12
+	return 4  # fully surrounded (center)
 
 
 static func _is_water_code(code: int) -> bool:

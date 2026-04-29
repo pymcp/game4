@@ -45,6 +45,24 @@ const RUNES_BLACK_PNG: String = "res://assets/tiles/runes/runes_black_tile.png"
 const RUNES_GREY_PNG: String  = "res://assets/tiles/runes/runes_grey_tile.png"
 const RUNES_BLUE_PNG: String  = "res://assets/tiles/runes/runes_blue_tile.png"
 
+## Terrain-transition blend sheet (16px, 1px gutter, same geometry as overworld).
+## Registered as source 1 in the overworld TileSet so painters can reference it.
+const TRANSITIONS_PNG: String = "res://assets/tiles/roguelike/terrain_transitions_sheet.png"
+const TRANSITIONS_SOURCE_ID: int = 1
+
+## Row index in terrain_transitions_sheet.png for each terrain pair.
+## Key format: "<primary_terrain_type>_<secondary_terrain_type>" where
+## terrain type is the StringName returned by TerrainCodes.to_terrain_type().
+## Row order must match the PAIRS list in tools/gen_terrain_transitions.py.
+const TERRAIN_TRANSITION_ROWS: Dictionary = {
+	&"grass_dirt":  0,  # grass biome secondary blob
+	&"sand_dirt":   1,  # desert biome secondary blob
+	&"stone_dirt":  2,  # rocky biome secondary blob
+	&"grass_stone": 3,  # snow biome secondary blob + grass/rocky border
+	&"clay_water":  4,  # swamp biome (future — water border system handles this now)
+	&"grass_sand":  5,  # grass-biome region bordering desert region
+}
+
 ## Cached sheet overrides from TileMappings. Populated by _ensure_loaded().
 static var _sheet_overrides: Dictionary = {}
 
@@ -492,6 +510,7 @@ static func overworld() -> TileSet:
 		var sheet := _sheet_for_view(&"overworld")
 		_overworld_ts = _build(sheet, OVERWORLD_TERRAIN_CELLS, false,
 				SheetSpecReader.read(sheet))
+		_add_transitions_source(_overworld_ts)
 	return _overworld_ts
 
 
@@ -677,6 +696,35 @@ static func _get_mineable_sprites(rid: StringName) -> Array[Vector2i]:
 		if s is Array and s.size() >= 2:
 			out.append(Vector2i(int(s[0]), int(s[1])))
 	return out
+
+
+## Adds the terrain-transition blend sheet as source TRANSITIONS_SOURCE_ID
+## in an already-built overworld TileSet. All transition tiles are walkable.
+static func _add_transitions_source(ts: TileSet) -> void:
+	var tex: Texture2D = load(TRANSITIONS_PNG) as Texture2D
+	if tex == null:
+		push_error("TilesetCatalog: missing transitions sheet %s" % TRANSITIONS_PNG)
+		return
+	# Transitions sheet uses the same geometry as overworld: 16px tiles, 1px gutter.
+	var src := TileSetAtlasSource.new()
+	src.texture = tex
+	src.texture_region_size = Vector2i(WorldConst.TILE_PX, WorldConst.TILE_PX)
+	src.margins = Vector2i(0, 0)
+	src.separation = Vector2i(WorldConst.TILESHEET_MARGIN, WorldConst.TILESHEET_MARGIN)
+	ts.add_source(src, TRANSITIONS_SOURCE_ID)
+	var stride: int = WorldConst.TILE_PX + WorldConst.TILESHEET_MARGIN
+	var cols: int = (tex.get_width()  + WorldConst.TILESHEET_MARGIN) / stride
+	var rows: int = (tex.get_height() + WorldConst.TILESHEET_MARGIN) / stride
+	for y in rows:
+		for x in cols:
+			var cell := Vector2i(x, y)
+			src.create_tile(cell)
+			var data: TileData = src.get_tile_data(cell, 0)
+			if data == null:
+				continue
+			# Transition tiles blend two walkable terrains — mark as walkable.
+			data.set_custom_data(CUSTOM_WALKABLE, true)
+			data.set_custom_data(CUSTOM_TERRAIN, &"")
 
 
 static func _build_runes() -> TileSet:
