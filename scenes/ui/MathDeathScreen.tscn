@@ -4,7 +4,7 @@
 
 [node name="MathDeathScreen" type="CanvasLayer"]
 layer = 50
-process_mode = 4
+process_mode = 3
 script = ExtResource("1_mds")
 
 [node name="Backdrop" type="ColorRect" parent="."]

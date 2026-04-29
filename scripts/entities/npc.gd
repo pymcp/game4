@@ -176,8 +176,16 @@ func _ready() -> void:
 	elif _npc_sprite is Sprite2D:
 		hitbox_radius = HitboxCalc.radius_from_sprite(_npc_sprite as Sprite2D)
 	# Overhead heart display — visible only when damaged.
+	# Position above the sprite's visual top edge (accounts for hires multi-tile sprites).
+	var heart_y: float = -14.0
+	if _npc_sprite != null:
+		if _npc_sprite.centered:
+			var tex_h: float = float(_npc_sprite.texture.get_height()) if _npc_sprite.texture != null else 16.0
+			heart_y = -(tex_h * 0.5 * abs(_npc_sprite.scale.y)) - 2.0
+		else:
+			heart_y = _npc_sprite.offset.y * abs(_npc_sprite.scale.y) - 2.0
 	_heart_display = HeartDisplay.new(6.0)
-	_heart_display.position = Vector2(-10, -14)
+	_heart_display.position = Vector2(-10, heart_y)
 	_heart_display.visible = false
 	add_child(_heart_display)
 	# Attack VFX — lunges the sprite toward the target.

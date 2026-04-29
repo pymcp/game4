@@ -179,13 +179,26 @@ func _enter_view(pid: int, view_kind: StringName, region: Region,
 		player.get_parent().remove_child(player)
 		inst.entities.add_child(player)
 	player.set_world(inst)
-	# Place the player.
+	# Place the player, avoiding cells already occupied by other players.
 	var spawn_cell: Vector2i = _pending_spawn[pid]
 	_pending_spawn[pid] = _NO_OVERRIDE
 	if spawn_cell == _NO_OVERRIDE:
 		spawn_cell = inst.default_spawn_cell(view_kind, resolved_region,
 				interior)
 	spawn_cell = inst.find_safe_spawn_cell(spawn_cell, 16, true)
+	# If another player already occupies this cell, nudge one tile right.
+	for other_pid in range(_players.size()):
+		if other_pid == pid:
+			continue
+		var other: PlayerController = _players[other_pid]
+		if other == null:
+			continue
+		var other_cell: Vector2i = Vector2i(
+			int(floor(other.position.x / float(WorldConst.TILE_PX))),
+			int(floor(other.position.y / float(WorldConst.TILE_PX))))
+		if other_cell == spawn_cell:
+			var alt: Vector2i = spawn_cell + Vector2i(1, 0)
+			spawn_cell = inst.find_safe_spawn_cell(alt, 8, true)
 	player.position = (Vector2(spawn_cell) + Vector2(0.5, 0.5)) \
 			* float(WorldConst.TILE_PX)
 	# Prime this instance's per-player door cache so we don't immediately

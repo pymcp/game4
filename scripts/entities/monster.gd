@@ -80,8 +80,16 @@ func _ready() -> void:
 	else:
 		hitbox_radius = HitboxCalc.radius_from_sprite(_sprite)
 	# Overhead heart display — visible only when damaged.
+	# Position above the sprite's visual top edge (accounts for hires multi-tile sprites).
+	var heart_y: float = -14.0
+	if _sprite != null:
+		if _sprite.centered:
+			var tex_h: float = float(_sprite.texture.get_height()) if _sprite.texture != null else 16.0
+			heart_y = -(tex_h * 0.5 * abs(_sprite.scale.y)) - 2.0
+		else:
+			heart_y = _sprite.offset.y * abs(_sprite.scale.y) - 2.0
 	_heart_display = HeartDisplay.new(6.0)
-	_heart_display.position = Vector2(-10, -14)
+	_heart_display.position = Vector2(-10, heart_y)
 	_heart_display.visible = false
 	add_child(_heart_display)
 	# Attack VFX — lunges the sprite toward the target.

@@ -11,6 +11,7 @@ signal answered_correctly(player_id: int)
 
 var _player_id: int = -1
 var _answer: int = 0
+var _death_counts: Dictionary = {}
 
 @onready var _panel: PanelContainer = $Center/Panel
 @onready var _problem_label: Label = $Center/Panel/VBox/ProblemLabel
@@ -32,8 +33,26 @@ func _ready() -> void:
 	hide_screen()
 
 
+## Returns the difficulty tier dict for [param death_count].
+## Keys: max_operand (int), use_div (bool), use_mul (bool).
+func _get_tier(death_count: int) -> Dictionary:
+	var dc: int = maxi(death_count, 1)
+	# Intro ramp: deaths 1–3 all use max=4.
+	if dc <= 3:
+		return {"max_operand": 4, "use_div": dc >= 2, "use_mul": dc >= 3}
+	# Repeating 2-death cycle starting at death 4.
+	# cycle_num counts how many +5 bumps have happened (0-indexed from death 4).
+	var cycle_idx: int = dc - 4
+	var cycle_num: int = cycle_idx / 2
+	var cycle_step: int = cycle_idx % 2
+	var max_op: int = mini(9 + cycle_num * 5, 99)
+	# cycle_step 0 = add/sub only; cycle_step 1 = all four ops.
+	return {"max_operand": max_op, "use_div": cycle_step == 1, "use_mul": cycle_step == 1}
+
+
 ## Generate a new problem and show the screen for [param pid].
 func show_for_player(pid: int) -> void:
+	_death_counts[pid] = _death_counts.get(pid, 0) + 1
 	_player_id = pid
 	_generate_problem()
 	_feedback_label.text = ""
@@ -50,20 +69,39 @@ func hide_screen() -> void:
 
 
 func _generate_problem() -> void:
-	var a: int = randi_range(1, 99)
-	var b: int = randi_range(1, 99)
-	if randi() % 2 == 0:
-		# Addition.
-		_answer = a + b
-		_problem_label.text = "%d + %d = ?" % [a, b]
-	else:
-		# Subtraction — ensure non-negative result.
-		if a < b:
-			var tmp: int = a
-			a = b
-			b = tmp
-		_answer = a - b
-		_problem_label.text = "%d - %d = ?" % [a, b]
+	var tier: Dictionary = _get_tier(_death_counts.get(_player_id, 1))
+	var max_op: int = tier.max_operand
+
+	# Build the allowed operator pool.
+	var ops: Array[String] = ["+", "-"]
+	if tier.use_div:
+		ops.append("÷")
+	if tier.use_mul:
+		ops.append("×")
+
+	var op: String = ops[randi() % ops.size()]
+	var a: int = randi_range(1, max_op)
+	var b: int = randi_range(1, max_op)
+
+	match op:
+		"+":
+			_answer = a + b
+			_problem_label.text = "%d + %d = ?" % [a, b]
+		"-":
+			# Ensure non-negative result.
+			if a < b:
+				var tmp: int = a
+				a = b
+				b = tmp
+			_answer = a - b
+			_problem_label.text = "%d - %d = ?" % [a, b]
+		"÷":
+			# Generate a×b ÷ b so answer is always a clean integer.
+			_answer = a
+			_problem_label.text = "%d ÷ %d = ?" % [a * b, b]
+		"×":
+			_answer = a * b
+			_problem_label.text = "%d × %d = ?" % [a, b]
 
 
 func _on_text_submitted(_text: String) -> void:
@@ -100,3 +138,8 @@ func get_answer() -> int:
 ## Expose for testing.
 func get_player_id() -> int:
 	return _player_id
+
+
+## Expose for testing.
+func get_death_count(pid: int) -> int:
+	return _death_counts.get(pid, 0)
