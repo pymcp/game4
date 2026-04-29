@@ -110,6 +110,9 @@ func test_all_creatures_have_attack_style() -> void:
 
 func test_all_creatures_have_positive_attack_damage() -> void:
 	for kind: StringName in CreatureSpriteRegistry.all_kinds():
+		# Pets intentionally have attack_damage 0 (handled by pet-specific logic).
+		if CreatureSpriteRegistry.get_entry(kind).get("is_pet", false):
+			continue
 		var dmg: int = CreatureSpriteRegistry.get_attack_damage(kind)
 		assert_true(dmg >= 1, "%s has attack_damage < 1: %d" % [kind, dmg])
 
