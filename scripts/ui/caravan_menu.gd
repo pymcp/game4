@@ -15,13 +15,15 @@ var _player: PlayerController = null
 var _player_id: int = 0
 var _caravan_data: CaravanData = null
 
-@onready var _members_container: VBoxContainer = $Panel/HBox/LeftPanel/MembersContainer
-@onready var _inv_list: Label = $Panel/HBox/LeftPanel/InvList
-@onready var _left_panel: VBoxContainer = $Panel/HBox/LeftPanel
-@onready var _right_panel: Control = $Panel/HBox/RightPanel
+## Emitted when the player wants to swap their active pet.
+signal swap_pet_requested(player_id: int, species: StringName)
+
+## Reference to the World node, for reading pet roster.
+var _world_node: Node = null
 
 var _member_buttons: Array[Button] = []
 var _member_ids: Array[StringName] = []
+var _pet_species_ids: Array[StringName] = []
 var _current_crafter: CrafterPanel = null
 
 var _member_cursor: int = 0
@@ -36,10 +38,11 @@ func _ready() -> void:
 	visible = false
 
 
-func setup(player: PlayerController, caravan_data: CaravanData) -> void:
+func setup(player: PlayerController, caravan_data: CaravanData, world_node: Node = null) -> void:
 	_player = player
 	_player_id = player.player_id if player != null else 0
 	_caravan_data = caravan_data
+	_world_node = world_node
 
 
 func open() -> void:
@@ -160,10 +163,40 @@ func _refresh_members() -> void:
 				lines.append("%s ×%d" % [item_name, slot["count"]])
 		_inv_list.text = "\n".join(lines) if not lines.is_empty() else "(empty)"
 
+	# ─── Pets section ─────────────────────────────────────────────────
+	_pet_species_ids.clear()
+	if _world_node != null and _world_node.has_method("get_pet_roster"):
+		var separator := Label.new()
+		separator.text = "─ Pets ─"
+		separator.theme_type_variation = &"DimLabel"
+		separator.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_members_container.add_child(separator)
+		_member_buttons.append(separator)
+		_member_ids.append(&"__pet_separator__")
+
+		var active_species: StringName = _world_node.call("get_active_pet_species", _player_id)
+		var roster: Array[StringName] = _world_node.call("get_pet_roster", _player_id)
+		for sp: StringName in roster:
+			var display: String = PetRegistry.get_display_name(sp)
+			var label_text: String = "[ACTIVE] " + display if sp == active_species else display
+			var pet_btn := Button.new()
+			pet_btn.text = label_text
+			pet_btn.focus_mode = Control.FOCUS_NONE
+			pet_btn.theme_type_variation = &"WoodButton"
+			if sp == active_species:
+				pet_btn.add_theme_color_override("font_color", Color(0.5, 1.0, 0.6))
+			pet_btn.pressed.connect(_on_pet_selected.bind(sp))
+			_members_container.add_child(pet_btn)
+			_member_buttons.append(pet_btn)
+			_member_ids.append(sp)
+			_pet_species_ids.append(sp)
+
 
 func _refresh_member_cursor() -> void:
 	for i in _member_buttons.size():
-		var btn: Button = _member_buttons[i]
+		var btn: Button = _member_buttons[i] as Button
+		if btn == null:
+			continue  # separator Label — not interactive, skip
 		var is_selected: bool = (i == _member_cursor and _focus == _Focus.LEFT)
 		if is_selected:
 			btn.add_theme_color_override("font_color", UITheme.COL_CURSOR)
@@ -172,6 +205,14 @@ func _refresh_member_cursor() -> void:
 
 
 func _on_member_selected(member_id: StringName) -> void:
+	# Separator rows are not selectable.
+	if member_id == &"__pet_separator__":
+		return
+	# Pet entries are handled by their own panel.
+	if _pet_species_ids.has(member_id):
+		_on_pet_selected(member_id)
+		_set_focus(_Focus.RIGHT)
+		return
 	for child in _right_panel.get_children():
 		child.queue_free()
 	_current_crafter = null
@@ -204,3 +245,51 @@ func _on_member_selected(member_id: StringName) -> void:
 		label.anchor_right = 1.0
 		label.anchor_bottom = 1.0
 		_right_panel.add_child(label)
+
+
+# ─── Pet panel ─────────────────────────────────────────────────────────
+
+func _on_pet_selected(species: StringName) -> void:
+	for child in _right_panel.get_children():
+		child.queue_free()
+	_current_crafter = null
+
+	var active_species: StringName = &""
+	if _world_node != null and _world_node.has_method("get_active_pet_species"):
+		active_species = _world_node.call("get_active_pet_species", _player_id)
+
+	var vbox := VBoxContainer.new()
+	vbox.anchor_right = 1.0
+	vbox.anchor_bottom = 1.0
+	_right_panel.add_child(vbox)
+
+	var name_lbl := Label.new()
+	name_lbl.text = PetRegistry.get_display_name(species)
+	name_lbl.theme_type_variation = &"HeaderLabel"
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(name_lbl)
+
+	var ability_lbl := Label.new()
+	var desc: String = PetRegistry.get_ability_description(species)
+	ability_lbl.text = desc if desc != "" else "No special ability."
+	ability_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ability_lbl.theme_type_variation = &"DimLabel"
+	vbox.add_child(ability_lbl)
+
+	if species == active_species:
+		var active_lbl := Label.new()
+		active_lbl.text = "Currently following you."
+		active_lbl.theme_type_variation = &"DimLabel"
+		active_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox.add_child(active_lbl)
+	else:
+		var follow_btn := Button.new()
+		follow_btn.text = "Follow"
+		follow_btn.theme_type_variation = &"WoodButton"
+		follow_btn.focus_mode = Control.FOCUS_NONE
+		follow_btn.pressed.connect(func() -> void:
+			swap_pet_requested.emit(_player_id, species)
+			_refresh_members()
+			_on_pet_selected(species)
+		)
+		vbox.add_child(follow_btn)
