@@ -29,6 +29,11 @@ var _current_crafter: CrafterPanel = null
 var _member_cursor: int = 0
 var _focus: _Focus = _Focus.LEFT
 
+@onready var _members_container: VBoxContainer = $Panel/HBox/LeftPanel/MembersContainer
+@onready var _inv_list: Label = $Panel/HBox/LeftPanel/InvList
+@onready var _left_panel: VBoxContainer = $Panel/HBox/LeftPanel
+@onready var _right_panel: Control = $Panel/HBox/RightPanel
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
