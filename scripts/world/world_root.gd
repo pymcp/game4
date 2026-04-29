@@ -1397,6 +1397,16 @@ func _spawn_monster(entry: Dictionary) -> void:
 
 
 
+## Spawn a single [LootPickup] at [param world_pos] with [param item_id] × [param count].
+## Used by hedgehog sniff ability and other sources that spawn loot at an explicit position.
+func spawn_loot_at(world_pos: Vector2, item_id: StringName, count: int = 1) -> void:
+	var pickup := LootPickup.new()
+	pickup.item_id = item_id
+	pickup.count = count
+	pickup.position = world_pos
+	entities.add_child(pickup)
+
+
 func _on_monster_died(world_position: Vector2, drops: Array) -> void:
 	for d in drops:
 		var pickup := LootPickup.new()

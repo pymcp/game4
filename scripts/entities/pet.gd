@@ -58,6 +58,9 @@ var _move_time: float = 0.0
 var _facing_left: bool = false
 var _last_owner_x: float = NAN
 var _attack_target: NPC = null
+## Special ability from PetRegistry.
+var special_ability: StringName = &"none"
+var _ability_cooldown_remaining: float = 0.0
 ## Hostile scan throttle.
 const HOSTILE_SCAN_INTERVAL: float = 0.3
 var _hostile_scan_timer: float = 0.0
@@ -76,6 +79,8 @@ func _ready() -> void:
 		_sprite.centered = true
 	add_child(_sprite)
 	hitbox_radius = HitboxCalc.radius_from_sprite(_sprite)
+	special_ability = PetRegistry.get_ability(species)
+	_ability_cooldown_remaining = PetRegistry.get_ability_cooldown(species)
 	# Heart popup (drawn above the sprite when HAPPY).
 	_heart = Sprite2D.new()
 	_heart.texture = _make_heart_texture()
@@ -179,6 +184,8 @@ func _process(delta: float) -> void:
 
 	if prev != state and state == PetState.State.HAPPY:
 		_heart.visible = true
+	if special_ability != &"none":
+		_tick_special(delta)
 
 
 # ─── Movement ──────────────────────────────────────────────────────────
@@ -274,6 +281,47 @@ func interact(by: Node) -> void:
 		return
 	_happy_remaining = PetState.HAPPY_DURATION_SEC
 	state = PetState.State.HAPPY
+
+
+# ─── Special abilities ─────────────────────────────────────────────────
+
+## Called each frame when this pet has a non-none special ability.
+func _tick_special(delta: float) -> void:
+	if _ability_cooldown_remaining > 0.0:
+		_ability_cooldown_remaining -= delta
+		return
+	# Only fire in IDLE or FOLLOW — not during ATTACK or HAPPY.
+	if state != PetState.State.IDLE and state != PetState.State.FOLLOW:
+		return
+	match special_ability:
+		&"sniff_loot":
+			_do_hedgehog_sniff()
+		_:
+			pass  # stub for future abilities
+
+
+## Crafting materials the hedgehog can sniff out.
+const _HEDGEHOG_LOOT_POOL: Array[StringName] = [
+	&"wood", &"stone", &"fiber", &"iron_ore", &"copper_ore"
+]
+
+## Hedgehog ability: sniff out a random crafting material and drop it nearby.
+func _do_hedgehog_sniff() -> void:
+	if _world == null or owner_player == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var item_id: StringName = _HEDGEHOG_LOOT_POOL[rng.randi() % _HEDGEHOG_LOOT_POOL.size()]
+	var owner_cell: Vector2i = Vector2i(
+		int(floor(owner_player.position.x / float(WorldConst.TILE_PX))),
+		int(floor(owner_player.position.y / float(WorldConst.TILE_PX))))
+	var spawn_cell: Vector2i = _world.find_safe_spawn_cell(owner_cell, 2, true)
+	var spawn_pos: Vector2 = (Vector2(spawn_cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+	_world.spawn_loot_at(spawn_pos, item_id, 1)
+	# Show happy animation as the "found it!" reaction.
+	state = PetState.State.HAPPY
+	_happy_remaining = PetState.HAPPY_DURATION_SEC
+	_ability_cooldown_remaining = PetRegistry.get_ability_cooldown(species)
 
 
 # Damage (forwarded from any future enemy that targets the pet). For v1
