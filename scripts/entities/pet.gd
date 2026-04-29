@@ -20,8 +20,10 @@ class_name Pet
 
 const PET_SPECIES_CAT: StringName = &"cat"
 const PET_SPECIES_DOG: StringName = &"dog"
-const _CAT_TEX: Texture2D = preload("res://assets/characters/pets/cat.png")
-const _DOG_TEX: Texture2D = preload("res://assets/characters/pets/dog.png")
+const PET_SPECIES_HEDGEHOG: StringName = &"hedgehog"
+const PET_SPECIES_DUCK: StringName = &"duck"
+const PET_SPECIES_CHAMELEON: StringName = &"chameleon"
+const PET_SPECIES_ROLY_POLY: StringName = &"roly_poly"
 
 const _MOVE_SPEED_PX_PER_S: float = 70.0  ## native pixels (pre-zoom)
 const _ATTACK_COOLDOWN_SEC: float = 0.8
@@ -64,9 +66,14 @@ var _cached_hostile_result: Dictionary = {"npc": null, "dist_tiles": INF}
 
 func _ready() -> void:
 	_world = WorldRoot.find_from(self)
-	_sprite = Sprite2D.new()
-	_sprite.texture = _DOG_TEX if species == PET_SPECIES_DOG else _CAT_TEX
-	_sprite.centered = true
+	# TODO (FUTURE): charmed creatures can also become pets — pass the creature's
+	# kind to Pet.make_charmed(kind). Its sprite data already lives in
+	# creature_sprites.json; only game data (ability/display name) needs a
+	# pets.json fallback entry.
+	_sprite = CreatureSpriteRegistry.build_sprite(species)
+	if _sprite == null:
+		_sprite = Sprite2D.new()  # fallback: invisible until real art is added
+		_sprite.centered = true
 	add_child(_sprite)
 	hitbox_radius = HitboxCalc.radius_from_sprite(_sprite)
 	# Heart popup (drawn above the sprite when HAPPY).
