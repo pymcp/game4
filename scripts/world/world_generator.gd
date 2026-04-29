@@ -198,23 +198,39 @@ static func _carve_terrain(region: Region, plan: RegionPlan) -> void:
 	# neighbor to read as part of a larger blob). Reverting them to
 	# primary keeps the world looking clean. We snapshot the tiles array
 	# so neighbor lookups during dissolve see the pre-dissolve state.
-	var before: PackedByteArray = region.tiles.duplicate()
-	for y in size:
-		for x in size:
-			var i: int = y * size + x
-			if before[i] != secondary:
-				continue
-			var has_neighbor: bool = false
-			if x > 0 and before[i - 1] == secondary:
-				has_neighbor = true
-			elif x < size - 1 and before[i + 1] == secondary:
-				has_neighbor = true
-			elif y > 0 and before[i - size] == secondary:
-				has_neighbor = true
-			elif y < size - 1 and before[i + size] == secondary:
-				has_neighbor = true
-			if not has_neighbor:
-				region.tiles[i] = primary
+	# Iterative erosion: remove any secondary cell that would produce a
+	# 1-tile protrusion — defined as a cell that does NOT have at least two
+	# adjacent (non-opposite) secondary cardinal neighbours:
+	#   • 0 secondary neighbours  → isolated pixel (already covered)
+	#   • 1 secondary neighbour   → arm tip  (needs 2 corners on one tile)
+	#   • N+S only, W+E both prim → 1-tile-wide vertical strip
+	#   • W+E only, N+S both prim → 1-tile-wide horizontal strip
+	# We iterate until no further cells are removed, so the whole arm
+	# shrinks inward pass-by-pass rather than leaving an orphaned middle.
+	var changed: bool = true
+	while changed:
+		changed = false
+		var before: PackedByteArray = region.tiles.duplicate()
+		for y in size:
+			for x in size:
+				var i: int = y * size + x
+				if before[i] != secondary:
+					continue
+				var n_sec: bool = y > 0         and before[i - size] == secondary
+				var s_sec: bool = y < size - 1  and before[i + size] == secondary
+				var w_sec: bool = x > 0         and before[i - 1]    == secondary
+				var e_sec: bool = x < size - 1  and before[i + 1]    == secondary
+				var cnt: int = int(n_sec) + int(s_sec) + int(w_sec) + int(e_sec)
+				# Keep the cell if it has at least two adjacent (non-opposite)
+				# secondary cardinal neighbours.  Opposite pairs (N+S, W+E) with
+				# nothing else would make a 1-tile-wide corridor.
+				var is_protrusion: bool = (
+					cnt == 0 or cnt == 1
+					or (n_sec and s_sec and not w_sec and not e_sec)
+					or (w_sec and e_sec and not n_sec and not s_sec))
+				if is_protrusion:
+					region.tiles[i] = primary
+					changed = true
 
 
 static func _cell_on_bleed_edge(x: int, y: int, edges: int, size: int) -> bool:
