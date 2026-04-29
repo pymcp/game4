@@ -1,0 +1,38 @@
+{
+	"cat": {
+		"display_name": "Cat",
+		"special_ability": "none",
+		"ability_description": "No special ability yet.",
+		"ability_cooldown_sec": 0.0
+	},
+	"chameleon": {
+		"display_name": "Chameleon",
+		"special_ability": "none",
+		"ability_description": "No special ability yet.",
+		"ability_cooldown_sec": 0.0
+	},
+	"dog": {
+		"display_name": "Dog",
+		"special_ability": "none",
+		"ability_description": "No special ability yet.",
+		"ability_cooldown_sec": 0.0
+	},
+	"duck": {
+		"display_name": "Duck",
+		"special_ability": "none",
+		"ability_description": "No special ability yet.",
+		"ability_cooldown_sec": 0.0
+	},
+	"hedgehog": {
+		"display_name": "Hedgehog",
+		"special_ability": "sniff_loot",
+		"ability_description": "Periodically sniffs out a crafting material and drops it nearby.",
+		"ability_cooldown_sec": 90.0
+	},
+	"roly_poly": {
+		"display_name": "Roly Poly",
+		"special_ability": "none",
+		"ability_description": "No special ability yet.",
+		"ability_cooldown_sec": 0.0
+	}
+}
