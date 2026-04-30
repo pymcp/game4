@@ -31,7 +31,7 @@ var _current_crafter: CrafterPanel = null
 var _member_cursor: int = 0
 var _focus: _Focus = _Focus.LEFT
 
-@onready var _members_container: VBoxContainer = $Panel/HBox/LeftPanel/MembersContainer
+@onready var _members_container: GridContainer = $Panel/HBox/LeftPanel/MembersContainer
 @onready var _inv_list: Label = $Panel/HBox/LeftPanel/InvList
 @onready var _left_panel: VBoxContainer = $Panel/HBox/LeftPanel
 @onready var _right_panel: Control = $Panel/HBox/RightPanel
@@ -152,14 +152,17 @@ func _refresh_members() -> void:
 		var def: PartyMemberDef = PartyMemberRegistry.get_member(id)
 		if def == null:
 			continue
-		var btn := Button.new()
-		btn.text = def.display_name
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.theme_type_variation = &"WoodButton"
-		btn.pressed.connect(_on_member_selected.bind(id))
-		_members_container.add_child(btn)
-		_member_buttons.append(btn)
+		var card := _build_member_card(id, def)
+		_members_container.add_child(card)
+		_member_buttons.append(card)
 		_member_ids.append(id)
+
+	# ─── Pets tab ──────────────────────────────────────────────
+	if _world_node != null and _world_node.has_method("get_pet_roster"):
+		var pets_card := _build_pets_card()
+		_members_container.add_child(pets_card)
+		_member_buttons.append(pets_card)
+		_member_ids.append(&"__pets_tab__")
 
 	if _inv_list != null and _caravan_data.inventory != null:
 		var lines: Array[String] = []
@@ -170,26 +173,126 @@ func _refresh_members() -> void:
 				lines.append("%s ×%d" % [item_name, slot["count"]])
 		_inv_list.text = "\n".join(lines) if not lines.is_empty() else "(empty)"
 
-	# ─── Pets tab ──────────────────────────────────────────────
-	if _world_node != null and _world_node.has_method("get_pet_roster"):
-		var pets_btn := Button.new()
-		pets_btn.text = "Pets"
-		pets_btn.focus_mode = Control.FOCUS_NONE
-		pets_btn.theme_type_variation = &"WoodButton"
-		pets_btn.pressed.connect(_on_member_selected.bind(&"__pets_tab__"))
-		_members_container.add_child(pets_btn)
-		_member_buttons.append(pets_btn)
-		_member_ids.append(&"__pets_tab__")
+
+func _build_member_card(id: StringName, def: PartyMemberDef) -> Button:
+	var card := Button.new()
+	card.text = ""
+	card.custom_minimum_size = Vector2(64, 80)
+	card.theme_type_variation = &"WoodButton"
+	card.focus_mode = Control.FOCUS_NONE
+	card.pressed.connect(_on_member_selected.bind(id))
+
+	var inner := VBoxContainer.new()
+	inner.anchor_right = 1.0
+	inner.anchor_bottom = 1.0
+	inner.add_theme_constant_override("separation", 2)
+	card.add_child(inner)
+
+	# Portrait.
+	var portrait_ctrl := Control.new()
+	portrait_ctrl.custom_minimum_size = Vector2(32, 32)
+	portrait_ctrl.clip_contents = true
+	portrait_ctrl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	inner.add_child(portrait_ctrl)
+
+	var member_name: String = _caravan_data.get_member_name(id) \
+			if _caravan_data != null else String(id)
+	var h: int = member_name.hash() & 0x7fffffff
+	var opts: Dictionary = _hash_to_appearance(h)
+	var char_node: Node2D = CharacterBuilder.build(opts)
+	char_node.scale = Vector2(0.5, 0.5)
+	char_node.position = Vector2(16, 20)
+	portrait_ctrl.add_child(char_node)
+
+	# Name.
+	var name_lbl := Label.new()
+	name_lbl.text = member_name
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.add_theme_font_size_override("font_size", 11)
+	name_lbl.clip_text = true
+	inner.add_child(name_lbl)
+
+	# Role.
+	var role_lbl := Label.new()
+	role_lbl.text = def.display_name
+	role_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	role_lbl.add_theme_font_size_override("font_size", 10)
+	role_lbl.add_theme_color_override("font_color", UITheme.COL_LABEL_DIM)
+	inner.add_child(role_lbl)
+
+	return card
+
+
+func _build_pets_card() -> Button:
+	var card := Button.new()
+	card.text = ""
+	card.custom_minimum_size = Vector2(64, 80)
+	card.theme_type_variation = &"WoodButton"
+	card.focus_mode = Control.FOCUS_NONE
+	card.pressed.connect(_on_member_selected.bind(&"__pets_tab__"))
+
+	var inner := VBoxContainer.new()
+	inner.anchor_right = 1.0
+	inner.anchor_bottom = 1.0
+	inner.add_theme_constant_override("separation", 2)
+	card.add_child(inner)
+
+	# Portrait — active pet sprite.
+	var portrait_ctrl := Control.new()
+	portrait_ctrl.custom_minimum_size = Vector2(32, 32)
+	portrait_ctrl.clip_contents = true
+	portrait_ctrl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	inner.add_child(portrait_ctrl)
+
+	var active_species: StringName = GameSession.p1_active_pet if _player_id == 0 else GameSession.p2_active_pet
+	if active_species == &"":
+		active_species = &"cat"
+	var pet_spr: Sprite2D = CreatureSpriteRegistry.build_sprite(active_species)
+	if pet_spr != null:
+		pet_spr.position = Vector2(16, 16)
+		portrait_ctrl.add_child(pet_spr)
+
+	var name_lbl := Label.new()
+	name_lbl.text = "Pets"
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.add_theme_font_size_override("font_size", 11)
+	inner.add_child(name_lbl)
+
+	var role_lbl := Label.new()
+	role_lbl.text = "Companions"
+	role_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	role_lbl.add_theme_font_size_override("font_size", 10)
+	role_lbl.add_theme_color_override("font_color", UITheme.COL_LABEL_DIM)
+	inner.add_child(role_lbl)
+
+	return card
+
+
+## Deterministically map an integer hash to CharacterBuilder opts.
+## Valid values from CharacterAtlas:
+##   skin: "light", "tan", "dark", "goblin"
+##   torso_color: "orange", "teal", "purple", "green", "tan", "black"
+##   hair_color: "brown", "blonde", "white", "ginger", "gray"
+static func _hash_to_appearance(h: int) -> Dictionary:
+	var skin_opts: Array[StringName] = [&"light", &"tan", &"dark", &"goblin"]
+	var torso_colors: Array[StringName] = [&"orange", &"teal", &"purple", &"green", &"tan", &"black"]
+	var hair_colors: Array[StringName] = [&"brown", &"blonde", &"white", &"ginger", &"gray"]
+	return {
+		"skin": skin_opts[(h >> 0) % skin_opts.size()],
+		"torso_color": torso_colors[(h >> 4) % torso_colors.size()],
+		"torso_style": (h >> 8) % 4,
+		"torso_row": (h >> 10) % 3,
+		"hair_color": hair_colors[(h >> 12) % hair_colors.size()],
+		"hair_style": (h >> 16) % 4,
+		"hair_variant": (h >> 18) % 3,
+	}
 
 
 func _refresh_member_cursor() -> void:
 	for i in _member_buttons.size():
 		var btn: Button = _member_buttons[i]
 		var is_selected: bool = (i == _member_cursor and _focus == _Focus.LEFT)
-		if is_selected:
-			btn.add_theme_color_override("font_color", UITheme.COL_CURSOR)
-		else:
-			btn.remove_theme_color_override("font_color")
+		btn.modulate = Color(1.4, 1.2, 0.5) if is_selected else Color.WHITE
 
 
 func _on_member_selected(member_id: StringName) -> void:
