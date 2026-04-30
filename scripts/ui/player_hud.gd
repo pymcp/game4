@@ -19,6 +19,8 @@ var _biome_label: Label = null
 var _status_container: HBoxContainer = null
 var _status_labels: Dictionary = {}  # effect_id -> Label
 var _clock_label: Label = null
+var _xp_bar: XpBar = null
+var _passive_banner: Label = null
 
 
 func _ready() -> void:
@@ -38,6 +40,8 @@ func set_player(p: PlayerController) -> void:
 	_player = p
 	if _hotbar != null and p != null:
 		_hotbar.set_inventory(p.inventory)
+	if p != null and not p.leveled_up.is_connected(_on_leveled_up):
+		p.leveled_up.connect(_on_leveled_up)
 	_refresh_all()
 
 
@@ -45,6 +49,13 @@ func _process(_delta: float) -> void:
 	# Cheap polling for health; we don't have a `health_changed` signal yet.
 	if _player != null and _health_bar != null:
 		_health_bar.update(_player.health, _player.max_health)
+	if _player != null and _xp_bar != null:
+		_xp_bar.update(
+			_player.xp,
+			_player.level,
+			LevelingConfig.xp_to_next(_player.level),
+			_player._pending_stat_points > 0
+		)
 	_refresh_status_effects()
 	_refresh_clock()
 
@@ -56,13 +67,34 @@ func _build() -> void:
 	_health_bar.position = Vector2(MARGIN, MARGIN)
 	add_child(_health_bar)
 
+	# XP bar below hearts.
+	_xp_bar = XpBar.new()
+	_xp_bar.name = "XpBar"
+	_xp_bar.position = Vector2(MARGIN, MARGIN + 30)
+	add_child(_xp_bar)
+
 	# Status effect icons below hearts.
 	_status_container = HBoxContainer.new()
 	_status_container.name = "StatusEffects"
-	_status_container.position = Vector2(MARGIN, MARGIN + 24)
+	_status_container.position = Vector2(MARGIN, MARGIN + 50)
 	_status_container.add_theme_constant_override("separation", 6)
 	_status_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_status_container)
+
+	# Passive unlock notification banner (hidden by default).
+	_passive_banner = Label.new()
+	_passive_banner.name = "PassiveBanner"
+	_passive_banner.add_theme_font_size_override("font_size", 14)
+	_passive_banner.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
+	_passive_banner.anchor_left = 0.5
+	_passive_banner.anchor_right = 0.5
+	_passive_banner.offset_left = -150
+	_passive_banner.offset_right = 150
+	_passive_banner.offset_top = 60
+	_passive_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_passive_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_passive_banner.visible = false
+	add_child(_passive_banner)
 
 	# Hotbar centred along the bottom.
 	_hotbar = Hotbar.new()
@@ -220,3 +252,20 @@ func _refresh_status_effects() -> void:
 			_status_container.add_child(lbl)
 			_status_labels[eid] = lbl
 		lbl.text = "%s %.1f" % [eff.display_name, remaining]
+
+
+func _on_leveled_up(_pid: int, new_level: int) -> void:
+	var passive: StringName = LevelingConfig.milestone_passive(new_level)
+	if passive == &"" or _passive_banner == null:
+		return
+	var names: Dictionary = {
+		&"hardy": "Hardy", &"scavenger": "Scavenger",
+		&"iron_skin": "Iron Skin", &"hero": "Hero"
+	}
+	_passive_banner.text = "PASSIVE UNLOCKED: %s" % names.get(passive, str(passive))
+	_passive_banner.visible = true
+	_passive_banner.modulate = Color(1, 1, 1, 1)
+	var tw := create_tween()
+	tw.tween_interval(2.5)
+	tw.tween_property(_passive_banner, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(func() -> void: _passive_banner.visible = false)
