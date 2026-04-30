@@ -56,6 +56,7 @@ var _region: Region = null
 var _interior: InteriorMap = null
 var _boat: Boat = null
 var _doors: Dictionary = {}  ## Vector2i -> Dictionary{kind, ...}
+var _last_view_kind: StringName = &"overworld"
 ## Per-player door-tile cache so each player triggers a door at most
 ## once per cell-step (PlayerController -> Vector2i).
 var _last_door_cell_per_player: Dictionary = {}
@@ -197,6 +198,27 @@ func is_walkable(cell: Vector2i) -> bool:
 	return bool(gv)
 
 
+## Returns true if a door entry exists at [param cell].
+func has_door(cell: Vector2i) -> bool:
+	return _doors.has(cell)
+
+
+## Rebuild the door index for the current view without a full apply_view.
+## Call after mutating dungeon_entrances at runtime (e.g. player-built house).
+func rebuild_door_index() -> void:
+	_build_door_index(_last_view_kind)
+
+
+## Append a player-built house entrance to this region and update all
+## live state (doors + entrance markers) immediately.
+func add_house_entrance(cell: Vector2i) -> void:
+	if _region == null:
+		return
+	_region.dungeon_entrances.append({"kind": &"house", "cell": cell})
+	_build_door_index(_last_view_kind)
+	_paint_overworld_entrance_markers(_region)
+
+
 func get_map_size() -> Vector2i:
 	if _interior != null:
 		return Vector2i(_interior.width, _interior.height)
@@ -229,6 +251,7 @@ func get_player(pid: int) -> PlayerController:
 ## call it freely on instance creation. Does NOT spawn or place
 ## players — the [World] coordinator owns player ownership.
 func apply_view(view_kind: StringName, region: Region, interior: InteriorMap) -> void:
+	_last_view_kind = view_kind
 	_clear_layers()
 	if view_kind == &"overworld":
 		_interior = null
