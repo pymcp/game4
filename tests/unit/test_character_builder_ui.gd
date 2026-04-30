@@ -217,3 +217,13 @@ func test_character_tab_exists_in_enum() -> void:
 func test_character_tab_label() -> void:
 	assert_eq(InventoryScreen.TAB_LABELS[InventoryScreen.Tab.CHARACTER], "Character",
 		"CHARACTER tab label should be 'Character'")
+
+
+func test_equipment_tab_removed() -> void:
+	assert_false(InventoryScreen.Tab.has("EQUIPMENT"),
+		"Equipment tab should be removed from Tab enum")
+
+
+func test_all_tab_is_index_zero() -> void:
+	assert_eq(int(InventoryScreen.Tab.ALL), 0,
+		"ALL tab should be index 0 after Equipment removal")
