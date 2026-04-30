@@ -213,15 +213,15 @@ func _build_member_card(id: StringName, def: PartyMemberDef) -> Button:
 	var h: int = member_name.hash() & 0x7fffffff
 	var opts: Dictionary = _hash_to_appearance(h)
 	var char_node: Node2D = CharacterBuilder.build(opts)
-	char_node.scale = Vector2(0.5, 0.5)
-	char_node.position = Vector2(32, 40)
+	char_node.scale = Vector2(1.0, 1.0)
+	char_node.position = Vector2(32, 48)
 	portrait_ctrl.add_child(char_node)
 
 	# Name.
 	var name_lbl := Label.new()
 	name_lbl.text = member_name
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_lbl.add_theme_font_size_override("font_size", 11)
+	name_lbl.add_theme_font_size_override("font_size", 13)
 	name_lbl.clip_text = true
 	inner.add_child(name_lbl)
 
@@ -229,7 +229,7 @@ func _build_member_card(id: StringName, def: PartyMemberDef) -> Button:
 	var role_lbl := Label.new()
 	role_lbl.text = def.display_name
 	role_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	role_lbl.add_theme_font_size_override("font_size", 10)
+	role_lbl.add_theme_font_size_override("font_size", 11)
 	role_lbl.add_theme_color_override("font_color", UITheme.COL_LABEL_DIM)
 	inner.add_child(role_lbl)
 
@@ -262,19 +262,20 @@ func _build_pets_card() -> Button:
 		active_species = &"cat"
 	var pet_spr: Sprite2D = CreatureSpriteRegistry.build_sprite(active_species)
 	if pet_spr != null:
+		pet_spr.scale = Vector2(2.0, 2.0)
 		pet_spr.position = Vector2(32, 32)
 		portrait_ctrl.add_child(pet_spr)
 
 	var name_lbl := Label.new()
 	name_lbl.text = "Pets"
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_lbl.add_theme_font_size_override("font_size", 11)
+	name_lbl.add_theme_font_size_override("font_size", 13)
 	inner.add_child(name_lbl)
 
 	var role_lbl := Label.new()
 	role_lbl.text = "Companions"
 	role_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	role_lbl.add_theme_font_size_override("font_size", 10)
+	role_lbl.add_theme_font_size_override("font_size", 11)
 	role_lbl.add_theme_color_override("font_color", UITheme.COL_LABEL_DIM)
 	inner.add_child(role_lbl)
 
