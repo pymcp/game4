@@ -511,25 +511,29 @@ func start_house_placement(pid: int, structure_id: StringName) -> void:
 
 
 func _on_house_confirmed(pid: int, cell: Vector2i) -> void:
+	# Resolve WorldRoot first — atomic: no deduction if placement can't happen.
+	var inst: WorldRoot = get_player_world(pid)
+	if inst == null:
+		return
+	# Find the placer node (for structure_id) before freeing it.
+	var placer: HousePlacer = inst.get_node_or_null("HousePlacer_P%d" % pid) as HousePlacer
+	var sid: StringName = placer.structure_id if placer != null else &"house_basic"
 	# Deduct materials.
 	var cd: CaravanData = get_caravan_data(pid)
 	if cd != null:
 		var builder_def: PartyMemberDef = PartyMemberRegistry.get_member(&"builder")
 		if builder_def != null:
 			for build_entry: Dictionary in builder_def.builds:
-				if StringName(build_entry.get("id", "")) == &"house_basic":
+				if StringName(build_entry.get("id", "")) == sid:
 					var cost: Dictionary = build_entry.get("cost", {})
-					for item_id: String in cost:
+					for item_id in cost:
 						cd.inventory.remove(StringName(item_id), int(cost[item_id]))
 	# Add entrance and update visuals.
-	var inst: WorldRoot = get_player_world(pid)
-	if inst != null:
-		inst.add_house_entrance(cell)
+	inst.add_house_entrance(cell)
 	# Free placer.
-	var placer: Node = inst.get_node_or_null("HousePlacer_P%d" % pid) if inst != null else null
 	if placer != null:
 		placer.queue_free()
-	# Clear hint and reopen menu.
+	# Reopen menu (also clears hint).
 	var game: Game = Game.instance()
 	if game != null:
 		game.open_caravan_menu(pid)
