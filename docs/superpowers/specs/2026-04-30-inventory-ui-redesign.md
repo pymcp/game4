@@ -154,6 +154,17 @@ Add `flash_level_up(node: CanvasItem)` to `ActionParticles`:
 
 ---
 
+## Final Step: Code Review
+
+After all implementation tasks pass tests, perform a code review of all code introduced or modified during this work:
+
+- **Bugs**: off-by-one errors in tab index shifts, tooltip positioning edge cases, tween not cleaning up properly, stat `[+]` buttons still visible when points reach 0
+- **Enhancements**: can `flash_level_up` be driven from `flash_hit` with a parameter instead of a separate method? Should `XpBar` expose a `set_data()` method instead of relying on `_process()` polling?
+- **Consolidation**: `_refresh_char_stats()` and `_refresh()` may have overlapping responsibilities — check for duplication; tooltip update logic scattered across multiple call sites should be one method
+- **Best practices**: typed GDScript everywhere (no untyped `var`), no `class_name` on autoloads, signals disconnected on `set_player(null)`, tweens killed before creating new ones (level flash triggered twice in quick succession)
+
+---
+
 ## Out of Scope
 
 - No changes to `ItemDefinition`, `ItemRegistry`, or any data files
