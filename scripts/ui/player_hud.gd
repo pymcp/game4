@@ -20,6 +20,7 @@ var _status_container: HBoxContainer = null
 var _status_labels: Dictionary = {}  # effect_id -> Label
 var _clock_label: Label = null
 var _level_flash_label: Label = null
+var _level_flash_tween: Tween = null
 
 
 func _ready() -> void:
@@ -36,6 +37,8 @@ func _ready() -> void:
 
 
 func set_player(p: PlayerController) -> void:
+	if _player != null and _player.leveled_up.is_connected(_on_leveled_up):
+		_player.leveled_up.disconnect(_on_leveled_up)
 	_player = p
 	if _hotbar != null and p != null:
 		_hotbar.set_inventory(p.inventory)
@@ -244,9 +247,11 @@ func _refresh_status_effects() -> void:
 func _on_leveled_up(_pid: int, _new_level: int) -> void:
 	if _level_flash_label == null:
 		return
+	if _level_flash_tween != null and _level_flash_tween.is_valid():
+		_level_flash_tween.kill()
 	_level_flash_label.visible = true
 	_level_flash_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
-	var tw: Tween = create_tween()
-	tw.tween_interval(1.5)
-	tw.tween_property(_level_flash_label, "modulate:a", 0.0, 0.5)
-	tw.tween_callback(func() -> void: _level_flash_label.visible = false)
+	_level_flash_tween = create_tween()
+	_level_flash_tween.tween_interval(1.5)
+	_level_flash_tween.tween_property(_level_flash_label, "modulate:a", 0.0, 0.5)
+	_level_flash_tween.tween_callback(func() -> void: _level_flash_label.visible = false)
