@@ -211,12 +211,14 @@ func rebuild_door_index() -> void:
 
 ## Append a player-built house entrance to this region and update all
 ## live state (doors + entrance markers) immediately.
+## Only wires doors and paints markers when currently in the overworld view.
 func add_house_entrance(cell: Vector2i) -> void:
 	if _region == null:
 		return
 	_region.dungeon_entrances.append({"kind": &"house", "cell": cell})
-	_build_door_index(_last_view_kind)
-	_paint_overworld_entrance_markers(_region)
+	if _last_view_kind == &"overworld":
+		_build_door_index(&"overworld")
+		_paint_overworld_entrance_markers(_region)
 
 
 func get_map_size() -> Vector2i:
