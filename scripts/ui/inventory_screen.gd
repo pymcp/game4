@@ -82,6 +82,7 @@ var _char_opts: Dictionary = {}
 var _detail_label: Label = null
 var _detail_name_label: Label = null
 var _detail_desc_label: Label = null
+var _tooltip_label: Label = null
 var _controls_bar: PanelContainer = null
 var _controls_label: RichTextLabel = null
 
@@ -342,6 +343,17 @@ func _build() -> void:
 	# Bottom: controls hint bar.
 	_controls_bar = _build_controls_bar()
 	outer.add_child(_controls_bar)
+
+	# Floating tooltip — rendered above all other children.
+	_tooltip_label = Label.new()
+	_tooltip_label.name = "Tooltip"
+	_tooltip_label.add_theme_font_size_override("font_size", 11)
+	_tooltip_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.85))
+	_tooltip_label.add_theme_stylebox_override("normal", _make_tooltip_style())
+	_tooltip_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tooltip_label.z_index = 100
+	_tooltip_label.visible = false
+	add_child(_tooltip_label)
 
 
 func _build_title_bar() -> PanelContainer:
@@ -614,6 +626,7 @@ func _refresh_cursor() -> void:
 	if _current_tab == Tab.CHARACTER:
 		_cursor_panel.visible = false
 		_clear_detail("")
+		_hide_tooltip()
 		return
 
 	# Grid cursor.
@@ -633,19 +646,24 @@ func _refresh_cursor() -> void:
 	else:
 		_cursor_panel.visible = false
 
-	# Update detail text.
+	# Update detail text and tooltip.
 	if _cursor >= 0 and _cursor < _filtered_view.size():
 		var entry: Dictionary = _filtered_view[_cursor]
 		if entry["id"] != &"":
 			var def: ItemDefinition = ItemRegistry.get_item(entry["id"])
 			if def != null:
 				_show_item_detail(def)
+				if _cursor < _inv_slots.size():
+					_show_tooltip(def.display_name, _inv_slots[_cursor])
 			else:
 				_clear_detail(String(entry["id"]))
+				_hide_tooltip()
 		else:
 			_clear_detail("(empty)")
+			_hide_tooltip()
 	else:
 		_clear_detail("(empty)")
+		_hide_tooltip()
 
 
 func _update_detail_equipment() -> void:
@@ -686,6 +704,41 @@ func _clear_detail(text: String = "(empty)") -> void:
 	_detail_name_label.text = ""
 	_detail_name_label.add_theme_color_override("font_color", UITheme.COL_LABEL)
 	_detail_desc_label.text = text
+
+
+func _make_tooltip_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.1, 0.1, 0.1, 0.85)
+	sb.corner_radius_top_left = 3
+	sb.corner_radius_top_right = 3
+	sb.corner_radius_bottom_left = 3
+	sb.corner_radius_bottom_right = 3
+	sb.content_margin_left = 5
+	sb.content_margin_right = 5
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
+	return sb
+
+
+func _show_tooltip(item_name: String, near_slot: Control) -> void:
+	if _tooltip_label == null or near_slot == null:
+		return
+	_tooltip_label.text = item_name
+	# Force layout to get correct size.
+	_tooltip_label.reset_size()
+	var slot_pos: Vector2 = near_slot.global_position - global_position
+	var tip_x: float = slot_pos.x + near_slot.size.x * 0.5 - _tooltip_label.size.x * 0.5
+	var tip_y: float = slot_pos.y - _tooltip_label.size.y - 4.0
+	# Clamp within our own rect.
+	tip_x = clampf(tip_x, 0.0, size.x - _tooltip_label.size.x)
+	tip_y = maxf(tip_y, 0.0)
+	_tooltip_label.position = Vector2(tip_x, tip_y)
+	_tooltip_label.visible = true
+
+
+func _hide_tooltip() -> void:
+	if _tooltip_label != null:
+		_tooltip_label.visible = false
 
 
 # ---------- Interact / Drop ----------
