@@ -110,11 +110,16 @@ func _update_ghost() -> void:
 func _is_valid(cell: Vector2i) -> bool:
 	if world_root == null:
 		return false
-	if not world_root.is_walkable(cell):
-		return false
-	if world_root.has_door(cell):
-		return false
-	# Check for entities at this cell.
+	# Check entire 3×3 footprint.
+	var half: int = _GHOST_TILES / 2  # = 1
+	for dy: int in range(-half, half + 1):
+		for dx: int in range(-half, half + 1):
+			var c: Vector2i = cell + Vector2i(dx, dy)
+			if not world_root.is_walkable(c):
+				return false
+			if world_root.has_door(c):
+				return false
+	# Check for entities at the cursor cell.
 	for child in world_root.entities.get_children():
 		if not (child is Node2D):
 			continue
