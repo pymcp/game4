@@ -23,6 +23,7 @@ const _TOGGLE_ACTIONS: Array[StringName] = [&"auto_mine", &"auto_attack"]
 var player_id: int = 0
 var _label: RichTextLabel = null
 var _player: PlayerController = null
+var _override_hint: String = ""
 
 
 func _ready() -> void:
@@ -54,6 +55,13 @@ func set_player(pid: int, player: PlayerController = null) -> void:
 	_refresh()
 
 
+## When non-empty, display this text instead of the normal action list.
+## Pass "" to revert to normal display.
+func set_override_hint(text: String) -> void:
+	_override_hint = text
+	_refresh()
+
+
 func _on_context_changed(pid: int, _ctx: InputContext.Context) -> void:
 	if pid == player_id:
 		_refresh()
@@ -77,6 +85,9 @@ func _is_toggle_active(short_name: StringName) -> bool:
 
 func _refresh() -> void:
 	if _label == null:
+		return
+	if _override_hint != "":
+		_label.text = _override_hint
 		return
 	var pfx := PlayerActions.prefix(player_id)
 	var lines: Array[String] = ["P%d Controls" % (player_id + 1)]

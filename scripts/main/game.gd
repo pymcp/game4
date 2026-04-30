@@ -295,6 +295,18 @@ func show_floor_confirm_menu(pid: int, title: String, options: Array,
 		menu.show_menu(pid, title, options, callback)
 
 
+## Returns the ControlsHud for [param pid] (0 = P1, 1 = P2).
+func get_controls_hud(pid: int) -> ControlsHud:
+	return _controls_p1 if pid == 0 else _controls_p2
+
+
+## Opens the caravan menu for [param pid] if it is set up.
+func open_caravan_menu(pid: int) -> void:
+	var menu: CaravanMenu = _caravan_menu_p1 if pid == 0 else _caravan_menu_p2
+	if menu != null:
+		menu.open()
+
+
 func _build_heart_display(container: Control) -> HeartDisplay:
 	var hd := HeartDisplay.new(12.0)
 	hd.name = "HeartDisplay"
