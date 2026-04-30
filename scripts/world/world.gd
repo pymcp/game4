@@ -502,6 +502,8 @@ func start_house_placement(pid: int, structure_id: StringName) -> void:
 	placer.confirmed.connect(_on_house_confirmed)
 	placer.cancelled.connect(_on_house_cancelled)
 	inst.add_child(placer)
+	# Freeze player movement during placement.
+	InputContext.set_context(pid, InputContext.Context.INVENTORY)
 	# Show placement hint.
 	var game: Game = Game.instance()
 	if game != null:
@@ -533,6 +535,8 @@ func _on_house_confirmed(pid: int, cell: Vector2i) -> void:
 	# Free placer.
 	if placer != null:
 		placer.queue_free()
+	# Restore context before reopening menu.
+	InputContext.set_context(pid, InputContext.Context.GAMEPLAY)
 	# Reopen menu (also clears hint).
 	var game: Game = Game.instance()
 	if game != null:
@@ -544,6 +548,8 @@ func _on_house_cancelled(pid: int) -> void:
 	var placer: Node = inst.get_node_or_null("HousePlacer_P%d" % pid) if inst != null else null
 	if placer != null:
 		placer.queue_free()
+	# Restore player movement.
+	InputContext.set_context(pid, InputContext.Context.GAMEPLAY)
 	var game: Game = Game.instance()
 	if game != null:
 		game.open_caravan_menu(pid)

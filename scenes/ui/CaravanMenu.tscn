@@ -40,7 +40,7 @@ text = "Party"
 horizontal_alignment = 1
 
 [node name="MembersContainer" type="GridContainer" parent="Panel/HBox/LeftPanel"]
-columns = 3
+columns = 2
 theme_override_constants/h_separation = 4
 theme_override_constants/v_separation = 4
 

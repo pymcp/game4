@@ -55,6 +55,9 @@ func setup(player: PlayerController, caravan_data: CaravanData, world_node: Node
 func open() -> void:
 	if _caravan_data == null:
 		return
+	# Auto-transfer crafting ingredients from player inventory to caravan.
+	if _player != null:
+		_player.trigger_overworld_transfer()
 	_refresh_members()
 	_member_cursor = 0
 	visible = true
@@ -84,7 +87,7 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 	if _focus == _Focus.LEFT:
-		const _COLS: int = 3  # matches GridContainer columns
+		const _COLS: int = 2  # matches GridContainer columns
 		var count: int = max(1, _member_buttons.size())
 		if PlayerActions.just_pressed(event, _player_id, PlayerActions.UP):
 			_member_cursor = wrapi(_member_cursor - _COLS, 0, count)
@@ -187,7 +190,7 @@ func _refresh_members() -> void:
 func _build_member_card(id: StringName, def: PartyMemberDef) -> Button:
 	var card := Button.new()
 	card.text = ""
-	card.custom_minimum_size = Vector2(64, 80)
+	card.custom_minimum_size = Vector2(128, 160)
 	card.theme_type_variation = &"WoodButton"
 	card.focus_mode = Control.FOCUS_NONE
 	card.pressed.connect(_on_member_selected.bind(id))
@@ -200,7 +203,7 @@ func _build_member_card(id: StringName, def: PartyMemberDef) -> Button:
 
 	# Portrait.
 	var portrait_ctrl := Control.new()
-	portrait_ctrl.custom_minimum_size = Vector2(32, 32)
+	portrait_ctrl.custom_minimum_size = Vector2(64, 64)
 	portrait_ctrl.clip_contents = true
 	portrait_ctrl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	inner.add_child(portrait_ctrl)
@@ -211,7 +214,7 @@ func _build_member_card(id: StringName, def: PartyMemberDef) -> Button:
 	var opts: Dictionary = _hash_to_appearance(h)
 	var char_node: Node2D = CharacterBuilder.build(opts)
 	char_node.scale = Vector2(0.5, 0.5)
-	char_node.position = Vector2(16, 20)
+	char_node.position = Vector2(32, 40)
 	portrait_ctrl.add_child(char_node)
 
 	# Name.
@@ -236,7 +239,7 @@ func _build_member_card(id: StringName, def: PartyMemberDef) -> Button:
 func _build_pets_card() -> Button:
 	var card := Button.new()
 	card.text = ""
-	card.custom_minimum_size = Vector2(64, 80)
+	card.custom_minimum_size = Vector2(128, 160)
 	card.theme_type_variation = &"WoodButton"
 	card.focus_mode = Control.FOCUS_NONE
 	card.pressed.connect(_on_member_selected.bind(&"__pets_tab__"))
@@ -249,7 +252,7 @@ func _build_pets_card() -> Button:
 
 	# Portrait — active pet sprite.
 	var portrait_ctrl := Control.new()
-	portrait_ctrl.custom_minimum_size = Vector2(32, 32)
+	portrait_ctrl.custom_minimum_size = Vector2(64, 64)
 	portrait_ctrl.clip_contents = true
 	portrait_ctrl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	inner.add_child(portrait_ctrl)
@@ -259,7 +262,7 @@ func _build_pets_card() -> Button:
 		active_species = &"cat"
 	var pet_spr: Sprite2D = CreatureSpriteRegistry.build_sprite(active_species)
 	if pet_spr != null:
-		pet_spr.position = Vector2(16, 16)
+		pet_spr.position = Vector2(32, 32)
 		portrait_ctrl.add_child(pet_spr)
 
 	var name_lbl := Label.new()
@@ -374,6 +377,9 @@ class _BuilderPanel extends VBoxContainer:
 	signal build_pressed(structure_id: StringName)
 
 	var _caravan_data: CaravanData = null
+	var _cursor: int = 0
+	var _buttons: Array[Button] = []
+	var _sids: Array[StringName] = []
 
 	func setup(def: PartyMemberDef, caravan_data: CaravanData) -> void:
 		_caravan_data = caravan_data
@@ -391,6 +397,7 @@ class _BuilderPanel extends VBoxContainer:
 		add_child(section)
 		for entry: Dictionary in def.builds:
 			_add_build_row(entry)
+		_refresh_cursor()
 
 	func _add_build_row(entry: Dictionary) -> void:
 		var sid: StringName = StringName(entry.get("id", ""))
@@ -429,4 +436,28 @@ class _BuilderPanel extends VBoxContainer:
 		btn.disabled = not can_afford
 		btn.pressed.connect(func() -> void: build_pressed.emit(sid))
 		row.add_child(btn)
+		_buttons.append(btn)
+		_sids.append(sid)
+
+	func navigate(verb: StringName) -> void:
+		if _buttons.is_empty():
+			return
+		match verb:
+			PlayerActions.UP:
+				_cursor = wrapi(_cursor - 1, 0, _buttons.size())
+				_refresh_cursor()
+			PlayerActions.DOWN:
+				_cursor = wrapi(_cursor + 1, 0, _buttons.size())
+				_refresh_cursor()
+			PlayerActions.INTERACT:
+				if not _buttons[_cursor].disabled:
+					build_pressed.emit(_sids[_cursor])
+
+	func _refresh_cursor() -> void:
+		for i in _buttons.size():
+			var btn: Button = _buttons[i]
+			if i == _cursor:
+				btn.add_theme_color_override("font_color", UITheme.COL_CURSOR)
+			else:
+				btn.remove_theme_color_override("font_color")
 
