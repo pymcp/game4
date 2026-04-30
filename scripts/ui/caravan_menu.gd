@@ -254,7 +254,7 @@ func _on_member_selected(member_id: StringName) -> void:
 		_right_panel.add_child(label)
 
 
-# ─── Pet panel ─────────────────────────────────────────────────────────
+# ─── Builder panel ─────────────────────────────────────────────────────────
 
 
 class _BuilderPanel extends VBoxContainer:
