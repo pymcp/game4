@@ -15,3 +15,6 @@ extends Resource
 @export var portrait_cell: Vector2i = Vector2i.ZERO
 ## If true, this member follows the player into dungeons/labyrinths.
 @export var can_follow: bool = false
+## Buildable structures for members with crafter_domain == "builder".
+## Each entry: {id: String, display_name: String, cost: {item_id: count}}.
+@export var builds: Array = []

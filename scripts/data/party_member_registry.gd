@@ -70,4 +70,5 @@ static func _build_cache() -> void:
 		var pc: Array = entry.get("portrait_cell", [0, 0])
 		d.portrait_cell = Vector2i(int(pc[0]), int(pc[1]))
 		d.can_follow = bool(entry.get("can_follow", false))
+		d.builds = entry.get("builds", [])
 		_cache[id] = d

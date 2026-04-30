@@ -33,5 +33,19 @@
 		"crafter_domain": "",
 		"portrait_cell": [0, 0],
 		"can_follow": false
+	},
+	"builder": {
+		"id": "builder",
+		"display_name": "Builder",
+		"crafter_domain": "builder",
+		"portrait_cell": [0, 0],
+		"can_follow": false,
+		"builds": [
+			{
+				"id": "house_basic",
+				"display_name": "Basic House",
+				"cost": { "wood": 10 }
+			}
+		]
 	}
 }
