@@ -270,16 +270,19 @@ func _build() -> void:
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
 
-	var center := CenterContainer.new()
-	center.anchor_right = 1.0
-	center.anchor_bottom = 1.0
-	add_child(center)
-
-	# Main panel with fantasy frame.
+	# Main panel with fantasy frame — 90% viewport height, horizontally centred.
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(880, 460)
+	panel.anchor_top = 0.05
+	panel.anchor_bottom = 0.95
+	panel.anchor_left = 0.5
+	panel.anchor_right = 0.5
+	panel.offset_left = -440.0
+	panel.offset_right = 440.0
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.custom_minimum_size = Vector2(880, 0)
 	panel.theme_type_variation = &"WoodPanel"
-	center.add_child(panel)
+	add_child(panel)
 
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
