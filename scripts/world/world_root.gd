@@ -381,9 +381,14 @@ func _paint_region(region: Region) -> void:
 		for c: Vector2i in region.path_tiles:
 			path_set[c] = true
 		for c: Vector2i in region.path_tiles:
+			# If this path cell is already inside the dirt blob, let the blob
+			# tiling pass handle it so the path blends in seamlessly.
+			var tile_code: int = region.tiles[c.y * size + c.x]
+			if overlay_code >= 0 and tile_code == overlay_code:
+				continue
 			if path_prim_cell.x >= 0:
 				ground.set_cell(c, 0, path_prim_cell, 0)
-			patch.erase_cell(c, 0)
+			patch.erase_cell(c)
 			var pidx: int = _path_index_for_cell(path_set, c.x, c.y, size)
 			patch.set_cell(c, 0, overlay_cells[pidx], 0)
 
@@ -870,7 +875,7 @@ static func _patch_index_for_neighbors(region: Region, x: int, y: int,
 ## Bitmask → path tile index. bit0=N, bit1=S, bit2=E, bit3=W.
 ## Indices 13-19 match the 20-tile overlay set (straight/dead-end/isolated).
 ## Indices 20-28 are the new corner/T-junction/cross tiles.
-static const PATH_BITMASK_TO_INDEX: Array[int] = [
+const PATH_BITMASK_TO_INDEX: Array[int] = [
 	19, # 0000 = no connections → isolated
 	16, # 0001 = N only → dead-end (open end toward N)
 	15, # 0010 = S only → dead-end (open end toward S)
@@ -898,6 +903,9 @@ static func _path_index_for_cell(path_set: Dictionary, x: int, y: int, size: int
 	if x < size - 1 and path_set.has(Vector2i(x + 1, y)): mask |= 4  # E
 	if x > 0        and path_set.has(Vector2i(x - 1, y)): mask |= 8  # W
 	return PATH_BITMASK_TO_INDEX[mask]
+
+
+static func _is_water_code(code: int) -> bool:
 	return code == TerrainCodes.OCEAN or code == TerrainCodes.WATER
 
 
