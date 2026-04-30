@@ -74,6 +74,7 @@ var _grid: GridContainer = null
 var _grid_scroll: ScrollContainer = null
 var _paperdoll: Control = null
 var _char_page: VBoxContainer = null
+var _level_up_panel: LevelUpPanel = null
 var _char_preview_root: Node2D = null
 var _char_preview_viewport: SubViewport = null
 var _char_preview_rect: TextureRect = null
@@ -326,6 +327,11 @@ func _build() -> void:
 	_char_page.visible = false
 	_content_stack.add_child(_char_page)
 
+	_level_up_panel = LevelUpPanel.new()
+	_level_up_panel.name = "LevelUpPanel"
+	_level_up_panel.visible = false
+	_content_stack.add_child(_level_up_panel)
+
 	# Bottom: controls hint bar.
 	_controls_bar = _build_controls_bar()
 	outer.add_child(_controls_bar)
@@ -574,11 +580,21 @@ func _select_tab(tab_idx: int) -> void:
 	# Show the appropriate content page.
 	_eq_page.visible = (tab_idx == Tab.EQUIPMENT)
 	_grid_page.visible = (tab_idx not in [Tab.EQUIPMENT, Tab.CHARACTER])
-	_char_page.visible = (tab_idx == Tab.CHARACTER)
+	_char_page.visible = (tab_idx == Tab.CHARACTER) and (_player == null or _player._pending_stat_points <= 0)
 	if tab_idx == Tab.CHARACTER:
-		_load_char_opts_from_session()
-		_refresh_char_preview()
-		_refresh_char_labels()
+		# Show level-up panel instead of character builder if stat points pending.
+		var has_points: bool = _player != null and _player._pending_stat_points > 0
+		if has_points:
+			if _level_up_panel != null and _player != null:
+				_level_up_panel.setup(_player)
+				_level_up_panel.visible = true
+			_char_page.visible = false
+		else:
+			if _level_up_panel != null:
+				_level_up_panel.visible = false
+			_load_char_opts_from_session()
+			_refresh_char_preview()
+			_refresh_char_labels()
 
 	_cursor = 0
 	_refresh()
