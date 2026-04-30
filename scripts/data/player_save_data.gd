@@ -25,3 +25,11 @@ extends Resource
 @export var active_pet_species: StringName = &""
 ## Ordered pet roster (6 species). Empty = use GameSession default on load.
 @export var pet_roster: Array[StringName] = []
+## XP accumulated toward next level.
+@export var xp: int = 0
+## Current level (1–20).
+@export var level: int = 1
+## Unlocked passive abilities (e.g. "hardy", "scavenger", "iron_skin", "hero").
+@export var unlocked_passives: Array[StringName] = []
+## Unspent level-up stat points waiting for player choice.
+@export var pending_stat_points: int = 0

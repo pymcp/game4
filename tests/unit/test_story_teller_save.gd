@@ -4,8 +4,8 @@ func before_each() -> void:
 	QuestTracker.reset()
 	GameState.clear_flags()
 
-func test_version_is_5() -> void:
-	assert_eq(SaveGame.VERSION, 5)
+func test_version_is_6() -> void:
+	assert_eq(SaveGame.VERSION, 6)
 
 func test_quest_tracker_data_saved_and_restored() -> void:
 	QuestTracker.start_quest("herbalist_remedy", "herbs")

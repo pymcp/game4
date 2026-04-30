@@ -12,7 +12,9 @@
 class_name SaveGame
 extends Resource
 
-const VERSION: int = 5
+## v5→v6: Added xp, level, unlocked_passives, pending_stat_points to PlayerSaveData.
+##         Missing fields in v5 saves default to initial values automatically.
+const VERSION: int = 6
 const _SAVE_DIR: String = "user://saves/"
 
 @export var version: int = VERSION
@@ -79,6 +81,10 @@ static func snapshot(world: WorldRoot) -> SaveGame:
 			if p.equipment != null:
 				psd.equipment_data = p.equipment.to_dict()
 			psd.stats = p.stats.duplicate()
+			psd.xp = p.xp
+			psd.level = p.level
+			psd.unlocked_passives = p.unlocked_passives.duplicate()
+			psd.pending_stat_points = p._pending_stat_points
 			psd.fog_data = p.fog_of_war.to_dict()
 			psd.dungeon_fog_data = p.dungeon_fog.to_dict()
 			# Pet roster — read from the World coordinator.
@@ -156,6 +162,10 @@ func apply(world: WorldRoot = null) -> void:
 			p.equipment.from_dict(psd.equipment_data)
 		if not psd.stats.is_empty():
 			p.stats = psd.stats.duplicate()
+		p.xp = psd.xp
+		p.level = psd.level
+		p.unlocked_passives = psd.unlocked_passives.duplicate()
+		p._pending_stat_points = psd.pending_stat_points
 		if not psd.fog_data.is_empty():
 			p.fog_of_war.from_dict(psd.fog_data)
 		if not psd.dungeon_fog_data.is_empty():
