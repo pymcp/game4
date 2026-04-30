@@ -35,10 +35,9 @@ const EQUIPMENT_SLOT_ORDER: Array = [
 	ItemDefinition.Slot.TOOL,
 ]
 
-enum Tab { EQUIPMENT, ALL, WEAPONS, ARMOR, TOOLS, MATERIALS, CHARACTER }
+enum Tab { ALL, WEAPONS, ARMOR, TOOLS, MATERIALS, CHARACTER }
 
 const TAB_LABELS: Array = [
-	"Equipment",
 	"All Items",
 	"Weapons",
 	"Armor",
@@ -65,7 +64,6 @@ var _current_tab: int = Tab.ALL
 var _tab_buttons: Array[Button] = []
 var _tab_column: VBoxContainer = null
 var _content_stack: Control = null
-var _eq_page: Control = null
 var _grid_page: VBoxContainer = null
 var _inv_slots: Array[HotbarSlot] = []
 var _eq_slots: Array[HotbarSlot] = []
@@ -74,7 +72,6 @@ var _grid: GridContainer = null
 var _grid_scroll: ScrollContainer = null
 var _paperdoll: Control = null
 var _char_page: VBoxContainer = null
-var _level_up_panel: LevelUpPanel = null
 var _char_preview_root: Node2D = null
 var _char_preview_viewport: SubViewport = null
 var _char_preview_rect: TextureRect = null
@@ -272,7 +269,7 @@ func _build() -> void:
 
 	# Main panel with fantasy frame.
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(720, 460)
+	panel.custom_minimum_size = Vector2(880, 460)
 	panel.theme_type_variation = &"WoodPanel"
 	center.add_child(panel)
 
@@ -300,7 +297,7 @@ func _build() -> void:
 	vsep.theme_type_variation = &"WoodSep"
 	content_row.add_child(vsep)
 
-	# Right: content stack (only one child visible at a time).
+	# Middle: content stack (only one child visible at a time).
 	var content_margin := MarginContainer.new()
 	content_margin.add_theme_constant_override("margin_left", 12)
 	content_margin.add_theme_constant_override("margin_right", 12)
@@ -315,11 +312,7 @@ func _build() -> void:
 	_content_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content_margin.add_child(_content_stack)
 
-	# Build all content pages.
-	_eq_page = _build_equipment_page()
-	_eq_page.visible = false
-	_content_stack.add_child(_eq_page)
-
+	# Build content pages (no Equipment page — doll is always visible at right).
 	_grid_page = _build_grid_page()
 	_content_stack.add_child(_grid_page)
 
@@ -327,10 +320,24 @@ func _build() -> void:
 	_char_page.visible = false
 	_content_stack.add_child(_char_page)
 
-	_level_up_panel = LevelUpPanel.new()
-	_level_up_panel.name = "LevelUpPanel"
-	_level_up_panel.visible = false
-	_content_stack.add_child(_level_up_panel)
+	# Right separator.
+	var rsep := Panel.new()
+	rsep.custom_minimum_size = Vector2(2, 0)
+	rsep.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rsep.theme_type_variation = &"WoodSep"
+	content_row.add_child(rsep)
+
+	# Right column: permanent paper doll.
+	var doll_margin := MarginContainer.new()
+	doll_margin.add_theme_constant_override("margin_left", 8)
+	doll_margin.add_theme_constant_override("margin_right", 8)
+	doll_margin.add_theme_constant_override("margin_top", 8)
+	doll_margin.add_theme_constant_override("margin_bottom", 8)
+	doll_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content_row.add_child(doll_margin)
+
+	_paperdoll = _build_paperdoll()
+	doll_margin.add_child(_paperdoll)
 
 	# Bottom: controls hint bar.
 	_controls_bar = _build_controls_bar()
@@ -437,18 +444,6 @@ func _build_grid_page() -> VBoxContainer:
 	_detail_label = _detail_desc_label
 	page.add_child(detail_box)
 
-	return page
-
-
-func _build_equipment_page() -> HBoxContainer:
-	var page := HBoxContainer.new()
-	page.add_theme_constant_override("separation", 14)
-	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	page.anchor_right = 1.0
-	page.anchor_bottom = 1.0
-
-	_paperdoll = _build_paperdoll()
-	page.add_child(_paperdoll)
 	return page
 
 
@@ -578,23 +573,13 @@ func _select_tab(tab_idx: int) -> void:
 			&"WoodTabButtonActive" if active else &"WoodTabButton"
 
 	# Show the appropriate content page.
-	_eq_page.visible = (tab_idx == Tab.EQUIPMENT)
-	_grid_page.visible = (tab_idx not in [Tab.EQUIPMENT, Tab.CHARACTER])
-	_char_page.visible = (tab_idx == Tab.CHARACTER) and (_player == null or _player._pending_stat_points <= 0)
+	_grid_page.visible = (tab_idx != Tab.CHARACTER)
+	_char_page.visible = (tab_idx == Tab.CHARACTER)
 	if tab_idx == Tab.CHARACTER:
-		# Show level-up panel instead of character builder if stat points pending.
-		var has_points: bool = _player != null and _player._pending_stat_points > 0
-		if has_points:
-			if _level_up_panel != null and _player != null:
-				_level_up_panel.setup(_player)
-				_level_up_panel.visible = true
-			_char_page.visible = false
-		else:
-			if _level_up_panel != null:
-				_level_up_panel.visible = false
-			_load_char_opts_from_session()
-			_refresh_char_preview()
-			_refresh_char_labels()
+		_load_char_opts_from_session()
+		_refresh_char_preview()
+		_refresh_char_labels()
+		_refresh_char_stats()
 
 	_cursor = 0
 	_refresh()
@@ -608,11 +593,6 @@ func _cycle_tab(dir: int) -> void:
 # ---------- Cursor navigation ----------
 
 func _move_cursor(dx: int, dy: int) -> void:
-	if _current_tab == Tab.EQUIPMENT:
-		# Navigate equipment slots (5 slots, vertical list).
-		_cursor = clampi(_cursor + dy + dx, 0, EQUIPMENT_SLOT_ORDER.size() - 1)
-		_refresh_cursor()
-		return
 	if _current_tab == Tab.CHARACTER:
 		_move_char_cursor(dx, dy)
 		return
@@ -631,16 +611,6 @@ func _move_cursor(dx: int, dy: int) -> void:
 
 
 func _refresh_cursor() -> void:
-	if _current_tab == Tab.EQUIPMENT:
-		# Highlight the equipment slot.
-		if _cursor >= 0 and _cursor < _eq_slots.size():
-			var slot: HotbarSlot = _eq_slots[_cursor]
-			_cursor_panel.visible = true
-			_cursor_panel.global_position = slot.global_position - Vector2(2, 2)
-			_cursor_panel.size = slot.size + Vector2(4, 4)
-		_update_detail_equipment()
-		return
-
 	if _current_tab == Tab.CHARACTER:
 		_cursor_panel.visible = false
 		_clear_detail("")
@@ -723,16 +693,6 @@ func _clear_detail(text: String = "(empty)") -> void:
 func _interact_cursor() -> void:
 	if _player == null:
 		return
-	if _current_tab == Tab.EQUIPMENT:
-		# Unequip the selected slot.
-		if _cursor >= 0 and _cursor < EQUIPMENT_SLOT_ORDER.size():
-			var slot_type: int = EQUIPMENT_SLOT_ORDER[_cursor]
-			var eq_id: StringName = _player.equipment.get_equipped(slot_type)
-			if eq_id != &"":
-				_player.equipment.unequip(slot_type)
-				_player.inventory.add(eq_id, 1)
-		return
-
 	if _current_tab == Tab.CHARACTER:
 		return
 
@@ -772,16 +732,6 @@ func _interact_cursor() -> void:
 func _drop_cursor() -> void:
 	if _player == null:
 		return
-	if _current_tab == Tab.EQUIPMENT:
-		# Drop equipped item.
-		if _cursor >= 0 and _cursor < EQUIPMENT_SLOT_ORDER.size():
-			var slot_type: int = EQUIPMENT_SLOT_ORDER[_cursor]
-			var eq_id: StringName = _player.equipment.get_equipped(slot_type)
-			if eq_id != &"":
-				_player.equipment.unequip(slot_type)
-				_spawn_loot_pickup(eq_id, 1)
-		return
-
 	if _current_tab == Tab.CHARACTER:
 		return
 
@@ -1168,6 +1118,10 @@ func _make_slot() -> HotbarSlot:
 	count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(count_label)
 	return slot
+
+
+func _refresh_char_stats() -> void:
+	pass  # Implemented in Task 7
 
 
 # ---------- Test helpers ----------
