@@ -82,6 +82,7 @@ var _char_opts: Dictionary = {}
 var _detail_label: Label = null
 var _detail_name_label: Label = null
 var _detail_desc_label: Label = null
+var _detail_meta_label: Label = null
 var _tooltip_label: Label = null
 var _controls_bar: PanelContainer = null
 var _controls_label: RichTextLabel = null
@@ -434,20 +435,27 @@ func _build_grid_page() -> VBoxContainer:
 	_cursor_panel.z_index = 10
 	page.add_child(_cursor_panel)
 
-	# Detail panel below grid: name (rarity colored) + generated description.
+	# Detail panel below grid: name + slot/power meta + description.
 	var detail_box := VBoxContainer.new()
 	detail_box.add_theme_constant_override("separation", 2)
 	detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	detail_box.custom_minimum_size = Vector2(0, 48)
+	detail_box.custom_minimum_size = Vector2(0, 60)
 
 	_detail_name_label = Label.new()
 	_detail_name_label.theme_type_variation = &"DimLabel"
 	_detail_name_label.text = ""
 	detail_box.add_child(_detail_name_label)
 
+	_detail_meta_label = Label.new()
+	_detail_meta_label.add_theme_font_size_override("font_size", 11)
+	_detail_meta_label.add_theme_color_override("font_color", UITheme.COL_LABEL_DIM)
+	_detail_meta_label.text = ""
+	_detail_meta_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_box.add_child(_detail_meta_label)
+
 	_detail_desc_label = Label.new()
 	_detail_desc_label.theme_type_variation = &"HintLabel"
-	_detail_desc_label.text = "(empty)"
+	_detail_desc_label.text = "(select an item)"
 	_detail_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_desc_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_box.add_child(_detail_desc_label)
@@ -697,12 +705,27 @@ func _show_item_detail(def: ItemDefinition, prefix: String = "") -> void:
 		name_text += " [%s]" % rarity_name
 	_detail_name_label.text = name_text
 	_detail_name_label.add_theme_color_override("font_color", rarity_color)
+
+	# Meta line: slot + power + stack size for materials.
+	if _detail_meta_label != null:
+		var meta_parts: Array[String] = []
+		var slot_name: String = slot_label(int(def.slot))
+		if slot_name != "?":
+			meta_parts.append(slot_name)
+		if def.power > 0:
+			meta_parts.append("Power: %d" % def.power)
+		if def.slot == ItemDefinition.Slot.NONE:
+			meta_parts.append("Stack: %d" % def.stack_size)
+		_detail_meta_label.text = "  ·  ".join(meta_parts)
+
 	_detail_desc_label.text = def.generate_description()
 
 
-func _clear_detail(text: String = "(empty)") -> void:
+func _clear_detail(text: String = "(select an item)") -> void:
 	_detail_name_label.text = ""
 	_detail_name_label.add_theme_color_override("font_color", UITheme.COL_LABEL)
+	if _detail_meta_label != null:
+		_detail_meta_label.text = ""
 	_detail_desc_label.text = text
 
 
