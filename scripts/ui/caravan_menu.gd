@@ -84,12 +84,22 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 	if _focus == _Focus.LEFT:
+		const _COLS: int = 3  # matches GridContainer columns
+		var count: int = max(1, _member_buttons.size())
 		if PlayerActions.just_pressed(event, _player_id, PlayerActions.UP):
-			_member_cursor = wrapi(_member_cursor - 1, 0, max(1, _member_buttons.size()))
+			_member_cursor = wrapi(_member_cursor - _COLS, 0, count)
 			_refresh_member_cursor()
 			get_viewport().set_input_as_handled()
 		elif PlayerActions.just_pressed(event, _player_id, PlayerActions.DOWN):
-			_member_cursor = wrapi(_member_cursor + 1, 0, max(1, _member_buttons.size()))
+			_member_cursor = wrapi(_member_cursor + _COLS, 0, count)
+			_refresh_member_cursor()
+			get_viewport().set_input_as_handled()
+		elif PlayerActions.just_pressed(event, _player_id, PlayerActions.LEFT):
+			_member_cursor = wrapi(_member_cursor - 1, 0, count)
+			_refresh_member_cursor()
+			get_viewport().set_input_as_handled()
+		elif PlayerActions.just_pressed(event, _player_id, PlayerActions.RIGHT):
+			_member_cursor = wrapi(_member_cursor + 1, 0, count)
 			_refresh_member_cursor()
 			get_viewport().set_input_as_handled()
 		elif PlayerActions.just_pressed(event, _player_id, PlayerActions.INTERACT):
