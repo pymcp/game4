@@ -96,6 +96,7 @@ func _level_up() -> void:
 	if passive != &"":
 		_unlock_passive(passive)
 	_pending_stat_points += 1
+	ActionParticles.flash_level_up(self)
 	leveled_up.emit(player_id, level)
 
 ## Unlock a passive and apply its immediate effect.
