@@ -632,11 +632,12 @@ func _move_cursor(dx: int, dy: int) -> void:
 	var total: int = _filtered_view.size()
 	if total == 0:
 		return
-	var col: int = _cursor % COLS
-	var row: int = _cursor / COLS
-	col = clampi(col + dx, 0, COLS - 1)
-	row = clampi(row + dy, 0, (total - 1) / COLS)
-	var new_idx: int = row * COLS + col
+	var num_cols: int = _grid.columns if _grid != null and _grid.columns > 0 else COLS
+	var col: int = _cursor % num_cols
+	var row: int = _cursor / num_cols
+	col = clampi(col + dx, 0, num_cols - 1)
+	row = clampi(row + dy, 0, (total - 1) / num_cols)
+	var new_idx: int = row * num_cols + col
 	_cursor = clampi(new_idx, 0, total - 1)
 	_refresh_cursor()
 
@@ -863,18 +864,22 @@ func _refresh() -> void:
 	# Build filtered inventory view for current tab.
 	_build_filtered_view()
 
-	# Compute how many rows fit in the visible scroll area (fills the panel).
-	# SLOT_SZ + v_separation (4) = row height; fall back to ROWS if not laid out yet.
-	var row_h: float = SLOT_SZ + 4.0
+	# Compute how many columns and rows fit in the visible scroll area (fills the panel).
+	# slot_cell = SLOT_SZ + separation(4).
+	var cell: float = SLOT_SZ + 4.0
+	var dyn_cols: int = COLS
 	var dyn_rows: int = ROWS
+	if _grid_scroll != null and _grid_scroll.size.x > 0:
+		dyn_cols = maxi(int(_grid_scroll.size.x / cell), COLS)
 	if _grid_scroll != null and _grid_scroll.size.y > 0:
-		dyn_rows = maxi(int(_grid_scroll.size.y / row_h), ROWS)
+		dyn_rows = maxi(int(_grid_scroll.size.y / cell), ROWS)
+	_grid.columns = dyn_cols
 
-	# Ensure enough grid slots exist (at least dyn_rows, or as many as needed
-	# for the filtered view).
-	var needed: int = maxi(_filtered_view.size(), COLS * dyn_rows)
+	# Ensure enough grid slots exist (at least dyn_cols*dyn_rows, or as many as
+	# needed for the filtered view).
+	var needed: int = maxi(_filtered_view.size(), dyn_cols * dyn_rows)
 	# Round up to full row.
-	needed = ceili(float(needed) / COLS) * COLS
+	needed = ceili(float(needed) / dyn_cols) * dyn_cols
 	while _inv_slots.size() < needed:
 		var slot := _make_slot()
 		_grid.add_child(slot)
