@@ -215,6 +215,11 @@ static func get_element(kind: StringName) -> int:
 		_: return ItemDefinition.Element.NONE
 
 
+## XP reward granted when this creature is killed. Defaults to 10.
+static func get_xp_reward(kind: StringName) -> int:
+	return int(get_entry(kind).get("xp_reward", 10))
+
+
 ## All creature kinds that are mounts.
 static func all_mount_kinds() -> Array:
 	_ensure_loaded()
