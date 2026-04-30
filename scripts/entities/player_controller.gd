@@ -551,7 +551,10 @@ func _tick_auto_mine() -> void:
 	_play_action_vfx(best_cell, is_mineable, res)
 	if res.get("destroyed", false):
 		for d in res.get("drops", []):
-			inventory.add(d["id"], d["count"])
+			var cnt: int = d["count"]
+			if &"scavenger" in unlocked_passives and randf() < 0.25:
+				cnt *= 2
+			inventory.add(d["id"], cnt)
 	_attack_cooldown = ATTACK_COOLDOWN_SEC
 
 
@@ -713,8 +716,16 @@ func _compute_mine_damage(target_cell: Vector2i) -> int:
 ## Records a kill in the TravelLog if [param entity] is now dead.
 func _try_record_kill(entity: Node) -> void:
 	var h: Variant = entity.get("health")
-	if h != null and int(h) <= 0 and caravan_data != null \
-			and caravan_data.travel_logs.size() > player_id:
+	if h == null or int(h) > 0:
+		return
+	# Grant XP for the kill. Monster uses "monster_kind", NPC uses "kind".
+	var kind_v: Variant = entity.get("monster_kind")
+	if kind_v == null or StringName(kind_v) == &"":
+		kind_v = entity.get("kind")
+	if kind_v != null and StringName(kind_v) != &"":
+		gain_xp(CreatureSpriteRegistry.get_xp_reward(StringName(kind_v)))
+	# Record kill in caravan travel log.
+	if caravan_data != null and caravan_data.travel_logs.size() > player_id:
 		caravan_data.travel_logs[player_id].record_kill()
 
 
@@ -749,7 +760,10 @@ func try_attack() -> Dictionary:
 		return res
 	if res.get("destroyed", false):
 		for d in res.get("drops", []):
-			inventory.add(d["id"], d["count"])
+			var cnt: int = d["count"]
+			if &"scavenger" in unlocked_passives and randf() < 0.25:
+				cnt *= 2
+			inventory.add(d["id"], cnt)
 	return res
 
 
