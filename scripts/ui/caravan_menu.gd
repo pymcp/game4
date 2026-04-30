@@ -18,6 +18,9 @@ var _caravan_data: CaravanData = null
 ## Emitted when the player wants to swap their active pet.
 signal swap_pet_requested(player_id: int, species: StringName)
 
+## Emitted when the player presses Build in the builder panel.
+signal build_requested(player_id: int, structure_id: StringName)
+
 ## Reference to the World node, for reading pet roster.
 var _world_node: Node = null
 
@@ -210,6 +213,21 @@ func _on_member_selected(member_id: StringName) -> void:
 	if def == null:
 		return
 
+	if def.crafter_domain == &"builder":
+		for child in _right_panel.get_children():
+			child.queue_free()
+		_current_crafter = null
+		var bp := _BuilderPanel.new()
+		bp.anchor_right = 1.0
+		bp.anchor_bottom = 1.0
+		bp.setup(def, _caravan_data)
+		bp.build_pressed.connect(func(sid: StringName) -> void:
+			close()
+			build_requested.emit(_player_id, sid)
+		)
+		_right_panel.add_child(bp)
+		return
+
 	if def.crafter_domain != &"":
 		_current_crafter = CrafterPanel.new()
 		_current_crafter.name = "ActiveCrafter"
@@ -237,4 +255,65 @@ func _on_member_selected(member_id: StringName) -> void:
 
 
 # ─── Pet panel ─────────────────────────────────────────────────────────
+
+
+class _BuilderPanel extends VBoxContainer:
+	signal build_pressed(structure_id: StringName)
+
+	var _caravan_data: CaravanData = null
+
+	func setup(def: PartyMemberDef, caravan_data: CaravanData) -> void:
+		_caravan_data = caravan_data
+		add_theme_constant_override("separation", 8)
+		var title := Label.new()
+		title.text = "Builder"
+		title.theme_type_variation = &"TitleLabel"
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		add_child(title)
+		var sep := HSeparator.new()
+		add_child(sep)
+		var section := Label.new()
+		section.text = "Structures"
+		section.theme_type_variation = &"DimLabel"
+		add_child(section)
+		for entry: Dictionary in def.builds:
+			_add_build_row(entry)
+
+	func _add_build_row(entry: Dictionary) -> void:
+		var sid: StringName = StringName(entry.get("id", ""))
+		var display: String = entry.get("display_name", String(sid))
+		var cost: Dictionary = entry.get("cost", {})
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		add_child(row)
+		# Name label.
+		var name_lbl := Label.new()
+		name_lbl.text = display
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name_lbl)
+		# Cost label (green if affordable, red if not).
+		var cost_parts: Array[String] = []
+		var can_afford: bool = true
+		for item_id in cost:
+			var needed: int = int(cost[item_id])
+			var have: int = _caravan_data.inventory.count_of(StringName(item_id)) \
+					if _caravan_data != null and _caravan_data.inventory != null else 0
+			var item_def: ItemDefinition = ItemRegistry.get_item(StringName(item_id))
+			var item_name: String = item_def.display_name if item_def != null else item_id
+			cost_parts.append("%d %s" % [needed, item_name])
+			if have < needed:
+				can_afford = false
+		var cost_lbl := Label.new()
+		cost_lbl.text = ", ".join(cost_parts)
+		cost_lbl.add_theme_color_override("font_color",
+				Color(0.4, 1.0, 0.4) if can_afford else Color(1.0, 0.4, 0.4))
+		cost_lbl.add_theme_font_size_override("font_size", 11)
+		row.add_child(cost_lbl)
+		# Build button.
+		var btn := Button.new()
+		btn.text = "Build"
+		btn.theme_type_variation = &"WoodButton"
+		btn.disabled = not can_afford
+		btn.pressed.connect(func() -> void: build_pressed.emit(sid))
+		row.add_child(btn)
 

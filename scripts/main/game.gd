@@ -190,6 +190,7 @@ func _wire_hud_and_cameras() -> void:
 	if _caravan_menu_p1 != null and p1 != null:
 		_caravan_menu_p1.setup(p1, p1.caravan_data, _world)
 		_caravan_menu_p1.swap_pet_requested.connect(_world.swap_active_pet)
+		_caravan_menu_p1.build_requested.connect(_world.start_house_placement)
 		var caravan_p1: Caravan = _world.get_caravan(0)
 		if caravan_p1 != null:
 			caravan_p1.interacted.connect(
@@ -198,6 +199,7 @@ func _wire_hud_and_cameras() -> void:
 	if _caravan_menu_p2 != null and p2 != null:
 		_caravan_menu_p2.setup(p2, p2.caravan_data, _world)
 		_caravan_menu_p2.swap_pet_requested.connect(_world.swap_active_pet)
+		_caravan_menu_p2.build_requested.connect(_world.start_house_placement)
 		var caravan_p2: Caravan = _world.get_caravan(1)
 		if caravan_p2 != null:
 			caravan_p2.interacted.connect(
