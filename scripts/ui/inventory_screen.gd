@@ -79,6 +79,12 @@ var _char_row_labels: Array[Label] = []
 var _char_value_labels: Array[Label] = []
 var _char_cursor: int = 0
 var _char_opts: Dictionary = {}
+var _char_stats_container: VBoxContainer = null
+var _char_xp_bar: XpBar = null
+var _char_stat_value_labels: Dictionary = {}   # StringName stat -> Label
+var _char_stat_plus_buttons: Dictionary = {}   # StringName stat -> Button
+var _char_pending_label: Label = null
+var _char_passives_label: Label = null
 var _detail_label: Label = null
 var _detail_name_label: Label = null
 var _detail_desc_label: Label = null
@@ -879,6 +885,8 @@ func _refresh() -> void:
 	_cursor = clampi(_cursor, 0, max_cursor)
 	_refresh_cursor()
 	_update_controls_text()
+	if _current_tab == Tab.CHARACTER:
+		_refresh_char_stats()
 
 
 func _build_filtered_view() -> void:
@@ -938,6 +946,10 @@ const _CHAR_ROWS: Array = [
 	["face_variant", "Beard Shape"],
 ]
 
+const _STAT_ORDER: Array[StringName] = [
+	&"strength", &"dexterity", &"defense", &"charisma", &"wisdom", &"speed"
+]
+
 const _CHAR_VIEWPORT_SIZE: int = 32
 
 
@@ -945,6 +957,14 @@ func _build_character_page() -> VBoxContainer:
 	var page := VBoxContainer.new()
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	# --- Stats section ---
+	_char_stats_container = _build_char_stats_section()
+	page.add_child(_char_stats_container)
+
+	var sep := HSeparator.new()
+	sep.add_theme_constant_override("separation", 8)
+	page.add_child(sep)
 
 	var content := HBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1196,8 +1216,137 @@ func _make_slot() -> HotbarSlot:
 	return slot
 
 
+func _build_char_stats_section() -> VBoxContainer:
+	var section := VBoxContainer.new()
+	section.add_theme_constant_override("separation", 4)
+	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	# Level + XP row.
+	var lv_row := HBoxContainer.new()
+	lv_row.add_theme_constant_override("separation", 8)
+	section.add_child(lv_row)
+
+	var lv_label := Label.new()
+	lv_label.text = "Level"
+	lv_label.add_theme_font_size_override("font_size", 13)
+	lv_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
+	lv_label.custom_minimum_size.x = 42
+	lv_row.add_child(lv_label)
+
+	var lv_val := Label.new()
+	lv_val.add_theme_font_size_override("font_size", 13)
+	lv_val.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
+	lv_val.custom_minimum_size.x = 24
+	lv_row.add_child(lv_val)
+	_char_stat_value_labels[&"_level"] = lv_val
+
+	_char_xp_bar = XpBar.new()
+	_char_xp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lv_row.add_child(_char_xp_bar)
+
+	# Pending points label (hidden when 0).
+	_char_pending_label = Label.new()
+	_char_pending_label.add_theme_font_size_override("font_size", 12)
+	_char_pending_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.2))
+	_char_pending_label.visible = false
+	section.add_child(_char_pending_label)
+
+	# Stat rows.
+	for stat: StringName in _STAT_ORDER:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		section.add_child(row)
+
+		var name_lbl := Label.new()
+		name_lbl.text = String(stat).capitalize()
+		name_lbl.custom_minimum_size.x = 90
+		name_lbl.add_theme_font_size_override("font_size", 12)
+		name_lbl.add_theme_color_override("font_color", UITheme.COL_LABEL)
+		row.add_child(name_lbl)
+
+		var val_lbl := Label.new()
+		val_lbl.custom_minimum_size.x = 28
+		val_lbl.add_theme_font_size_override("font_size", 12)
+		val_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+		row.add_child(val_lbl)
+		_char_stat_value_labels[stat] = val_lbl
+
+		var plus_btn := Button.new()
+		plus_btn.text = "[+]"
+		plus_btn.flat = true
+		plus_btn.custom_minimum_size = Vector2(32, 20)
+		plus_btn.add_theme_font_size_override("font_size", 11)
+		plus_btn.visible = false
+		var s: StringName = stat  # capture for closure
+		plus_btn.pressed.connect(func() -> void: _on_stat_plus_pressed(s))
+		row.add_child(plus_btn)
+		_char_stat_plus_buttons[stat] = plus_btn
+
+	# Passives row.
+	_char_passives_label = Label.new()
+	_char_passives_label.add_theme_font_size_override("font_size", 11)
+	_char_passives_label.add_theme_color_override("font_color", UITheme.COL_LABEL_DIM)
+	_char_passives_label.text = ""
+	section.add_child(_char_passives_label)
+
+	return section
+
+
 func _refresh_char_stats() -> void:
-	pass  # Implemented in Task 7
+	if _player == null or _char_stat_value_labels.is_empty():
+		return
+
+	# Level label.
+	var lv_lbl: Label = _char_stat_value_labels.get(&"_level")
+	if lv_lbl != null:
+		lv_lbl.text = str(_player.level)
+
+	# XP bar.
+	if _char_xp_bar != null:
+		_char_xp_bar.update(
+			_player.xp,
+			_player.level,
+			LevelingConfig.xp_to_next(_player.level),
+			_player._pending_stat_points > 0
+		)
+
+	# Stat rows.
+	var has_points: bool = _player._pending_stat_points > 0
+	for stat: StringName in _STAT_ORDER:
+		var val_lbl: Label = _char_stat_value_labels.get(stat)
+		if val_lbl != null:
+			val_lbl.text = str(_player.get_stat(stat))
+		var btn: Button = _char_stat_plus_buttons.get(stat)
+		if btn != null:
+			btn.visible = has_points
+
+	# Pending points header.
+	if _char_pending_label != null:
+		if has_points:
+			_char_pending_label.text = "[%d stat point%s to spend — press [+]]" % [
+				_player._pending_stat_points,
+				"s" if _player._pending_stat_points > 1 else ""
+			]
+			_char_pending_label.visible = true
+		else:
+			_char_pending_label.visible = false
+
+	# Passives.
+	if _char_passives_label != null:
+		if _player.unlocked_passives.is_empty():
+			_char_passives_label.text = ""
+		else:
+			var names: Array[String] = []
+			for p: StringName in _player.unlocked_passives:
+				names.append(String(p).capitalize().replace("_", " "))
+			_char_passives_label.text = "Passives: %s" % ", ".join(names)
+
+
+func _on_stat_plus_pressed(stat: StringName) -> void:
+	if _player == null:
+		return
+	_player.spend_stat_point(stat)
+	_refresh_char_stats()
 
 
 # ---------- Test helpers ----------
