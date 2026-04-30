@@ -482,3 +482,64 @@ func debug_give_all_items() -> void:
 		for item_id in all_ids:
 			player.inventory.add(item_id, 1)
 		print("[F9] gave %d items to P%d" % [all_ids.size(), pid + 1])
+
+
+## Begin house placement for [param pid]. Creates a HousePlacer in the
+## player's current WorldRoot and shows a hint in ControlsHud.
+func start_house_placement(pid: int, structure_id: StringName) -> void:
+	var inst: WorldRoot = get_player_world(pid)
+	if inst == null:
+		return
+	# Remove any existing placer for this player.
+	var existing: Node = inst.get_node_or_null("HousePlacer_P%d" % pid)
+	if existing != null:
+		existing.queue_free()
+	var placer := HousePlacer.new()
+	placer.name = "HousePlacer_P%d" % pid
+	placer.pid = pid
+	placer.structure_id = structure_id
+	placer.world_root = inst
+	placer.confirmed.connect(_on_house_confirmed)
+	placer.cancelled.connect(_on_house_cancelled)
+	inst.add_child(placer)
+	# Show placement hint.
+	var game: Game = Game.instance()
+	if game != null:
+		var hud: ControlsHud = game.get_controls_hud(pid)
+		if hud != null:
+			hud.set_override_hint("Move: position  Interact: confirm  Back/Inv: cancel")
+
+
+func _on_house_confirmed(pid: int, cell: Vector2i) -> void:
+	# Deduct materials.
+	var cd: CaravanData = get_caravan_data(pid)
+	if cd != null:
+		var builder_def: PartyMemberDef = PartyMemberRegistry.get_member(&"builder")
+		if builder_def != null:
+			for build_entry: Dictionary in builder_def.builds:
+				if StringName(build_entry.get("id", "")) == &"house_basic":
+					var cost: Dictionary = build_entry.get("cost", {})
+					for item_id: String in cost:
+						cd.inventory.remove(StringName(item_id), int(cost[item_id]))
+	# Add entrance and update visuals.
+	var inst: WorldRoot = get_player_world(pid)
+	if inst != null:
+		inst.add_house_entrance(cell)
+	# Free placer.
+	var placer: Node = inst.get_node_or_null("HousePlacer_P%d" % pid) if inst != null else null
+	if placer != null:
+		placer.queue_free()
+	# Clear hint and reopen menu.
+	var game: Game = Game.instance()
+	if game != null:
+		game.open_caravan_menu(pid)
+
+
+func _on_house_cancelled(pid: int) -> void:
+	var inst: WorldRoot = get_player_world(pid)
+	var placer: Node = inst.get_node_or_null("HousePlacer_P%d" % pid) if inst != null else null
+	if placer != null:
+		placer.queue_free()
+	var game: Game = Game.instance()
+	if game != null:
+		game.open_caravan_menu(pid)
