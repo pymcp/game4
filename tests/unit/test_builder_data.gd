@@ -10,13 +10,15 @@ func test_builder_is_registered() -> void:
 
 func test_builder_has_builds_field() -> void:
 	var def: PartyMemberDef = PartyMemberDef.new()
-	assert_true(def.has_method("get") or "builds" in def,
-			"PartyMemberDef should have builds property")
+	assert_true("builds" in def, "PartyMemberDef should have builds property")
+	assert_eq(def.builds.size(), 0, "default builds should be empty array")
 
 func test_builder_builds_loaded_from_json() -> void:
 	var def: PartyMemberDef = PartyMemberRegistry.get_member(&"builder")
 	assert_not_null(def)
-	assert_true(def.builds.size() > 0, "builder should have at least one build entry")
+	if def.builds.is_empty():
+		fail_test("builder should have at least one build entry")
+		return
 	var entry: Dictionary = def.builds[0]
 	assert_eq(entry.get("id", ""), "house_basic")
 	assert_true(entry.has("cost"), "build entry should have cost")

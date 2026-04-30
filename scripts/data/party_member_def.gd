@@ -17,4 +17,4 @@ extends Resource
 @export var can_follow: bool = false
 ## Buildable structures for members with crafter_domain == "builder".
 ## Each entry: {id: String, display_name: String, cost: {item_id: count}}.
-@export var builds: Array = []
+@export var builds: Array[Dictionary] = []
