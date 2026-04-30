@@ -34,6 +34,8 @@ const SIZE: int = 128
 @export var runes: Array = []
 ## Placed encounter instances: {encounter_id: StringName, cell: Vector2i}.
 @export var encounters: Array = []
+## Path tiles painted with overlay path indices (1-tile-wide corridor).
+@export var path_tiles: Array[Vector2i] = []
 
 
 func _init() -> void:

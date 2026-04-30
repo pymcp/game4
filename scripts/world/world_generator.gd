@@ -75,6 +75,8 @@ static func generate_region(world_seed: int, plan: RegionPlan, plans: Dictionary
 	_place_dungeon_entrances(region)
 	_place_labyrinth_entrances(region)
 	_place_runes(region)
+	if plan.region_id == Vector2i(0, 0) and not plan.is_ocean:
+		_generate_starting_region_features(region)
 	return region
 
 
@@ -192,54 +194,44 @@ static func _carve_terrain(region: Region, plan: RegionPlan) -> void:
 				else:
 					region.tiles[y * size + x] = primary
 
-	# Dissolve isolated single-tile secondary blobs. A secondary cell with
-	# no orthogonal same-type neighbor would render as a lonely 1×1 square
-	# on the patch overlay (since the patch corner tiles need at least one
-	# neighbor to read as part of a larger blob). Reverting them to
-	# primary keeps the world looking clean. We snapshot the tiles array
-	# so neighbor lookups during dissolve see the pre-dissolve state.
-	# Iterative erosion: remove any secondary cell that would produce a
-	# 1-tile protrusion — defined as a cell that does NOT have at least two
-	# adjacent (non-opposite) secondary cardinal neighbours:
-	#   • 0 secondary neighbours  → isolated pixel (already covered)
-	#   • 1 secondary neighbour   → arm tip  (needs 2 corners on one tile)
-	#   • N+S only, W+E both prim → 1-tile-wide vertical strip
-	#   • W+E only, N+S both prim → 1-tile-wide horizontal strip
-	# We iterate until no further cells are removed, so the whole arm
-	# shrinks inward pass-by-pass rather than leaving an orphaned middle.
-	var changed: bool = true
-	while changed:
-		changed = false
-		var before: PackedByteArray = region.tiles.duplicate()
-		for y in size:
-			for x in size:
-				var i: int = y * size + x
-				if before[i] != secondary:
-					continue
-				var n_sec: bool = y > 0         and before[i - size] == secondary
-				var s_sec: bool = y < size - 1  and before[i + size] == secondary
-				var w_sec: bool = x > 0         and before[i - 1]    == secondary
-				var e_sec: bool = x < size - 1  and before[i + 1]    == secondary
-				var cnt: int = int(n_sec) + int(s_sec) + int(w_sec) + int(e_sec)
-				# Keep the cell if it has at least two adjacent (non-opposite)
-				# secondary cardinal neighbours.  Opposite pairs (N+S, W+E) with
-				# nothing else would make a 1-tile-wide corridor.
-				var is_protrusion: bool = (
-					cnt == 0 or cnt == 1
-					or (n_sec and s_sec and not w_sec and not e_sec)
-					or (w_sec and e_sec and not n_sec and not s_sec))
-				if is_protrusion:
-					region.tiles[i] = primary
-					changed = true
+	# Erosion pass for secondary terrain:
+	# 20-tile overlay sets (dirt/stone/snow) have dedicated path tiles for
+	# every shape, so no erosion needed — thin strips and isolated dots all
+	# render correctly. 13-tile sets (grass/mud/purple) lack path tiles, so
+	# protrusions must be dissolved back to primary terrain.
+	var needs_sec_erosion: bool = true
+	var overlay_sets: Dictionary = TilesetCatalog.OVERWORLD_OVERLAY_SETS
+	var oset_arr: Variant = overlay_sets.get(biome.overlay_set, null)
+	if oset_arr is Array and (oset_arr as Array).size() >= 20:
+		needs_sec_erosion = false
+	if needs_sec_erosion:
+		var changed: bool = true
+		while changed:
+			changed = false
+			var before: PackedByteArray = region.tiles.duplicate()
+			for y in size:
+				for x in size:
+					var i: int = y * size + x
+					if before[i] != secondary:
+						continue
+					var n_sec: bool = y > 0         and before[i - size] == secondary
+					var s_sec: bool = y < size - 1  and before[i + size] == secondary
+					var w_sec: bool = x > 0         and before[i - 1]    == secondary
+					var e_sec: bool = x < size - 1  and before[i + 1]    == secondary
+					var cnt: int = int(n_sec) + int(s_sec) + int(w_sec) + int(e_sec)
+					var is_protrusion: bool = (
+						cnt == 0 or cnt == 1
+						or (n_sec and s_sec and not w_sec and not e_sec)
+						or (w_sec and e_sec and not n_sec and not s_sec))
+					if is_protrusion:
+						region.tiles[i] = primary
+						changed = true
 
-	# Same iterative erosion for water (interior shallow water cells driven
-	# by elevation noise). OCEAN is treated as the same "water family" so
-	# water touching the forced ocean ring is not stripped, but water
-	# protrusions that jut into land as 1-tile-wide columns/rows are
-	# dissolved back to primary terrain.
-	changed = true
-	while changed:
-		changed = false
+	# Water erosion always runs regardless of overlay set — water has no
+	# path-tile equivalents.
+	var water_changed: bool = true
+	while water_changed:
+		water_changed = false
 		var before_w: PackedByteArray = region.tiles.duplicate()
 		for y in size:
 			for x in size:
@@ -258,7 +250,7 @@ static func _carve_terrain(region: Region, plan: RegionPlan) -> void:
 					or (w_w and e_w and not n_w and not s_w))
 				if is_protrusion:
 					region.tiles[i] = primary
-					changed = true
+					water_changed = true
 
 
 static func _cell_on_bleed_edge(x: int, y: int, edges: int, size: int) -> bool:
@@ -549,3 +541,94 @@ static func _place_runes(region: Region) -> void:
 			"atlas": Vector2i(rng.randi_range(0, 3), rng.randi_range(0, 3)),
 		})
 		placed += 1
+
+
+## Carve a dirt patch around spawn and a 1-tile-wide random-walk path to the
+## nearest dungeon/labyrinth entrance. Only called for region (0, 0).
+static func _generate_starting_region_features(region: Region) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = region.seed ^ 0x5781c0
+	var size := Region.SIZE
+
+	# Determine spawn anchor — first spawn point or center.
+	var anchor: Vector2i = Vector2i(size / 2, size / 2)
+	if not region.spawn_points.is_empty():
+		anchor = region.spawn_points[0]
+
+	# ── Guarantee a cave entrance ────────────────────────────────────────
+	# _place_dungeon_entrances only drops entrances on ROCK/DIRT cells, which
+	# are rare in the default grass biome. Force-place one if missing.
+	if region.dungeon_entrances.is_empty():
+		var goal: Vector2i = Vector2i(-1, -1)
+		var attempts: int = 0
+		while goal == Vector2i(-1, -1) and attempts < 500:
+			attempts += 1
+			var dist: int = rng.randi_range(20, 40)
+			var angle: float = rng.randf() * TAU
+			var cx: int = clamp(anchor.x + int(cos(angle) * float(dist)), 4, size - 5)
+			var cy: int = clamp(anchor.y + int(sin(angle) * float(dist)), 4, size - 5)
+			var c := Vector2i(cx, cy)
+			if TerrainCodes.is_walkable(region.at(c)):
+				goal = c
+		if goal != Vector2i(-1, -1):
+			region.dungeon_entrances.append({"kind": &"dungeon", "cell": goal})
+
+	if region.dungeon_entrances.is_empty():
+		return
+
+	var entrance_cell: Vector2i = region.dungeon_entrances[0]["cell"]
+
+	# ── Dirt patch (noise-blob around spawn) ─────────────────────────────
+	var patch_radius: int = 7
+	for dy in range(-patch_radius, patch_radius + 1):
+		for dx in range(-patch_radius, patch_radius + 1):
+			var dist_sq: float = float(dx * dx + dy * dy)
+			# Organic blob: use noise-like threshold that varies with distance.
+			var threshold: float = float(patch_radius * patch_radius)
+			# Add some randomness proportional to radial distance.
+			var jitter: float = rng.randf_range(-10.0, 10.0)
+			if dist_sq > threshold + jitter:
+				continue
+			var c := Vector2i(anchor.x + dx, anchor.y + dy)
+			if c.x < 0 or c.y < 0 or c.x >= size or c.y >= size:
+				continue
+			if not TerrainCodes.is_walkable(region.at(c)):
+				continue
+			region.tiles[c.y * size + c.x] = TerrainCodes.DIRT
+
+	# ── Gentle random-walk path from anchor to entrance ──────────────────
+	var pos: Vector2i = anchor
+	var visited: Dictionary = {}
+	var max_steps: int = 300
+	for _i in max_steps:
+		if pos == entrance_cell:
+			break
+		visited[pos] = true
+		region.tiles[pos.y * size + pos.x] = TerrainCodes.DIRT
+		region.path_tiles.append(pos)
+
+		# 70% chance: step toward goal (Manhattan); 30% chance: random cardinal.
+		var step: Vector2i
+		if rng.randf() < 0.7:
+			var dx: int = entrance_cell.x - pos.x
+			var dy: int = entrance_cell.y - pos.y
+			if abs(dx) >= abs(dy):
+				step = Vector2i(sign(dx), 0)
+			else:
+				step = Vector2i(0, sign(dy))
+		else:
+			var dirs: Array[Vector2i] = [
+				Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)
+			]
+			step = dirs[rng.randi() % 4]
+
+		var next: Vector2i = pos + step
+		next.x = clamp(next.x, 0, size - 1)
+		next.y = clamp(next.y, 0, size - 1)
+		if TerrainCodes.is_walkable(region.at(next)) or next == entrance_cell:
+			pos = next
+
+	# Append the entrance cell itself so the path visually connects.
+	if pos == entrance_cell and not (entrance_cell in region.path_tiles):
+		region.tiles[entrance_cell.y * size + entrance_cell.x] = TerrainCodes.DIRT
+		region.path_tiles.append(entrance_cell)

@@ -335,31 +335,18 @@ func _paint_region(region: Region) -> void:
 	var seed_hash: int = region.seed
 	var biome: BiomeDefinition = BiomeRegistry.get_biome(region.biome)
 
-	# ── Secondary-terrain blob setup ───────────────────────────────────────
-	# Determine if this biome has a secondary terrain that benefits from
-	# opaque transition tiles. Water-as-secondary is skipped here because
-	# the dedicated water-border pass handles those cells.
+	# ── Secondary-terrain overlay setup ────────────────────────────────────
+	# Transparent Kenney overlay tiles painted on the Patch layer above the
+	# primary Ground tile. Water-as-secondary is skipped — the water-border
+	# pass handles those cells separately.
 	var overlay_code: int = -1
-	var prim_name: StringName = &""
-	var sec_name: StringName = &""
-	var transition_row: int = -1
-	# Old 9-tile transparent-overlay fallback (used when no transition row exists).
-	var primary_cell: Vector2i = Vector2i(-1, -1)
-	var patch_cells: Array = []
-	if biome != null:
-		sec_name = TerrainCodes.to_terrain_type(biome.secondary_terrain)
-		prim_name = TerrainCodes.to_terrain_type(biome.primary_terrain)
+	var overlay_cells: Array = []
+	if biome != null and not biome.overlay_set.is_empty():
 		if not _is_water_code(biome.secondary_terrain):
 			overlay_code = biome.secondary_terrain
-			var tkey: StringName = StringName(prim_name + "_" + sec_name)
-			transition_row = int(TilesetCatalog.TERRAIN_TRANSITION_ROWS.get(tkey, -1))
-			if transition_row < 0:
-				# Fallback: old transparent patch overlay system.
-				var pset: Variant = TilesetCatalog.OVERWORLD_TERRAIN_PATCH_3X3.get(sec_name, null)
-				var sec_walkable: bool = bool(TilesetCatalog.WALKABLE.get(sec_name, false))
-				if sec_walkable and pset is Array and (pset as Array).size() >= 9:
-					patch_cells = pset
-					primary_cell = TilesetCatalog.cell_for(&"overworld", prim_name)
+			var oset: Variant = TilesetCatalog.OVERWORLD_OVERLAY_SETS.get(biome.overlay_set, null)
+			if oset is Array:
+				overlay_cells = oset as Array
 
 	for y in size:
 		for x in size:
@@ -368,41 +355,38 @@ func _paint_region(region: Region) -> void:
 			var terrain: StringName = TerrainCodes.to_terrain_type(code)
 			var hash32: int = seed_hash ^ (x * 73856093) ^ (y * 19349663)
 
-			if overlay_code >= 0 and code == overlay_code:
+			if overlay_code >= 0 and code == overlay_code and overlay_cells.size() >= 13:
 				# Secondary terrain blob cell.
+				# Paint primary terrain underneath on Ground, overlay tile on Patch.
+				var prim_cell: Vector2i = TilesetCatalog.cell_for(&"overworld",
+						TerrainCodes.to_terrain_type(biome.primary_terrain))
+				ground.set_cell(cell, 0, prim_cell, 0)
 				var idx: int = _patch_index_for_neighbors(region, x, y, overlay_code, size)
-				if transition_row >= 0:
-					# New opaque blend system: paint directly on Ground.
-					if idx == 4:
-						# Center: use original secondary art from overworld sheet.
-						var ac := TilesetCatalog.cell_for_variant(&"overworld", terrain, hash32)
-						ground.set_cell(cell, 0, ac, 0)
-					else:
-						ground.set_cell(cell, TilesetCatalog.TRANSITIONS_SOURCE_ID,
-								Vector2i(idx, transition_row), 0)
-				elif primary_cell.x >= 0:
-					# Old fallback: paint primary under + transparent patch on top.
-					ground.set_cell(cell, 0, primary_cell, 0)
-					patch.set_cell(cell, 0, patch_cells[mini(idx, 8)], 0)
-				else:
-					var ac := TilesetCatalog.cell_for_variant(&"overworld", terrain, hash32)
-					ground.set_cell(cell, 0, ac, 0)
+				# Clamp idx for 13-tile sets (no path tiles → fall back to center).
+				idx = mini(idx, overlay_cells.size() - 1)
+				patch.set_cell(cell, 0, overlay_cells[idx], 0)
 			else:
 				var atlas_cell: Vector2i = TilesetCatalog.cell_for_variant(
 						&"overworld", terrain, hash32)
 				if atlas_cell.x >= 0:
 					ground.set_cell(cell, 0, atlas_cell, 0)
-				# Phase 2 — biome border bleed cells: apply transition when this
-				# cell is a foreign-biome primary terrain intruding into this biome.
-				if biome != null and code != biome.primary_terrain and not _is_water_code(code):
-					var bleed_key := StringName(prim_name + "_" + terrain)
-					var bleed_row: int = int(
-							TilesetCatalog.TERRAIN_TRANSITION_ROWS.get(bleed_key, -1))
-					if bleed_row >= 0:
-						var idx: int = _patch_index_for_neighbors(region, x, y, code, size)
-						if idx != 4:
-							ground.set_cell(cell, TilesetCatalog.TRANSITIONS_SOURCE_ID,
-									Vector2i(idx, bleed_row), 0)
+	# Path overlay pass — 1-tile-wide corridors stored in region.path_tiles.
+	# Uses the full 29-tile bitmask lookup for correct corners/T-junctions.
+	if not region.path_tiles.is_empty() and overlay_cells.size() >= 29:
+		var path_prim_cell: Vector2i = Vector2i(-1, -1)
+		if biome != null:
+			path_prim_cell = TilesetCatalog.cell_for(&"overworld",
+					TerrainCodes.to_terrain_type(biome.primary_terrain))
+		var path_set: Dictionary = {}
+		for c: Vector2i in region.path_tiles:
+			path_set[c] = true
+		for c: Vector2i in region.path_tiles:
+			if path_prim_cell.x >= 0:
+				ground.set_cell(c, 0, path_prim_cell, 0)
+			patch.erase_cell(c, 0)
+			var pidx: int = _path_index_for_cell(path_set, c.x, c.y, size)
+			patch.set_cell(c, 0, overlay_cells[pidx], 0)
+
 	# Decoration pass — trees/rocks/veins from `region.decorations`.
 	for entry in region.decorations:
 		var kind: StringName = entry["kind"]
@@ -832,40 +816,88 @@ func _ensure_entrance_marker_root() -> Node2D:
 
 static func _patch_index_for_neighbors(region: Region, x: int, y: int,
 		secondary: int, size: int) -> int:
-	var n_dirt: bool = (y > 0
+	var n_sec: bool = (y > 0
 		and region.tiles[(y - 1) * size + x] == secondary)
-	var s_dirt: bool = (y < size - 1
+	var s_sec: bool = (y < size - 1
 		and region.tiles[(y + 1) * size + x] == secondary)
-	var w_dirt: bool = (x > 0
+	var w_sec: bool = (x > 0
 		and region.tiles[y * size + (x - 1)] == secondary)
-	var e_dirt: bool = (x < size - 1
+	var e_sec: bool = (x < size - 1
 		and region.tiles[y * size + (x + 1)] == secondary)
-	if not n_dirt and not w_dirt: return 0  # NW outer
-	if not n_dirt and not e_dirt: return 2  # NE outer
-	if not s_dirt and not w_dirt: return 6  # SW outer
-	if not s_dirt and not e_dirt: return 8  # SE outer
-	if not n_dirt: return 1  # N edge
-	if not s_dirt: return 7  # S edge
-	if not w_dirt: return 3  # W edge
-	if not e_dirt: return 5  # E edge
-	# All 4 cardinals are secondary — check diagonals for inner corners.
-	# A single diagonal being primary means this cell is at a concave corner
-	# of the blob and needs an inner-corner transition tile.
-	# Out-of-bounds diagonals are treated as primary (consistent with cardinal logic).
+	var cnt: int = int(n_sec) + int(s_sec) + int(w_sec) + int(e_sec)
+
+	if cnt == 0:
+		return 19  # isolated dot
+
+	if cnt == 1:
+		if n_sec: return 16  # dead-end S (only north neighbour → open end faces S)
+		if s_sec: return 15  # dead-end N
+		if w_sec: return 18  # dead-end E
+		if e_sec: return 17  # dead-end W
+
+	if cnt == 2:
+		# Straight-through paths
+		if n_sec and s_sec: return 13  # N+S straight
+		if w_sec and e_sec: return 14  # E+W straight
+		# Outer corners (two adjacent sides are NOT secondary)
+		if not n_sec and not w_sec: return 0  # NW outer
+		if not n_sec and not e_sec: return 2  # NE outer
+		if not s_sec and not w_sec: return 6  # SW outer
+		if not s_sec and not e_sec: return 8  # SE outer
+
+	if cnt == 3:
+		if not n_sec: return 1  # N edge
+		if not s_sec: return 7  # S edge
+		if not w_sec: return 3  # W edge
+		if not e_sec: return 5  # E edge
+
+	# cnt == 4: all cardinal neighbours are secondary — check diagonals.
+	# A single primary diagonal = concave inner-corner tile.
+	# Out-of-bounds diagonals treated as primary.
 	var nw_prim: bool = x == 0 or y == 0 or region.tiles[(y - 1) * size + (x - 1)] != secondary
 	var ne_prim: bool = x == size - 1 or y == 0 or region.tiles[(y - 1) * size + (x + 1)] != secondary
 	var sw_prim: bool = x == 0 or y == size - 1 or region.tiles[(y + 1) * size + (x - 1)] != secondary
 	var se_prim: bool = x == size - 1 or y == size - 1 or region.tiles[(y + 1) * size + (x + 1)] != secondary
-	var cnt: int = int(nw_prim) + int(ne_prim) + int(sw_prim) + int(se_prim)
-	if cnt == 1:  # exactly one concave corner — use inner-corner tile
-		if nw_prim: return 9
-		if ne_prim: return 10
-		if sw_prim: return 11
-		if se_prim: return 12
+	var dcnt: int = int(nw_prim) + int(ne_prim) + int(sw_prim) + int(se_prim)
+	if dcnt == 1:
+		if nw_prim: return 9   # inner NW
+		if ne_prim: return 10  # inner NE
+		if sw_prim: return 11  # inner SW
+		if se_prim: return 12  # inner SE
 	return 4  # fully surrounded (center)
 
 
-static func _is_water_code(code: int) -> bool:
+## Bitmask → path tile index. bit0=N, bit1=S, bit2=E, bit3=W.
+## Indices 13-19 match the 20-tile overlay set (straight/dead-end/isolated).
+## Indices 20-28 are the new corner/T-junction/cross tiles.
+static const PATH_BITMASK_TO_INDEX: Array[int] = [
+	19, # 0000 = no connections → isolated
+	16, # 0001 = N only → dead-end (open end toward N)
+	15, # 0010 = S only → dead-end (open end toward S)
+	13, # 0011 = N+S → straight vertical
+	17, # 0100 = E only → dead-end (open end toward E)
+	20, # 0101 = N+E → corner cNE
+	22, # 0110 = S+E → corner cSE
+	24, # 0111 = N+S+E → T-junction missing W (tW)
+	18, # 1000 = W only → dead-end (open end toward W)
+	21, # 1001 = N+W → corner cNW
+	23, # 1010 = S+W → corner cSW
+	26, # 1011 = N+S+W → T-junction missing E (tE)
+	14, # 1100 = E+W → straight horizontal
+	25, # 1101 = N+E+W → T-junction missing S (tS)
+	27, # 1110 = S+E+W → T-junction missing N (tN)
+	28, # 1111 = all four → cross (+)
+]
+
+## Returns the overlay tile index for a path cell based on its 4 cardinal
+## path-set neighbours. `path_set` maps Vector2i → true for all path cells.
+static func _path_index_for_cell(path_set: Dictionary, x: int, y: int, size: int) -> int:
+	var mask: int = 0
+	if y > 0        and path_set.has(Vector2i(x, y - 1)): mask |= 1  # N
+	if y < size - 1 and path_set.has(Vector2i(x, y + 1)): mask |= 2  # S
+	if x < size - 1 and path_set.has(Vector2i(x + 1, y)): mask |= 4  # E
+	if x > 0        and path_set.has(Vector2i(x - 1, y)): mask |= 8  # W
+	return PATH_BITMASK_TO_INDEX[mask]
 	return code == TerrainCodes.OCEAN or code == TerrainCodes.WATER
 
 

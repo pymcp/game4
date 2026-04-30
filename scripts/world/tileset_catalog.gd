@@ -20,7 +20,7 @@ extends RefCounted
 const _DEFAULT_SHEETS: Dictionary = {
 	&"overworld_terrain": "res://assets/tiles/roguelike/overworld_sheet.png",
 	&"overworld_decoration": "res://assets/tiles/roguelike/overworld_sheet.png",
-	&"overworld_terrain_patches_3x3": "res://assets/tiles/roguelike/overworld_sheet.png",
+	&"overworld_overlay_sets": "res://assets/tiles/roguelike/overworld_sheet.png",
 	&"overworld_water_border_grass_3x3": "res://assets/tiles/roguelike/overworld_sheet.png",
 	&"overworld_water_outer_corners": "res://assets/tiles/roguelike/overworld_sheet.png",
 	&"city_terrain": "res://assets/tiles/roguelike/city_sheet.png",
@@ -45,22 +45,13 @@ const RUNES_BLACK_PNG: String = "res://assets/tiles/runes/runes_black_tile.png"
 const RUNES_GREY_PNG: String  = "res://assets/tiles/runes/runes_grey_tile.png"
 const RUNES_BLUE_PNG: String  = "res://assets/tiles/runes/runes_blue_tile.png"
 
-## Terrain-transition blend sheet (16px, 1px gutter, same geometry as overworld).
-## Registered as source 1 in the overworld TileSet so painters can reference it.
-const TRANSITIONS_PNG: String = "res://assets/tiles/roguelike/terrain_transitions_sheet.png"
-const TRANSITIONS_SOURCE_ID: int = 1
-
-## Row index in terrain_transitions_sheet.png for each terrain pair.
-## Key format: "<primary_terrain_type>_<secondary_terrain_type>" where
-## terrain type is the StringName returned by TerrainCodes.to_terrain_type().
-## Row order must match the PAIRS list in tools/gen_terrain_transitions.py.
-const TERRAIN_TRANSITION_ROWS: Dictionary = {
-	&"grass_dirt":  0,  # grass biome secondary blob
-	&"sand_dirt":   1,  # desert biome secondary blob
-	&"stone_dirt":  2,  # rocky biome secondary blob
-	&"grass_stone": 3,  # snow biome secondary blob + grass/rocky border
-	&"clay_water":  4,  # swamp biome (future — water border system handles this now)
-	&"grass_sand":  5,  # grass-biome region bordering desert region
+## Number of tiles in each named overlay set.
+## 20-tile sets (dirt/stone/snow) include path-only tiles (straights, dead-ends,
+## isolated dot). 13-tile sets (grass/mud/purple) have only the 3×3 blob + 4 inner
+## corners. Used by WorldGenerator to decide whether secondary terrain needs erosion.
+const OVERLAY_SET_SIZES: Dictionary = {
+	&"dirt": 29, &"stone": 29, &"snow": 29,
+	&"grass": 13, &"mud": 13, &"purple": 13,
 }
 
 ## Cached sheet overrides from TileMappings. Populated by _ensure_loaded().
@@ -151,39 +142,92 @@ const GROUND_VARIANT_CHANCE_BY_TERRAIN: Dictionary = {
 	&"water": 0.5,
 }
 
-# 3×3 corner/edge patch sets for terrains that have a "rounded outlined
-# patch" stamp in the Roguelike sheet. Painted on the Patch TileMapLayer
-# (above Ground, below Decoration) to add blended edges where a secondary
-# terrain (e.g. dirt blob) sits on a primary (e.g. grass / sand). The
-# corners + edges of these tiles have transparent OUTER pixels so the
-# underlying Ground tile shows through and the patch reads as a soft
-# rounded shape rather than a hard square.
+# Transparent overlay sets for secondary terrain blending. Painted on the
+# Patch TileMapLayer (above Ground) with the primary terrain tile underneath.
+# Kenney's transparent pixels let the background bleed through for seamless edges.
 #
-# Cell order is row-major NW, N, NE, W, C, E, SW, S, SE — see
-# `_patch_index_for_neighbors` in world_root.gd for the mapping.
-const _DEFAULT_OVERWORLD_PATCH_3X3: Dictionary = {
+# Two set sizes:
+#   20-tile (dirt/stone/snow): 9 blob + 4 inner corners + 7 path-only tiles.
+#     Path-only: idx 13=N+S straight, 14=E+W straight,
+#                15=dead-end N, 16=dead-end S, 17=dead-end W, 18=dead-end E,
+#                19=isolated dot.
+#   13-tile (grass/mud/purple): 9 blob + 4 inner corners. No path tiles;
+#     indices 13-19 clamp to center (idx 4) at runtime.
+#
+# Index ordering (0-12 shared by all sets):
+#   0=NW outer, 1=N edge, 2=NE outer,
+#   3=W edge,   4=center, 5=E edge,
+#   6=SW outer, 7=S edge, 8=SE outer,
+#   9=inner NW, 10=inner NE, 11=inner SW, 12=inner SE
+const _DEFAULT_OVERWORLD_OVERLAY_SETS: Dictionary = {
+	# ── 20-tile sets ──────────────────────────────────────────────────
 	&"dirt": [
-		Vector2i(0, 25), Vector2i(1, 25), Vector2i(2, 25),
-		Vector2i(0, 26), Vector2i(1, 26), Vector2i(2, 26),
-		Vector2i(0, 27), Vector2i(1, 27), Vector2i(2, 27),
+		# blob 3×3 (indices 0–8)
+		Vector2i(8, 10), Vector2i(9, 10), Vector2i(10, 10),
+		Vector2i(8, 11), Vector2i(9, 11), Vector2i(10, 11),
+		Vector2i(8, 12), Vector2i(9, 12), Vector2i(10, 12),
+		# inner corners (indices 9–12)
+		Vector2i(7, 11), Vector2i(6, 11), Vector2i(7, 10), Vector2i(6, 10),
+		# path-only (indices 13–19)
+		Vector2i(10, 8),  # 13: N+S straight
+		Vector2i(10, 9),  # 14: E+W straight
+		Vector2i(6, 12),  # 15: dead-end N
+		Vector2i(7, 12),  # 16: dead-end S
+		Vector2i(6, 13),  # 17: dead-end W
+		Vector2i(7, 13),  # 18: dead-end E
+		Vector2i(9, 13),  # 19: isolated
 	],
 	&"stone": [
-		Vector2i(3, 25), Vector2i(4, 25), Vector2i(5, 25),
-		Vector2i(3, 26), Vector2i(4, 26), Vector2i(5, 26),
-		Vector2i(3, 27), Vector2i(4, 27), Vector2i(5, 27),
+		# blob 3×3 (indices 0–8)  — same layout, +6 rows from dirt
+		Vector2i(8, 16), Vector2i(9, 16), Vector2i(10, 16),
+		Vector2i(8, 17), Vector2i(9, 17), Vector2i(10, 17),
+		Vector2i(8, 18), Vector2i(9, 18), Vector2i(10, 18),
+		# inner corners (indices 9–12)
+		Vector2i(7, 17), Vector2i(6, 17), Vector2i(7, 16), Vector2i(6, 16),
+		# path-only (indices 13–19)
+		Vector2i(10, 14), Vector2i(10, 15),
+		Vector2i(6, 18), Vector2i(7, 18), Vector2i(6, 19), Vector2i(7, 19),
+		Vector2i(9, 19),
 	],
-	&"sand": [
-		Vector2i(6, 25), Vector2i(7, 25), Vector2i(8, 25),
-		Vector2i(6, 26), Vector2i(7, 26), Vector2i(8, 26),
-		Vector2i(6, 27), Vector2i(7, 27), Vector2i(8, 27),
+	&"snow": [
+		# blob 3×3 (indices 0–8)  — same layout, +12 rows from dirt
+		Vector2i(8, 22), Vector2i(9, 22), Vector2i(10, 22),
+		Vector2i(8, 23), Vector2i(9, 23), Vector2i(10, 23),
+		Vector2i(8, 24), Vector2i(9, 24), Vector2i(10, 24),
+		# inner corners (indices 9–12)
+		Vector2i(7, 23), Vector2i(6, 23), Vector2i(7, 22), Vector2i(6, 22),
+		# path-only (indices 13–19)
+		Vector2i(10, 20), Vector2i(10, 21),
+		Vector2i(6, 24), Vector2i(7, 24), Vector2i(6, 25), Vector2i(7, 25),
+		Vector2i(9, 25),
 	],
-	&"clay": [
-		Vector2i(12, 25), Vector2i(13, 25), Vector2i(14, 25),
-		Vector2i(12, 26), Vector2i(13, 26), Vector2i(14, 26),
-		Vector2i(12, 27), Vector2i(13, 27), Vector2i(14, 27),
+	# ── 13-tile sets ──────────────────────────────────────────────────
+	&"grass": [
+		# blob 3×3 (indices 0–8): cols 3-5, rows 16-18
+		Vector2i(3, 16), Vector2i(4, 16), Vector2i(5, 16),
+		Vector2i(3, 17), Vector2i(4, 17), Vector2i(5, 17),
+		Vector2i(3, 18), Vector2i(4, 18), Vector2i(5, 18),
+		# inner corners (indices 9–12): cols 1-2
+		Vector2i(2, 17), Vector2i(1, 17), Vector2i(2, 16), Vector2i(1, 16),
+	],
+	&"mud": [
+		# blob 3×3 (indices 0–8): cols 3-5, rows 19-21
+		Vector2i(3, 19), Vector2i(4, 19), Vector2i(5, 19),
+		Vector2i(3, 20), Vector2i(4, 20), Vector2i(5, 20),
+		Vector2i(3, 21), Vector2i(4, 21), Vector2i(5, 21),
+		# inner corners (indices 9–12)
+		Vector2i(2, 20), Vector2i(1, 20), Vector2i(2, 19), Vector2i(1, 19),
+	],
+	&"purple": [
+		# blob 3×3 (indices 0–8): cols 3-5, rows 22-24
+		Vector2i(3, 22), Vector2i(4, 22), Vector2i(5, 22),
+		Vector2i(3, 23), Vector2i(4, 23), Vector2i(5, 23),
+		Vector2i(3, 24), Vector2i(4, 24), Vector2i(5, 24),
+		# inner corners (indices 9–12)
+		Vector2i(2, 23), Vector2i(1, 23), Vector2i(2, 22), Vector2i(1, 22),
 	],
 }
-static var OVERWORLD_TERRAIN_PATCH_3X3: Dictionary = _DEFAULT_OVERWORLD_PATCH_3X3
+static var OVERWORLD_OVERLAY_SETS: Dictionary = _DEFAULT_OVERWORLD_OVERLAY_SETS
 
 # 3×3 corner/edge tiles that paint a curved water-on-grass boundary.
 # Unlike `OVERWORLD_TERRAIN_PATCH_3X3`, these tiles are FULLY OPAQUE: the
@@ -451,8 +495,8 @@ static func _ensure_loaded() -> void:
 		var arr: Array = mineable_cells[rid]
 		if not arr.is_empty():
 			OVERWORLD_DECORATION_CELLS[rid] = arr
-	if not m.overworld_terrain_patches_3x3.is_empty():
-		OVERWORLD_TERRAIN_PATCH_3X3 = m.overworld_terrain_patches_3x3
+	if not m.overworld_overlay_sets.is_empty():
+		OVERWORLD_OVERLAY_SETS = m.overworld_overlay_sets
 	if not m.overworld_water_border_grass_3x3.is_empty():
 		OVERWORLD_WATER_BORDER_GRASS_3X3 = m.overworld_water_border_grass_3x3
 	if not m.overworld_water_outer_corners.is_empty():
@@ -510,10 +554,7 @@ static func overworld() -> TileSet:
 		var sheet := _sheet_for_view(&"overworld")
 		_overworld_ts = _build(sheet, OVERWORLD_TERRAIN_CELLS, false,
 				SheetSpecReader.read(sheet))
-		_add_transitions_source(_overworld_ts)
 	return _overworld_ts
-
-
 static func city() -> TileSet:
 	_ensure_loaded()
 	if _city_ts == null:
@@ -608,15 +649,8 @@ static func _build(png_path: String, terrain_cells: Dictionary,
 		elif v is Array:
 			for cell in v:
 				cell_to_terrain[cell] = terrain_name
-	# 3×3 patch corner/edge cells likewise inherit their parent terrain so
-	# painting them on the Patch layer doesn't accidentally alter
-	# walkability or terrain queries on cells where they overlay primary
-	# Ground tiles.
-	for terrain_name in OVERWORLD_TERRAIN_PATCH_3X3.keys():
-		if not terrain_cells.has(terrain_name):
-			continue
-		for cell in OVERWORLD_TERRAIN_PATCH_3X3[terrain_name]:
-			cell_to_terrain[cell] = terrain_name
+	# Overlay set cells share the same source sheet as terrain so custom-data
+	# is already registered. No separate tagging needed here.
 	# Water-grass border tiles: the centre + edge cells are mostly water,
 	# corners are mostly grass — but we register them all as `water` so
 	# walkability matches a normal water tile (boats only). The slight
@@ -698,33 +732,6 @@ static func _get_mineable_sprites(rid: StringName) -> Array[Vector2i]:
 	return out
 
 
-## Adds the terrain-transition blend sheet as source TRANSITIONS_SOURCE_ID
-## in an already-built overworld TileSet. All transition tiles are walkable.
-static func _add_transitions_source(ts: TileSet) -> void:
-	var tex: Texture2D = load(TRANSITIONS_PNG) as Texture2D
-	if tex == null:
-		push_error("TilesetCatalog: missing transitions sheet %s" % TRANSITIONS_PNG)
-		return
-	# Transitions sheet uses the same geometry as overworld: 16px tiles, 1px gutter.
-	var src := TileSetAtlasSource.new()
-	src.texture = tex
-	src.texture_region_size = Vector2i(WorldConst.TILE_PX, WorldConst.TILE_PX)
-	src.margins = Vector2i(0, 0)
-	src.separation = Vector2i(WorldConst.TILESHEET_MARGIN, WorldConst.TILESHEET_MARGIN)
-	ts.add_source(src, TRANSITIONS_SOURCE_ID)
-	var stride: int = WorldConst.TILE_PX + WorldConst.TILESHEET_MARGIN
-	var cols: int = (tex.get_width()  + WorldConst.TILESHEET_MARGIN) / stride
-	var rows: int = (tex.get_height() + WorldConst.TILESHEET_MARGIN) / stride
-	for y in rows:
-		for x in cols:
-			var cell := Vector2i(x, y)
-			src.create_tile(cell)
-			var data: TileData = src.get_tile_data(cell, 0)
-			if data == null:
-				continue
-			# Transition tiles blend two walkable terrains — mark as walkable.
-			data.set_custom_data(CUSTOM_WALKABLE, true)
-			data.set_custom_data(CUSTOM_TERRAIN, &"")
 
 
 static func _build_runes() -> TileSet:

@@ -39,9 +39,9 @@ const _MAPPINGS: Array = [
 	{"id": &"overworld_decoration",              "label": "Overworld decorations",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"overworld_decoration",              "kind": &"list"},
-	{"id": &"overworld_terrain_patches_3x3",     "label": "Overworld 3×3 terrain patches",
+	{"id": &"overworld_overlay_sets",              "label": "Overlay Sets (terrain blending)",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
-	 "field": &"overworld_terrain_patches_3x3",     "kind": &"patch3"},
+	 "field": &"overworld_overlay_sets",             "kind": &"overlay_set_editor"},
 	{"id": &"overworld_water_border_grass_3x3",  "label": "Water-on-grass 3×3 border",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"overworld_water_border_grass_3x3",  "kind": &"patch3_flat"},
@@ -138,9 +138,7 @@ const _MAPPINGS: Array = [
 	{"id": &"asset_browser",                      "label": "Import from Kenney",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_asset_browser",                    "kind": &"asset_browser"},
-	{"id": &"terrain_transition_editor",           "label": "Terrain Transitions",
-	 "sheet": "res://assets/tiles/roguelike/terrain_transitions_sheet.png",
-	 "field": &"_terrain_transition_editor",        "kind": &"terrain_transition_editor"},
+
 ]
 
 # Tile-sheet geometry. Matches WorldConst.TILE_PX (16) and the 1-px
@@ -173,7 +171,7 @@ var _dialogue_editor: DialogueEditor = null
 var _balance_overview: BalanceOverview = null
 var _encounter_table_editor: EncounterTableEditor = null
 var _chest_loot_editor: ChestLootEditor = null
-var _terrain_transition_editor: TerrainTransitionEditor = null
+var _overlay_set_editor: OverlaySetEditor = null
 
 # Quest TODO panel state.
 var _quest_panel: ScrollContainer = null
@@ -207,6 +205,8 @@ var _revert_btn: Button = null
 var _preview: PreviewView = null
 var _sheet_selector: OptionButton = null  ## Spritesheet dropdown.
 var _available_sheets: Array[String] = []  ## Discovered PNGs.
+var _middle_pane: Control = null
+var _right_pane: Control = null
 
 
 # ─── Inner class: SheetView ─────────────────────────────────────────────
@@ -777,6 +777,7 @@ func _build_middle_pane() -> Control:
 	_sheet_view.zoom = SHEET_ZOOM
 	_sheet_view.cell_clicked.connect(_on_cell_clicked)
 	scroll.add_child(_sheet_view)
+	_middle_pane = vb
 	return vb
 
 
@@ -801,6 +802,7 @@ func _build_right_pane() -> Control:
 	_preview.mouse_filter = Control.MOUSE_FILTER_STOP
 	_preview.mask_clicked.connect(_on_preview_mask_clicked)
 	vb.add_child(_preview)
+	_right_pane = vb
 	return vb
 
 
@@ -981,11 +983,11 @@ func _select_mapping(entry: Dictionary) -> void:
 		_status_label.text = "Browsing Kenney assets"
 		return
 
-	if kind == &"terrain_transition_editor":
-		_show_terrain_transition_editor()
-		_hide_all_editors_except(&"terrain_transition_editor")
+	if kind == &"overlay_set_editor":
+		_show_overlay_set_editor()
+		_hide_all_editors_except(&"overlay_set_editor")
 		_refresh_marks()
-		_status_label.text = "Terrain Transitions"
+		_status_label.text = "Overlay Sets (terrain blending)"
 		return
 
 	_hide_all_editors()
@@ -1007,7 +1009,7 @@ func _select_mapping(entry: Dictionary) -> void:
 func _build_slots(entry: Dictionary) -> Array:
 	var field: StringName = entry["field"]
 	var kind: StringName = entry["kind"]
-	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser" or kind == &"loot_table_editor" or kind == &"crafting_editor" or kind == &"armor_set_editor" or kind == &"biome_editor" or kind == &"shop_editor" or kind == &"quest_editor" or kind == &"dialogue_editor" or kind == &"balance_overview" or kind == &"encounter_table_editor" or kind == &"chest_loot_editor" or kind == &"terrain_transition_editor":
+	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser" or kind == &"loot_table_editor" or kind == &"crafting_editor" or kind == &"armor_set_editor" or kind == &"biome_editor" or kind == &"shop_editor" or kind == &"quest_editor" or kind == &"dialogue_editor" or kind == &"balance_overview" or kind == &"encounter_table_editor" or kind == &"chest_loot_editor" or kind == &"overlay_set_editor":
 		return []  # These use their own editors.
 	var value: Variant = _mappings_resource.get(field)
 	var out: Array = []
@@ -2386,26 +2388,39 @@ func _on_chest_loot_dirty() -> void:
 	_mark_dirty()
 
 
-# ─── Terrain Transition editor integration ────────────────────────────
+# ─── Overlay Set editor integration ─────────────────────────────────
 
-func _show_terrain_transition_editor() -> void:
+func _show_overlay_set_editor() -> void:
 	_hide_quest_panel()
-	_slot_root.visible = false
-	_header_label.visible = false
-	if _preview != null:
-		_preview.visible = false
+	if _middle_pane != null:
+		_middle_pane.visible = false
+	if _right_pane != null:
+		_right_pane.visible = false
 	_slots = []
 	_active_slot = -1
 
-	if _terrain_transition_editor == null:
-		_terrain_transition_editor = TerrainTransitionEditor.new()
-		_slot_root.get_parent().get_parent().add_child(_terrain_transition_editor)
-	_terrain_transition_editor.visible = true
+	if _overlay_set_editor == null:
+		var inner: Node = _slot_root.get_parent().get_parent().get_parent()
+		_overlay_set_editor = OverlaySetEditor.new()
+		_overlay_set_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_overlay_set_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_overlay_set_editor.dirty_changed.connect(_on_overlay_set_dirty)
+		inner.add_child(_overlay_set_editor)
+		_overlay_set_editor.setup(_mappings_resource)
+	_overlay_set_editor.visible = true
 
 
-func _hide_terrain_transition_editor() -> void:
-	if _terrain_transition_editor != null:
-		_terrain_transition_editor.visible = false
+func _hide_overlay_set_editor() -> void:
+	if _overlay_set_editor != null:
+		_overlay_set_editor.visible = false
+	if _middle_pane != null:
+		_middle_pane.visible = true
+	if _right_pane != null:
+		_right_pane.visible = true
+
+
+func _on_overlay_set_dirty(_dirty: bool) -> void:
+	_mark_dirty()
 
 
 # ─── Editor visibility helpers ────────────────────────────────────────
@@ -2426,7 +2441,7 @@ func _hide_all_editors() -> void:
 	_hide_balance_overview()
 	_hide_encounter_table_editor()
 	_hide_chest_loot_editor()
-	_hide_terrain_transition_editor()
+	_hide_overlay_set_editor()
 
 
 func _hide_all_editors_except(kind: StringName) -> void:
@@ -2460,8 +2475,8 @@ func _hide_all_editors_except(kind: StringName) -> void:
 		_hide_encounter_table_editor()
 	if kind != &"chest_loot_editor":
 		_hide_chest_loot_editor()
-	if kind != &"terrain_transition_editor":
-		_hide_terrain_transition_editor()
+	if kind != &"overlay_set_editor":
+		_hide_overlay_set_editor()
 
 
 func _on_navigate_to_mineable(resource_id: StringName) -> void:
