@@ -296,12 +296,17 @@ func show_floor_confirm_menu(pid: int, title: String, options: Array,
 
 
 ## Returns the ControlsHud for [param pid] (0 = P1, 1 = P2).
+## May return null if the HUD has not been built yet. Callers must null-check.
 func get_controls_hud(pid: int) -> ControlsHud:
 	return _controls_p1 if pid == 0 else _controls_p2
 
 
 ## Opens the caravan menu for [param pid] if it is set up.
+## Clears any active ControlsHud override hint before opening.
 func open_caravan_menu(pid: int) -> void:
+	var hud: ControlsHud = get_controls_hud(pid)
+	if hud != null:
+		hud.set_override_hint("")
 	var menu: CaravanMenu = _caravan_menu_p1 if pid == 0 else _caravan_menu_p2
 	if menu != null:
 		menu.open()
