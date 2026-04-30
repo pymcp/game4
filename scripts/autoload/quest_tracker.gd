@@ -161,5 +161,14 @@ func _apply_rewards(rewards: Array) -> void:
 			"give_item":
 				# Item system not yet implemented — set a flag as placeholder.
 				GameState.set_flag("reward_%s_given" % reward.get("item", "unknown"))
+			"give_xp":
+				var xp_amount: int = int(reward.get("amount", 0))
+				if xp_amount > 0:
+					var world_node: World = World.instance()
+					if world_node != null:
+						for pid in 2:
+							var p: PlayerController = world_node.get_player(pid)
+							if p != null:
+								p.gain_xp(xp_amount)
 			_:
 				push_warning("QuestTracker: unknown reward type '%s'" % reward.get("type", ""))

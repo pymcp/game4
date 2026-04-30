@@ -111,3 +111,9 @@ func test_unlock_passive_idempotent() -> void:
 	var hp_after_first: int = p.max_health
 	p._unlock_passive(&"hardy")
 	assert_eq(p.max_health, hp_after_first)  # no double-apply
+
+func test_total_xp_to_max_level() -> void:
+	var total: int = 0
+	for l in range(1, 20):
+		total += LevelingConfig.xp_to_next(l)
+	assert_eq(total, 19000)
