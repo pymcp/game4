@@ -422,6 +422,8 @@ func _build_grid_page() -> VBoxContainer:
 	_grid_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_grid_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# Re-fill grid whenever the available area changes (e.g. window resize).
+	_grid_scroll.resized.connect(_refresh)
 	page.add_child(_grid_scroll)
 
 	_grid = GridContainer.new()
@@ -861,9 +863,16 @@ func _refresh() -> void:
 	# Build filtered inventory view for current tab.
 	_build_filtered_view()
 
-	# Ensure enough grid slots exist (at least COLS * ROWS, or as many as
-	# needed for the filtered view).
-	var needed: int = maxi(_filtered_view.size(), COLS * ROWS)
+	# Compute how many rows fit in the visible scroll area (fills the panel).
+	# SLOT_SZ + v_separation (4) = row height; fall back to ROWS if not laid out yet.
+	var row_h: float = SLOT_SZ + 4.0
+	var dyn_rows: int = ROWS
+	if _grid_scroll != null and _grid_scroll.size.y > 0:
+		dyn_rows = maxi(int(_grid_scroll.size.y / row_h), ROWS)
+
+	# Ensure enough grid slots exist (at least dyn_rows, or as many as needed
+	# for the filtered view).
+	var needed: int = maxi(_filtered_view.size(), COLS * dyn_rows)
 	# Round up to full row.
 	needed = ceili(float(needed) / COLS) * COLS
 	while _inv_slots.size() < needed:
