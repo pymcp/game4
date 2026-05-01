@@ -18,7 +18,7 @@ var structure_id: StringName = &"house_basic"
 var world_root: WorldRoot = null
 
 const _TILE_PX: float = float(WorldConst.TILE_PX)
-const _GHOST_TILES: int = 3        # footprint: 3×3 tiles
+const _GHOST_TILES: int = 1        # footprint: 1×1 tile
 const _REPEAT_DELAY: float = 0.15  # held-key repeat interval
 
 var _cursor_cell: Vector2i = Vector2i.ZERO

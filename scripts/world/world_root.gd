@@ -793,21 +793,31 @@ func _paint_overworld_entrance_markers(region: Region) -> void:
 	var root: Node2D = _ensure_entrance_marker_root()
 	for c in root.get_children():
 		c.queue_free()
-	var tex: Texture2D = load(TilesetCatalog.DUNGEON_PNG) as Texture2D
-	if tex == null:
-		return
+	var dungeon_tex: Texture2D = load(TilesetCatalog.DUNGEON_PNG) as Texture2D
+	var house_tex: Texture2D = load(TilesetCatalog.MEDIEVAL_RTS_PNG) as Texture2D
 	var tile_px: int = WorldConst.TILE_PX
 	var margin: int = WorldConst.TILESHEET_MARGIN
 	var cells: Array = TilesetCatalog.DUNGEON_OVERWORLD_ENTRANCE_CELLS
 	for entry in region.dungeon_entrances:
 		var base: Vector2i = entry["cell"]
 		var ek: StringName = entry.get("kind", &"dungeon")
+		if ek == &"house":
+			if house_tex == null:
+				continue
+			var spr := Sprite2D.new()
+			spr.texture = house_tex
+			spr.region_enabled = true
+			spr.region_rect = Rect2(TilesetCatalog.HOUSE_OVERWORLD_RECT)
+			spr.scale = Vector2(float(tile_px) / 64.0, float(tile_px) / 64.0)
+			spr.centered = false
+			spr.position = Vector2(float(base.x * tile_px), float(base.y * tile_px))
+			root.add_child(spr)
+			continue
+		if dungeon_tex == null:
+			continue
 		var tint: Color
 		var cells_to_use: Array
-		if ek == &"house":
-			tint = Color(1.4, 0.95, 0.6)  # warm yellow
-			cells_to_use = cells
-		elif ek == &"labyrinth":
+		if ek == &"labyrinth":
 			tint = Color(1.2, 0.6, 1.4)   # purple
 			cells_to_use = TilesetCatalog.LABYRINTH_OVERWORLD_ENTRANCE_CELLS
 		else:
@@ -816,7 +826,7 @@ func _paint_overworld_entrance_markers(region: Region) -> void:
 		for i in cells_to_use.size():
 			var atlas: Vector2i = cells_to_use[i]
 			var spr := Sprite2D.new()
-			spr.texture = tex
+			spr.texture = dungeon_tex
 			spr.region_enabled = true
 			spr.region_rect = Rect2(
 				atlas.x * (tile_px + margin),

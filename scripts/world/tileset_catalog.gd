@@ -44,6 +44,10 @@ const INTERIOR_PNG: String  = "res://assets/tiles/roguelike/interior_sheet.png"
 const RUNES_BLACK_PNG: String = "res://assets/tiles/runes/runes_black_tile.png"
 const RUNES_GREY_PNG: String  = "res://assets/tiles/runes/runes_grey_tile.png"
 const RUNES_BLUE_PNG: String  = "res://assets/tiles/runes/runes_blue_tile.png"
+const MEDIEVAL_RTS_PNG: String = "res://assets/tiles/rts/medieval_tilesheet.png"
+## 64×64 tiles, 32px leading gutter. Tile address (col, row) 1-based → pixel = 32 + (n-1)*96.
+## House: col=6, row=7 (1-based) → x=512, y=608.
+const HOUSE_OVERWORLD_RECT: Rect2i = Rect2i(512, 608, 64, 64)
 
 ## Number of tiles in each named overlay set.
 ## 20-tile sets (dirt/stone/snow) include path-only tiles (straights, dead-ends,
