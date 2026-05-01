@@ -331,7 +331,22 @@ func _process(_delta: float) -> void:
 
 
 func _on_player_died(pid: int) -> void:
-	get_tree().paused = true
+	var player: PlayerController = _player_p1 if pid == 0 else _player_p2
+	if player != null:
+		player.die()
+	var container: Control = _container_p1 if pid == 0 else _container_p2
+	var lbl: Label = _ensure_knockout_overlay(container)
+	var overlay: Node = lbl.get_parent()
+	overlay.visible = true
+	# Count down 5 → 1, then show math screen.
+	var elapsed: float = 0.0
+	var total: float = PlayerController._DEATH_WAIT_SEC
+	while elapsed < total:
+		var remaining: int = ceili(total - elapsed)
+		lbl.text = "Knocked out…\n%d" % remaining
+		await get_tree().create_timer(0.2, false, false, true).timeout
+		elapsed += 0.2
+	overlay.visible = false
 	if _math_death != null:
 		_math_death.show_for_player(pid)
 
@@ -339,8 +354,7 @@ func _on_player_died(pid: int) -> void:
 func _on_math_answer_correct(pid: int) -> void:
 	var player: PlayerController = _player_p1 if pid == 0 else _player_p2
 	if player != null:
-		player.health = player.max_health
-	get_tree().paused = false
+		player.respawn(player.max_health)
 
 
 # --- Floor transition overlay ----------------------------------------
@@ -404,3 +418,32 @@ func _ensure_floor_overlay(container: Control) -> Control:
 	overlay.add_child(label)
 	container.add_child(overlay)
 	return overlay
+
+
+## Build or retrieve the per-player "knocked out" countdown overlay.
+## Returns the Label node used for countdown text.
+func _ensure_knockout_overlay(container: Control) -> Label:
+	var existing: Node = container.get_node_or_null("KnockoutOverlay")
+	if existing is ColorRect:
+		return existing.get_node("CountdownLabel") as Label
+	var overlay := ColorRect.new()
+	overlay.name = "KnockoutOverlay"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = 95
+	overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	overlay.visible = false
+	var lbl := Label.new()
+	lbl.name = "CountdownLabel"
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.6, 0.6))
+	lbl.add_theme_font_size_override("font_size", 22)
+	lbl.add_theme_constant_override("outline_size", 3)
+	lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+	lbl.text = "Knocked out…"
+	overlay.add_child(lbl)
+	container.add_child(overlay)
+	return lbl
