@@ -57,3 +57,20 @@ func test_invincible_timer_starts_after_respawn() -> void:
 	p.is_dead = true  # simulate dead state
 	p.respawn(10)
 	assert_gt(p._invincible_timer, 0.0)
+
+
+func test_invincible_timer_depletes_over_time() -> void:
+	var p := _make_player()
+	p.is_dead = true
+	p.respawn(10)
+	var before: float = p._invincible_timer
+	p._physics_process(1.0)
+	assert_lt(p._invincible_timer, before)
+
+
+func test_respawn_health_capped_at_max_health() -> void:
+	var p := _make_player()
+	p.max_health = 10
+	p.is_dead = true
+	p.respawn(9999)
+	assert_eq(p.health, 10, "health should be capped at max_health")
