@@ -46,6 +46,7 @@ func test_take_hit_ignored_while_dead() -> void:
 func test_take_hit_ignored_during_invincibility() -> void:
 	var p := _make_player()
 	p.health = 10
+	p.is_dead = true  # simulate being dead first
 	p.respawn(10)  # starts invincibility
 	p.take_hit(5)
 	assert_eq(p.health, 10)
@@ -53,5 +54,6 @@ func test_take_hit_ignored_during_invincibility() -> void:
 
 func test_invincible_timer_starts_after_respawn() -> void:
 	var p := _make_player()
+	p.is_dead = true  # simulate dead state
 	p.respawn(10)
 	assert_gt(p._invincible_timer, 0.0)

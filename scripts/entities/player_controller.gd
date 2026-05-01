@@ -665,9 +665,9 @@ func _auto_attack_ranged(weapon_id: StringName, def: ItemDefinition) -> void:
 ## Formula: effective = max(1, raw_damage - armor_defense).
 ## If element != NONE, applies the corresponding status effect.
 func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
-	if health <= 0:
-		return
 	if is_dead:
+		return
+	if health <= 0:
 		return
 	if _invincible_timer > 0.0:
 		return
@@ -713,6 +713,8 @@ func die() -> void:
 
 ## Restore player from dead state with [param new_health] HP and start invincibility.
 func respawn(new_health: int) -> void:
+	if not is_dead:
+		return
 	is_dead = false
 	health = mini(new_health, max_health)
 	_invincible_timer = _INVINCIBLE_DURATION
@@ -966,6 +968,7 @@ func tick_effects(delta: float) -> void:
 				health = max(0, health - eff.damage_per_tick)
 				if health <= 0:
 					clear_effects()
+					die()
 					player_died.emit(player_id)
 					return
 		i -= 1
