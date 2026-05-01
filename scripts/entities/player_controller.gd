@@ -45,6 +45,10 @@ var _attack_cooldown: float = 0.0
 const ATTACK_COOLDOWN_SEC: float = 0.35  ## seconds between swings
 var auto_mine: bool = false
 var auto_attack: bool = false
+var is_dead: bool = false
+var _invincible_timer: float = 0.0
+const _INVINCIBLE_DURATION: float = 3.0
+const _DEATH_WAIT_SEC: float = 5.0
 const _AUTO_MINE_RADIUS: int = 1       ## tiles around player to scan
 const _MELEE_REACH_PX: float = 24.0    ## native-px radius for melee auto-attack
 const _RANGED_REACH_PX: float = 80.0   ## native-px max range for ranged auto-attack
@@ -340,6 +344,15 @@ func _physics_process(delta: float) -> void:
 	if _world == null:
 		return
 	tick_effects(delta)
+	# Tick invincibility and drive flashing visual.
+	if _invincible_timer > 0.0:
+		_invincible_timer = max(0.0, _invincible_timer - delta)
+		# Flash: visible every other 0.15s window.
+		if _sprite_root != null:
+			_sprite_root.visible = int(_invincible_timer / 0.15) % 2 == 0
+	else:
+		if _sprite_root != null:
+			_sprite_root.visible = true
 	# Freeze this player while they are in a conversation.
 	if in_conversation:
 		_bob_t = 0.0
@@ -654,6 +667,10 @@ func _auto_attack_ranged(weapon_id: StringName, def: ItemDefinition) -> void:
 func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 	if health <= 0:
 		return
+	if is_dead:
+		return
+	if _invincible_timer > 0.0:
+		return
 	# Invincible while in a conversation.
 	if in_conversation:
 		return
@@ -676,6 +693,36 @@ func heal(amount: int) -> void:
 	if amount <= 0 or health <= 0:
 		return
 	health = min(health + amount, max_health)
+
+
+## Called when health reaches 0. Enters dead state and tweens sprite to lying-down.
+## Does NOT emit player_died — that is emitted from take_hit() as before.
+func die() -> void:
+	if is_dead:
+		return
+	is_dead = true
+	health = 0
+	InputContext.set_context(player_id, InputContext.Context.DISABLED)
+	_bob_t = 0.0
+	if _sprite_root != null:
+		_sprite_root.position = Vector2.ZERO
+		# Tween sprite root to 90 degrees (lying on side).
+		var tw := create_tween()
+		tw.tween_property(_sprite_root, "rotation_degrees", 90.0, 0.4).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+
+
+## Restore player from dead state with [param new_health] HP and start invincibility.
+func respawn(new_health: int) -> void:
+	is_dead = false
+	health = mini(new_health, max_health)
+	_invincible_timer = _INVINCIBLE_DURATION
+	if _sprite_root != null:
+		_sprite_root.visible = true
+	InputContext.set_context(player_id, InputContext.Context.GAMEPLAY)
+	# Tween sprite root back upright.
+	if _sprite_root != null:
+		var tw := create_tween()
+		tw.tween_property(_sprite_root, "rotation_degrees", 0.0, 0.3).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SPRING)
 
 
 ## Sum defensive power from HEAD + BODY + FEET + OFF_HAND equipment slots,
