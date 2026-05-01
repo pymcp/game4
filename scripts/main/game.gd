@@ -41,6 +41,7 @@ var _hearts_p2: HeartDisplay = null
 var _player_p1: PlayerController = null
 var _player_p2: PlayerController = null
 var _math_death: MathDeathScreen = null
+var _dying_players: Dictionary = {}  ## Tracks pids currently in death countdown.
 var _map_p1: WorldMapView = null
 var _map_p2: WorldMapView = null
 var _dungeon_map_p1: DungeonMapView = null
@@ -331,22 +332,33 @@ func _process(_delta: float) -> void:
 
 
 func _on_player_died(pid: int) -> void:
+	if _dying_players.has(pid):
+		return
+	_dying_players[pid] = true
 	var player: PlayerController = _player_p1 if pid == 0 else _player_p2
 	if player != null:
 		player.die()
 	var container: Control = _container_p1 if pid == 0 else _container_p2
 	var lbl: Label = _ensure_knockout_overlay(container)
-	var overlay: Node = lbl.get_parent()
+	var overlay: ColorRect = lbl.get_parent() as ColorRect
 	overlay.visible = true
 	# Count down 5 → 1, then show math screen.
 	var elapsed: float = 0.0
 	var total: float = PlayerController._DEATH_WAIT_SEC
 	while elapsed < total:
+		if not is_instance_valid(lbl):
+			return
 		var remaining: int = ceili(total - elapsed)
 		lbl.text = "Knocked out…\n%d" % remaining
 		await get_tree().create_timer(0.2, false, false, true).timeout
 		elapsed += 0.2
-	overlay.visible = false
+	if is_instance_valid(lbl):
+		overlay.visible = false
+	_dying_players.erase(pid)
+	# Skip math screen if player was already revived.
+	var check_player: PlayerController = _player_p1 if pid == 0 else _player_p2
+	if check_player == null or not check_player.is_dead:
+		return
 	if _math_death != null:
 		_math_death.show_for_player(pid)
 
