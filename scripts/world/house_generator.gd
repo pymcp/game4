@@ -1,43 +1,65 @@
 ## HouseGenerator
 ##
-## Tiny procedural interior for a single house — a rectangular room of
-## `INTERIOR_FLOOR` surrounded by `INTERIOR_WALL`, with a single
-## `INTERIOR_DOOR` punched in the south wall. The door cell doubles as the
-## `entry_cell` and `exit_cell` so stepping on it returns the player to the
-## overworld (or city) tile they entered from.
+## Procedural house interior. Delegates layout to [RoomGenerator] then
+## stamps a visual style and scatters furniture.
 ##
-## Houses are intentionally small (8–14 tiles) — this is the per-locked-
-## decision MVP fallback for "procedural houses if possible".
+## `style` selects the wall/floor tile set:
+##   &"wood"  — dungeon_sheet.png rows 6-9 (default, normal overworld houses)
+##   &"stone" — dungeon_sheet.png rows 1-4 (ruins, dungeon-adjacent)
+##
+## Furniture cells are drawn from [TilesetCatalog.INTERIOR_FURNITURE] (which
+## the user configures in the Game Editor → "Interior Furniture" category).
+## If no furniture is configured the scatter array is left empty.
 class_name HouseGenerator
 extends RefCounted
 
 const MIN_DIM: int = 8
 const MAX_DIM: int = 14
+## Max furniture items to scatter per house.
+const MAX_FURNITURE: int = 5
 
 
-static func generate(seed_val: int) -> InteriorMap:
+static func generate(seed_val: int, style: StringName = &"wood") -> InteriorMap:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_val
 	var w: int = rng.randi_range(MIN_DIM, MAX_DIM)
 	var h: int = rng.randi_range(MIN_DIM, MAX_DIM)
 
-	var m := InteriorMap.new()
+	var m: InteriorMap = RoomGenerator.generate(rng, w, h)
 	m.map_id = &"house"
 	m.seed = seed_val
-	m.width = w
-	m.height = h
-	m.tiles = PackedByteArray()
-	m.tiles.resize(w * h)
+	m.style = style
 
-	for y in h:
-		for x in w:
-			var on_edge: bool = (x == 0 or y == 0 or x == w - 1 or y == h - 1)
-			m.set_at(Vector2i(x, y),
-				TerrainCodes.INTERIOR_WALL if on_edge else TerrainCodes.INTERIOR_FLOOR)
-
-	# Door in the middle of the south wall.
-	var door := Vector2i(w / 2, h - 1)
-	m.set_at(door, TerrainCodes.INTERIOR_DOOR)
-	m.entry_cell = Vector2i(door.x, door.y - 1)
-	m.exit_cell = door
+	_scatter_furniture(rng, m)
 	return m
+
+
+static func _scatter_furniture(rng: RandomNumberGenerator, m: InteriorMap) -> void:
+	var furniture: Dictionary = TilesetCatalog.INTERIOR_FURNITURE
+	if furniture.is_empty():
+		return
+	var types: Array = furniture.keys()
+	# Collect walkable floor cells that are not the entry/exit and not on
+	# the map edge so furniture is never placed blocking doors.
+	var candidates: Array[Vector2i] = []
+	for y in range(1, m.height - 1):
+		for x in range(1, m.width - 1):
+			var cell := Vector2i(x, y)
+			if m.at(cell) != TerrainCodes.INTERIOR_FLOOR:
+				continue
+			if cell == m.entry_cell or cell == m.exit_cell:
+				continue
+			candidates.append(cell)
+	if candidates.is_empty():
+		return
+	# Shuffle candidates deterministically.
+	for i in range(candidates.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp: Vector2i = candidates[i]
+		candidates[i] = candidates[j]
+		candidates[j] = tmp
+	var count: int = mini(rng.randi_range(1, MAX_FURNITURE), candidates.size())
+	for i in count:
+		var t: StringName = types[rng.randi_range(0, types.size() - 1)]
+		m.furniture_scatter.append({"cell": candidates[i], "type": t})
+

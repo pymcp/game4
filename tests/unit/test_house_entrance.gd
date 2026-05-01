@@ -28,8 +28,9 @@ func test_get_or_generate_house_uses_house_generator() -> void:
 	# House interiors are 8..14 tiles per side (HouseGenerator.MIN/MAX_DIM).
 	assert_between(m.width, HouseGenerator.MIN_DIM, HouseGenerator.MAX_DIM)
 	assert_between(m.height, HouseGenerator.MIN_DIM, HouseGenerator.MAX_DIM)
-	# Origin is the entry door cell, exit_cell == entry door (south wall).
-	assert_eq(m.exit_cell, Vector2i(m.width / 2, m.height - 1))
+	# exit_cell must be a DOOR cell on the south half of the map.
+	assert_eq(m.at(m.exit_cell), TerrainCodes.INTERIOR_DOOR, "exit_cell must be a door")
+	assert_true(m.exit_cell.y >= m.height / 2, "exit_cell must be on the south half")
 	assert_eq(m.origin_region_id, rid)
 	assert_eq(m.origin_cell, cell)
 

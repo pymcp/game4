@@ -212,13 +212,25 @@ func rebuild_door_index() -> void:
 ## Append a player-built house entrance to this region and update all
 ## live state (doors + entrance markers) immediately.
 ## Only wires doors and paints markers when currently in the overworld view.
-func add_house_entrance(cell: Vector2i) -> void:
+## `style` overrides the wall material; pass &"" to auto-detect from biome.
+func add_house_entrance(cell: Vector2i, style: StringName = &"") -> void:
 	if _region == null:
 		return
-	_region.dungeon_entrances.append({"kind": &"house", "cell": cell})
+	var resolved_style: StringName = style if style != &"" else _house_style_for_biome(_region.biome)
+	_region.dungeon_entrances.append({"kind": &"house", "cell": cell, "style": resolved_style})
 	if _last_view_kind == &"overworld":
 		_build_door_index(&"overworld")
 		_paint_overworld_entrance_markers(_region)
+
+
+## Resolve the house wall style from a biome name.
+## Grass/forest biomes → wood; all others → stone.
+static func _house_style_for_biome(biome: StringName) -> StringName:
+	match biome:
+		&"grass", &"forest":
+			return &"wood"
+		_:
+			return &"stone"
 
 
 func get_map_size() -> Vector2i:
@@ -479,6 +491,10 @@ func _paint_interior(interior: InteriorMap, view_kind: StringName) -> void:
 		if view_kind == &"labyrinth" and not interior.boss_room_cells.is_empty():
 			_paint_boss_room_overlay(interior)
 		return
+	if view_kind == &"house":
+		_paint_room_walls(interior)
+		_paint_room_furniture(interior)
+		return
 	for y in interior.height:
 		for x in interior.width:
 			var cell := Vector2i(x, y)
@@ -514,7 +530,116 @@ static func _view_kind_from_interior(interior: InteriorMap) -> StringName:
 	return MapManager._kind_from_id(interior.map_id)
 
 
-# --- Cave (dungeon) painting --------------------------------------
+# --- Room-wall painting (house interiors) --------------------------
+
+## Paint a house interior using the directional dungeon_sheet.png wall tiles
+## (source_id=1 in the interior TileSet) and themed floor variants.
+## Walls use a 2-pass autotile: cardinal floor-neighbor mask selects the row,
+## diagonal checks resolve corner tiles (mask=0).
+func _paint_room_walls(interior: InteriorMap) -> void:
+	var style: StringName = interior.style if interior.style != &"" else &"wood"
+	var wall_lut: Dictionary = (TilesetCatalog.HOUSE_WALL_WOOD_AUTOTILE
+			if style == &"wood" else TilesetCatalog.HOUSE_WALL_STONE_AUTOTILE)
+	var floor_pool: Array = (TilesetCatalog.HOUSE_FLOOR_WOOD
+			if style == &"wood" else TilesetCatalog.HOUSE_FLOOR_STONE)
+	var corner_cells: Array = TilesetCatalog.house_corner_cells(style)
+	# Pick one floor variant for this house, seeded for determinism.
+	var floor_idx: int = (interior.seed >> 3) % maxi(floor_pool.size(), 1)
+	var floor_cell: Vector2i = floor_pool[floor_idx] if not floor_pool.is_empty() else Vector2i(19, 12)
+	for y in interior.height:
+		for x in interior.width:
+			var cell := Vector2i(x, y)
+			var code: int = interior.at(cell)
+			if code == TerrainCodes.INTERIOR_DOOR:
+				# Door: use interior_sheet floor on ground + door sprite on decoration.
+				var gfloor: Vector2i = TilesetCatalog.cell_for(&"house", &"floor")
+				if gfloor.x >= 0:
+					ground.set_cell(cell, 0, gfloor, 0)
+				var door_atlas: Vector2i = TilesetCatalog.cell_for(&"house", &"door")
+				if door_atlas.x >= 0:
+					ground.set_cell(cell, 0, door_atlas, 0)
+				continue
+			if _is_room_floor(interior, cell):
+				ground.set_cell(cell, 1, floor_cell, 0)
+				continue
+			if code != TerrainCodes.INTERIOR_WALL:
+				continue
+			# Wall cell: compute floor-neighbor mask + diagonals.
+			var fN: bool = _is_room_floor(interior, cell + Vector2i(0, -1))
+			var fS: bool = _is_room_floor(interior, cell + Vector2i(0, 1))
+			var fE: bool = _is_room_floor(interior, cell + Vector2i(1, 0))
+			var fW: bool = _is_room_floor(interior, cell + Vector2i(-1, 0))
+			var fNW: bool = _is_room_floor(interior, cell + Vector2i(-1, -1))
+			var fNE: bool = _is_room_floor(interior, cell + Vector2i(1, -1))
+			var fSW: bool = _is_room_floor(interior, cell + Vector2i(-1, 1))
+			var fSE: bool = _is_room_floor(interior, cell + Vector2i(1, 1))
+			var mask: int = (8 if fN else 0) | (4 if fS else 0) | (2 if fE else 0) | (1 if fW else 0)
+			var atlas: Vector2i
+			if mask == 0:
+				# Corner or isolated: resolve via single diagonal.
+				var diag_count: int = (1 if fSE else 0) + (1 if fSW else 0) + (1 if fNE else 0) + (1 if fNW else 0)
+				if diag_count == 1:
+					if fSE: atlas = corner_cells[0]   # NW corner
+					elif fSW: atlas = corner_cells[1] # NE corner
+					elif fNE: atlas = corner_cells[2] # SW corner
+					else: atlas = corner_cells[3]     # SE corner
+				else:
+					# Multi-diagonal or isolated → passthrough center (row 4/9).
+					atlas = Vector2i(19, 4 if style != &"wood" else 9)
+			else:
+				var entry: Variant = wall_lut.get(mask, null)
+				if entry == null:
+					continue
+				atlas = entry as Vector2i
+				# Refine column for N-wall (row with fS) and S-wall (row with fN):
+				if mask == 4 or mask == 5 or mask == 6:
+					atlas.x = _nwall_col(fW, fE)
+				elif mask == 8 or mask == 9 or mask == 10:
+					atlas.x = _nwall_col(fW, fE)
+			# Place floor underneath wall on Ground layer, wall sprite on Decoration.
+			ground.set_cell(cell, 1, floor_cell, 0)
+			decoration.set_cell(cell, 1, atlas, 0)
+
+
+## Returns the column (17-21) for a N-wall or S-wall cell based on
+## whether the cell has floor immediately to its west and east.
+static func _nwall_col(fW: bool, fE: bool) -> int:
+	if fW: return 17   # floor to west → left end-cap
+	if fE: return 21   # floor to east → right end-cap
+	return 19          # wall on both sides → center
+
+
+## Returns true if `cell` counts as "floor" for room-wall neighbor checks.
+static func _is_room_floor(interior: InteriorMap, cell: Vector2i) -> bool:
+	var code: int = interior.at(cell)
+	return (code == TerrainCodes.INTERIOR_FLOOR
+			or code == TerrainCodes.INTERIOR_DOOR
+			or code == TerrainCodes.INTERIOR_STAIRS_UP
+			or code == TerrainCodes.INTERIOR_STAIRS_DOWN)
+
+
+## Paint furniture_scatter entries onto the Decoration layer using
+## TilesetCatalog.INTERIOR_FURNITURE cells from interior_sheet.png (source_id=0).
+func _paint_room_furniture(interior: InteriorMap) -> void:
+	if interior.furniture_scatter.is_empty():
+		return
+	for entry in interior.furniture_scatter:
+		var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
+		if cell.x < 0:
+			continue
+		var ftype: StringName = entry.get("type", &"")
+		var atlas: Variant = TilesetCatalog.INTERIOR_FURNITURE.get(ftype, null)
+		if atlas is Vector2i and (atlas as Vector2i).x >= 0:
+			decoration.set_cell(cell, 0, atlas as Vector2i, 0)
+
+
+## Returns true if `cell` falls within any chamber_rect in `interior`.
+static func _is_in_chamber(cell: Vector2i, interior: InteriorMap) -> bool:
+	for r in interior.chamber_rects:
+		var rect: Rect2i = r
+		if rect.has_point(cell):
+			return true
+	return false
 
 func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"dungeon") -> void:
 	var ts: TileSet = TilesetCatalog.labyrinth() if view_kind == &"labyrinth" else TilesetCatalog.dungeon()
@@ -527,9 +652,13 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 	var wall_autotile: Dictionary = (TilesetCatalog.LABYRINTH_WALL_AUTOTILE
 			if view_kind == &"labyrinth" else TilesetCatalog.DUNGEON_WALL_AUTOTILE)
 	var decor_count: int = floor_decor.size()
+	var has_chambers: bool = not interior.chamber_rects.is_empty()
 	for y in interior.height:
 		for x in interior.width:
 			var cell := Vector2i(x, y)
+			# Chamber cells: skip cave autotile; handled by _paint_room_walls pass below.
+			if has_chambers and _is_in_chamber(cell, interior):
+				continue
 			var code: int = interior.at(cell)
 			var is_floor_like: bool = (
 					code == TerrainCodes.INTERIOR_FLOOR
@@ -567,6 +696,11 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 			if flip_h:
 				alt |= TileSetAtlasSource.TRANSFORM_FLIP_H
 			decoration.set_cell(cell, 0, atlas, alt)
+	# Paint chamber cells with stone room-wall tiles over the dungeon TileSet.
+	# Chamber walls/floors use dungeon_sheet.png directly (same source as the
+	# dungeon TileSet), so we write to source_id=0 (the only source in dungeon_ts).
+	if has_chambers:
+		_paint_dungeon_chambers(interior)
 	# Floor border pass — overwrites Ground with edge/corner tiles where
 	# floor meets wall. No-op when border_cells are all the plain floor cell.
 	var floor_border: Array = (TilesetCatalog.LABYRINTH_FLOOR_BORDER_3X3
@@ -574,6 +708,57 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 	_paint_dungeon_floor_border(interior, floor_border)
 	_paint_dungeon_corridor_frames(interior)
 	_paint_dungeon_stair_markers(interior)
+
+
+## Paint chamber_rects inside a dungeon/labyrinth with stone room-wall tiles.
+## The dungeon TileSet uses a single source (id=0) from dungeon_sheet.png, so
+## room-wall cells (also on dungeon_sheet.png) are written to source_id=0.
+func _paint_dungeon_chambers(interior: InteriorMap) -> void:
+	var floor_pool: Array = TilesetCatalog.HOUSE_FLOOR_STONE
+	var floor_idx: int = (interior.seed >> 3) % maxi(floor_pool.size(), 1)
+	var floor_cell: Vector2i = floor_pool[floor_idx] if not floor_pool.is_empty() else Vector2i(19, 12)
+	var wall_lut: Dictionary = TilesetCatalog.HOUSE_WALL_STONE_AUTOTILE
+	var corner_cells: Array = TilesetCatalog.house_corner_cells(&"stone")
+	for r in interior.chamber_rects:
+		var rect: Rect2i = r
+		for y in range(rect.position.y, rect.position.y + rect.size.y):
+			for x in range(rect.position.x, rect.position.x + rect.size.x):
+				var cell := Vector2i(x, y)
+				var code: int = interior.at(cell)
+				if _is_room_floor(interior, cell):
+					ground.set_cell(cell, 0, floor_cell, 0)
+					decoration.erase_cell(cell)  # remove any cave decor
+					continue
+				if code != TerrainCodes.INTERIOR_WALL:
+					continue
+				var fN: bool = _is_room_floor(interior, cell + Vector2i(0, -1))
+				var fS: bool = _is_room_floor(interior, cell + Vector2i(0, 1))
+				var fE: bool = _is_room_floor(interior, cell + Vector2i(1, 0))
+				var fW: bool = _is_room_floor(interior, cell + Vector2i(-1, 0))
+				var fNW: bool = _is_room_floor(interior, cell + Vector2i(-1, -1))
+				var fNE: bool = _is_room_floor(interior, cell + Vector2i(1, -1))
+				var fSW: bool = _is_room_floor(interior, cell + Vector2i(-1, 1))
+				var fSE: bool = _is_room_floor(interior, cell + Vector2i(1, 1))
+				var mask: int = (8 if fN else 0) | (4 if fS else 0) | (2 if fE else 0) | (1 if fW else 0)
+				var atlas: Vector2i
+				if mask == 0:
+					var diag_count: int = (1 if fSE else 0) + (1 if fSW else 0) + (1 if fNE else 0) + (1 if fNW else 0)
+					if diag_count == 1:
+						if fSE: atlas = corner_cells[0]
+						elif fSW: atlas = corner_cells[1]
+						elif fNE: atlas = corner_cells[2]
+						else: atlas = corner_cells[3]
+					else:
+						atlas = Vector2i(19, 4)
+				else:
+					var entry: Variant = wall_lut.get(mask, null)
+					if entry == null:
+						continue
+					atlas = entry as Vector2i
+					if mask == 4 or mask == 5 or mask == 6 or mask == 8 or mask == 9 or mask == 10:
+						atlas.x = _nwall_col(fW, fE)
+				ground.set_cell(cell, 0, floor_cell, 0)
+				decoration.set_cell(cell, 0, atlas, 0)
 
 
 ## Paint a distinct floor decor pattern over boss room cells.
@@ -1158,7 +1343,8 @@ func _build_door_index(view_kind: StringName) -> void:
 			var c: Vector2i = entry["cell"]
 			var ek: StringName = entry.get("kind", &"dungeon")
 			if ek == &"house":
-				_doors[c] = {"kind": &"house_enter", "cell": c}
+				_doors[c] = {"kind": &"house_enter", "cell": c,
+						"style": entry.get("style", &"wood")}
 			elif ek == &"labyrinth":
 				_doors[c] = {"kind": &"labyrinth_enter", "cell": c}
 			else:
@@ -1185,9 +1371,10 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 			Sfx.play(&"dungeon_enter")
 			var hrid: Vector2i = _region.region_id
 			var hmid: StringName = MapManager.make_id(hrid, cell, 1, &"house")
+			var hstyle: StringName = door.get("style", &"wood")
 			var house: InteriorMap = MapManager.get_or_generate(
 					hmid, hrid, cell, 1,
-					MapManager.DEFAULT_FLOOR_SIZE, &"house")
+					MapManager.DEFAULT_FLOOR_SIZE, &"house", hstyle)
 			World.instance().transition_player(player.player_id, &"house", _region, house)
 		&"labyrinth_enter":
 			_handle_enter_interior(player, cell, &"labyrinth")

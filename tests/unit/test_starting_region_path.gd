@@ -41,7 +41,7 @@ func test_path_starts_near_spawn() -> void:
 	var first: Vector2i = region.path_tiles[0]
 	var spawn: Vector2i = region.spawn_points[0]
 	var dist: int = abs(first.x - spawn.x) + abs(first.y - spawn.y)
-	assert_le(dist, 2, "first path tile should be at or adjacent to spawn")
+	assert_lte(dist, 2, "first path tile should be at or adjacent to spawn")
 
 
 func test_path_ends_at_entrance() -> void:

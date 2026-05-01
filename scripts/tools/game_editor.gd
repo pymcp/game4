@@ -25,7 +25,6 @@ const MAPPINGS_PATH: String = "res://resources/tilesets/tile_mappings.tres"
 #   sheet   : String     — atlas PNG path
 #   field   : StringName — TileMappings field to read/write
 #   kind    : StringName — selection layout for the right pane:
-#                          "single"      Dictionary[StringName→Vector2i]
 #                          "list"        Dictionary[StringName→Array[Vector2i]]
 #                          "patch3"      Dictionary[StringName→Array[Vector2i] (9)]
 #                          "patch3_flat" Array[Vector2i] (9)
@@ -90,6 +89,21 @@ const _MAPPINGS: Array = [
 	{"id": &"interior_terrain",                  "label": "Interior terrain",
 	 "sheet": "res://assets/tiles/roguelike/interior_sheet.png",
 	 "field": &"interior_terrain",                  "kind": &"list"},
+	{"id": &"house_wall_stone_autotile",         "label": "House wall autotile – Stone (15-mask)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"house_wall_stone_autotile",         "kind": &"autotile_noflip"},
+	{"id": &"house_wall_wood_autotile",          "label": "House wall autotile – Wood (15-mask)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"house_wall_wood_autotile",          "kind": &"autotile_noflip"},
+	{"id": &"house_floor_stone",                 "label": "House floor – Stone (5 variants)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"house_floor_stone",                 "kind": &"flat_list"},
+	{"id": &"house_floor_wood",                  "label": "House floor – Wood (5 variants)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"house_floor_wood",                  "kind": &"flat_list"},
+	{"id": &"interior_furniture",                "label": "Interior furniture (named cells)",
+	 "sheet": "res://assets/tiles/roguelike/interior_sheet.png",
+	 "field": &"interior_furniture",                "kind": &"named"},
 	{"id": &"mineable_resources",                "label": "Mineable Resources",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_mineable_json",                    "kind": &"mineable"},
@@ -139,6 +153,16 @@ const _MAPPINGS: Array = [
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_asset_browser",                    "kind": &"asset_browser"},
 
+]
+
+# Mapping kinds that delegate to a full-pane sub-editor instead of the
+# slot/atlas UI. _build_slots() returns [] for all of these.
+const _EDITOR_KINDS: Array[StringName] = [
+	&"mineable", &"item_editor", &"encounter_editor", &"creature_editor",
+	&"asset_browser", &"loot_table_editor", &"crafting_editor", &"armor_set_editor",
+	&"biome_editor", &"shop_editor", &"quest_editor", &"dialogue_editor",
+	&"balance_overview", &"encounter_table_editor", &"chest_loot_editor",
+	&"overlay_set_editor",
 ]
 
 # Tile-sheet geometry. Matches WorldConst.TILE_PX (16) and the 1-px
@@ -1009,13 +1033,13 @@ func _select_mapping(entry: Dictionary) -> void:
 func _build_slots(entry: Dictionary) -> Array:
 	var field: StringName = entry["field"]
 	var kind: StringName = entry["kind"]
-	if kind == &"mineable" or kind == &"item_editor" or kind == &"encounter_editor" or kind == &"creature_editor" or kind == &"asset_browser" or kind == &"loot_table_editor" or kind == &"crafting_editor" or kind == &"armor_set_editor" or kind == &"biome_editor" or kind == &"shop_editor" or kind == &"quest_editor" or kind == &"dialogue_editor" or kind == &"balance_overview" or kind == &"encounter_table_editor" or kind == &"chest_loot_editor" or kind == &"overlay_set_editor":
+	if kind in _EDITOR_KINDS:
 		return []  # These use their own editors.
 	var value: Variant = _mappings_resource.get(field)
 	var out: Array = []
 
 	match kind:
-		&"single", &"named":
+		&"named":
 			# Dictionary[Variant → Vector2i]
 			var d: Dictionary = value
 			var keys: Array = d.keys()
@@ -1079,6 +1103,16 @@ func _build_slots(entry: Dictionary) -> Array:
 					"path":   [field, i, "cell"],
 					"flip_v": int(ent.get("flip_v", ent.get("flip", 0))),
 					"flip_h": int(ent.get("flip_h", 0)),
+				})
+		&"autotile_noflip":
+			var arr: Array = value
+			for i in arr.size():
+				var ent: Dictionary = arr[i]
+				var mask: int = int(ent.get("mask", 0))
+				out.append({
+					"label": "mask=%2d  (%s)" % [mask, _autotile_mask_desc(mask)],
+					"path":  [field, i, "cell"],
+					"flip":  -1,
 				})
 	return out
 
@@ -1234,31 +1268,6 @@ func _on_cell_clicked(cell: Vector2i) -> void:
 		_creature_editor.on_atlas_cell_clicked(cell)
 		_refresh_marks()
 		_status_label.text = "creature editor: picked %s" % _str_cell(cell)
-		return
-	# Route to new data editors (they generally don't use atlas clicks).
-	if _loot_table_editor != null and _loot_table_editor.visible:
-		_loot_table_editor.on_atlas_cell_clicked(cell)
-		return
-	if _crafting_editor != null and _crafting_editor.visible:
-		_crafting_editor.on_atlas_cell_clicked(cell)
-		return
-	if _armor_set_editor != null and _armor_set_editor.visible:
-		_armor_set_editor.on_atlas_cell_clicked(cell)
-		return
-	if _biome_editor != null and _biome_editor.visible:
-		_biome_editor.on_atlas_cell_clicked(cell)
-		return
-	if _shop_editor != null and _shop_editor.visible:
-		_shop_editor.on_atlas_cell_clicked(cell)
-		return
-	if _quest_editor != null and _quest_editor.visible:
-		_quest_editor.on_atlas_cell_clicked(cell)
-		return
-	if _dialogue_editor != null and _dialogue_editor.visible:
-		_dialogue_editor.on_atlas_cell_clicked(cell)
-		return
-	if _balance_overview != null and _balance_overview.visible:
-		_balance_overview.on_atlas_cell_clicked(cell)
 		return
 	if _active_slot < 0 or _active_slot >= _slots.size():
 		_status_label.text = "no active slot — pick one in the right pane first"
@@ -1525,7 +1534,7 @@ func _refresh_preview() -> void:
 			layout = &"patch3"
 			var arr: Array = _mappings_resource.get(_current_mapping["field"])
 			cells = arr.duplicate()
-		&"autotile":
+		&"autotile", &"autotile_noflip":
 			var field: StringName = _current_mapping["field"]
 			var arr: Array = _mappings_resource.get(field)
 			var at_dict: Dictionary = {}
@@ -1596,11 +1605,7 @@ const _ICON_COLS := 10
 const _ICON_SIZE := 36
 
 func _select_quest_todo(quest_id: String) -> void:
-	_hide_mineable_editor()
-	_hide_item_editor()
-	_hide_encounter_editor()
-	_hide_creature_editor()
-	_hide_asset_browser()
+	_hide_all_editors()
 	_current_mapping = {}
 	_slots = []
 	_active_slot = -1
@@ -1947,8 +1952,6 @@ func _on_quest_icon_picked(icon_path: String) -> void:
 # ─── Mineable editor integration ──────────────────────────────────────
 
 func _show_mineable_editor() -> void:
-	# Hide normal slot UI and quest panel.
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -1980,7 +1983,6 @@ func _on_mineable_dirty() -> void:
 # ─── Item editor integration ──────────────────────────────────────────
 
 func _show_item_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_slot_scroll.visible = false
 	_header_label.visible = false
@@ -2036,7 +2038,6 @@ func _on_item_sheet_requested(path: String) -> void:
 # ─── Encounter editor integration ─────────────────────────────────────
 
 func _show_encounter_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2065,7 +2066,6 @@ func _on_encounter_dirty() -> void:
 # ─── Creature editor integration ──────────────────────────────────────
 
 func _show_creature_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2105,7 +2105,6 @@ func _on_creature_sheet_requested(path: String) -> void:
 # ─── Asset browser integration ─────────────────────────────────────────
 
 func _show_asset_browser() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2127,7 +2126,6 @@ func _hide_asset_browser() -> void:
 # ─── Loot Table editor integration ────────────────────────────────────
 
 func _show_loot_table_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2154,7 +2152,6 @@ func _on_loot_table_dirty() -> void:
 # ─── Crafting editor integration ──────────────────────────────────────
 
 func _show_crafting_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2181,7 +2178,6 @@ func _on_crafting_dirty() -> void:
 # ─── Armor Set editor integration ────────────────────────────────────
 
 func _show_armor_set_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2208,7 +2204,6 @@ func _on_armor_set_dirty() -> void:
 # ─── Biome editor integration ────────────────────────────────────────
 
 func _show_biome_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2235,7 +2230,6 @@ func _on_biome_dirty() -> void:
 # ─── Shop editor integration ──────────────────────────────────────────
 
 func _show_shop_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2260,7 +2254,6 @@ func _on_shop_dirty() -> void:
 
 
 func _show_quest_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2285,7 +2278,6 @@ func _on_quest_editor_dirty() -> void:
 
 
 func _show_dialogue_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2310,7 +2302,6 @@ func _on_dialogue_editor_dirty() -> void:
 
 
 func _show_balance_overview() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2337,7 +2328,6 @@ func _on_balance_overview_dirty() -> void:
 # ─── Encounter Table editor integration ──────────────────────────────
 
 func _show_encounter_table_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2364,7 +2354,6 @@ func _on_encounter_table_dirty() -> void:
 # ─── Chest Loot editor integration ───────────────────────────────────
 
 func _show_chest_loot_editor() -> void:
-	_hide_quest_panel()
 	_slot_root.visible = false
 	_header_label.visible = false
 	if _preview != null:
@@ -2391,7 +2380,6 @@ func _on_chest_loot_dirty() -> void:
 # ─── Overlay Set editor integration ─────────────────────────────────
 
 func _show_overlay_set_editor() -> void:
-	_hide_quest_panel()
 	if _middle_pane != null:
 		_middle_pane.visible = false
 	if _right_pane != null:
@@ -2406,7 +2394,7 @@ func _show_overlay_set_editor() -> void:
 		_overlay_set_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		_overlay_set_editor.dirty_changed.connect(_on_overlay_set_dirty)
 		inner.add_child(_overlay_set_editor)
-		_overlay_set_editor.setup(_mappings_resource)
+	_overlay_set_editor.setup(_mappings_resource)
 	_overlay_set_editor.visible = true
 
 

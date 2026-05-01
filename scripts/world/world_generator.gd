@@ -420,7 +420,6 @@ static func _place_dungeon_entrances(region: Region) -> void:
 			candidates.append(cell)
 	# Shuffle deterministically and take target_count (but enforce a
 	# minimum spacing so entrances don't cluster).
-	candidates.shuffle()  # non-deterministic — re-shuffle with our rng:
 	for i in range(candidates.size() - 1, 0, -1):
 		var j: int = rng.randi_range(0, i)
 		var tmp: Vector2i = candidates[i]

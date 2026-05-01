@@ -341,12 +341,14 @@ func _apply_armor_layer(sprite: Sprite2D, default_region: Rect2,
 
 
 func _physics_process(delta: float) -> void:
+	# Tick invincibility regardless of world state so tests can verify timer behaviour.
+	if _invincible_timer > 0.0:
+		_invincible_timer = max(0.0, _invincible_timer - delta)
 	if _world == null:
 		return
 	tick_effects(delta)
-	# Tick invincibility and drive flashing visual.
+	# Drive flashing visual while invincible.
 	if _invincible_timer > 0.0:
-		_invincible_timer = max(0.0, _invincible_timer - delta)
 		# Flash: visible every other 0.15s window.
 		if _sprite_root != null:
 			_sprite_root.visible = int(_invincible_timer / 0.15) % 2 == 0

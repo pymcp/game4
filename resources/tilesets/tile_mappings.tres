@@ -203,6 +203,128 @@ interior_terrain = {
 "floor": [Vector2i(5, 13)],
 "wall": [Vector2i(5, 1)]
 }
+house_wall_stone_autotile = Array[Dictionary]([{
+"mask": 4,
+"cell": Vector2i(19, 1),
+"flip": 0
+}, {
+"mask": 8,
+"cell": Vector2i(19, 3),
+"flip": 0
+}, {
+"mask": 2,
+"cell": Vector2i(19, 2),
+"flip": 0
+}, {
+"mask": 1,
+"cell": Vector2i(19, 2),
+"flip": 0
+}, {
+"mask": 6,
+"cell": Vector2i(17, 1),
+"flip": 0
+}, {
+"mask": 5,
+"cell": Vector2i(21, 1),
+"flip": 0
+}, {
+"mask": 10,
+"cell": Vector2i(17, 3),
+"flip": 0
+}, {
+"mask": 9,
+"cell": Vector2i(21, 3),
+"flip": 0
+}, {
+"mask": 3,
+"cell": Vector2i(19, 2),
+"flip": 0
+}, {
+"mask": 12,
+"cell": Vector2i(19, 4),
+"flip": 0
+}, {
+"mask": 14,
+"cell": Vector2i(19, 4),
+"flip": 0
+}, {
+"mask": 13,
+"cell": Vector2i(19, 4),
+"flip": 0
+}, {
+"mask": 7,
+"cell": Vector2i(19, 4),
+"flip": 0
+}, {
+"mask": 11,
+"cell": Vector2i(19, 4),
+"flip": 0
+}, {
+"mask": 15,
+"cell": Vector2i(19, 4),
+"flip": 0
+}])
+house_wall_wood_autotile = Array[Dictionary]([{
+"mask": 4,
+"cell": Vector2i(19, 6),
+"flip": 0
+}, {
+"mask": 8,
+"cell": Vector2i(19, 8),
+"flip": 0
+}, {
+"mask": 2,
+"cell": Vector2i(19, 7),
+"flip": 0
+}, {
+"mask": 1,
+"cell": Vector2i(19, 7),
+"flip": 0
+}, {
+"mask": 6,
+"cell": Vector2i(17, 6),
+"flip": 0
+}, {
+"mask": 5,
+"cell": Vector2i(21, 6),
+"flip": 0
+}, {
+"mask": 10,
+"cell": Vector2i(17, 8),
+"flip": 0
+}, {
+"mask": 9,
+"cell": Vector2i(21, 8),
+"flip": 0
+}, {
+"mask": 3,
+"cell": Vector2i(19, 7),
+"flip": 0
+}, {
+"mask": 12,
+"cell": Vector2i(19, 9),
+"flip": 0
+}, {
+"mask": 14,
+"cell": Vector2i(19, 9),
+"flip": 0
+}, {
+"mask": 13,
+"cell": Vector2i(19, 9),
+"flip": 0
+}, {
+"mask": 7,
+"cell": Vector2i(19, 9),
+"flip": 0
+}, {
+"mask": 11,
+"cell": Vector2i(19, 9),
+"flip": 0
+}, {
+"mask": 15,
+"cell": Vector2i(19, 9),
+"flip": 0
+}])
 sheet_overrides = {
 "_item_editor": "res://assets/characters/roguelike/characters_sheet.png",
 "caravan_wagon": "res://assets/icons/hires/items.png"

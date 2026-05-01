@@ -111,6 +111,10 @@ static func generate(seed_val: int, width: int, height: int,
 	if floor_num > 0 and (floor_num % boss_interval) == 0:
 		_carve_boss_room(rng, m, junctions, exit_idx, floor_num, connection)
 
+	# Insert stone room-wall chambers for boss/chest rooms before enemy scatter
+	# so chamber walls are correctly placed before loot cells are tested.
+	_insert_room_chambers(rng, m, junctions, connection, exit_idx)
+
 	_scatter_enemies(rng, m, junctions, entry_idx, floor_num)
 
 	return m
@@ -293,3 +297,38 @@ static func _scatter_enemies(rng: RandomNumberGenerator, m: InteriorMap,
 			"cell": jcell,
 			"variant": rng.randi(),
 		})
+
+
+# ─── Room chambers ────────────────────────────────────────────────────────
+
+## Insert stone room-wall chambers into `m` for the boss room and up to
+## one dead-end chest room so they visually stand apart from corridors.
+## Called from generate() after boss room and chest_scatter are finalized.
+static func _insert_room_chambers(rng: RandomNumberGenerator, m: InteriorMap,
+		junctions: Array, connection: Array, exit_idx: int) -> void:
+	# Boss room: build a chamber rect around the boss junction.
+	if not m.boss_room_cells.is_empty():
+		var boss_centre: Vector2i = m.boss_room_cells[m.boss_room_cells.size() / 2]
+		var br := Rect2i(
+			boss_centre.x - _BOSS_ROOM_HALF,
+			boss_centre.y - _BOSS_ROOM_HALF,
+			_BOSS_ROOM_HALF * 2 + 1,
+			_BOSS_ROOM_HALF * 2 + 1)
+		_insert_room_chamber(rng, m, br)
+	# Chest room: convert one dead-end junction (not the exit) to a chamber.
+	if not m.chest_scatter.is_empty():
+		var chest_cell: Vector2i = m.chest_scatter[0].get("cell", Vector2i(-1, -1))
+		if chest_cell.x >= 0:
+			var half: int = _BOSS_ROOM_HALF - 2  # slightly smaller than boss room
+			var cr := Rect2i(
+				chest_cell.x - half,
+				chest_cell.y - half,
+				half * 2 + 1,
+				half * 2 + 1)
+			_insert_room_chamber(rng, m, cr)
+
+
+## Convert a labyrinth region to a stone room-wall chamber.
+static func _insert_room_chamber(rng: RandomNumberGenerator,
+		m: InteriorMap, rect: Rect2i) -> void:
+	RoomGenerator.carve_into(rng, m, rect)
