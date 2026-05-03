@@ -42,6 +42,16 @@ var _controls_p1: ControlsHud = null
 var _controls_p2: ControlsHud = null
 var _hearts_p1: HeartDisplay = null
 var _hearts_p2: HeartDisplay = null
+var _status_badges_p1: StatusBadges = null
+var _status_badges_p2: StatusBadges = null
+var _cooldown_p1: CooldownWidget = null
+var _cooldown_p2: CooldownWidget = null
+var _biome_label_p1: Label = null
+var _biome_label_p2: Label = null
+var _clock_label_p1: Label = null
+var _clock_label_p2: Label = null
+var _zone_label_p1: Label = null
+var _zone_label_p2: Label = null
 var _player_p1: PlayerController = null
 var _player_p2: PlayerController = null
 var _math_death: MathDeathScreen = null
@@ -75,6 +85,12 @@ func _ready() -> void:
 	_controls_p2 = _build_controls_hud(_container_p2, 1)
 	_hearts_p1 = _build_heart_display(_container_p1)
 	_hearts_p2 = _build_heart_display(_container_p2)
+	_status_badges_p1 = _build_status_badges(_container_p1)
+	_status_badges_p2 = _build_status_badges(_container_p2)
+	_cooldown_p1 = _build_cooldown_widget(_container_p1)
+	_cooldown_p2 = _build_cooldown_widget(_container_p2)
+	_build_top_labels(_container_p1, 0)
+	_build_top_labels(_container_p2, 1)
 	_math_death = _MathDeathScene.instantiate() as MathDeathScreen
 	_math_death.name = "MathDeathScreen"
 	_math_death.answered_correctly.connect(_on_math_answer_correct)
@@ -326,11 +342,160 @@ func _build_heart_display(container: Control) -> HeartDisplay:
 	return hd
 
 
-func _process(_delta: float) -> void:
+func _build_status_badges(container: Control) -> StatusBadges:
+	var sb := StatusBadges.new()
+	sb.name = "StatusBadges"
+	# Positioned just below the heart display row.
+	sb.position = Vector2(8, 8 + 16)
+	sb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(sb)
+	return sb
+
+
+func _build_cooldown_widget(container: Control) -> CooldownWidget:
+	var cw := CooldownWidget.new()
+	cw.name = "CooldownWidget"
+	# Sits just above the hotbar, horizontally centred.
+	var bar_w: float = HotbarSlot.SLOT_SIZE * 8 + 4 * 7
+	var widget_w: float = CooldownWidget._DISC_SIZE * 2 + CooldownWidget._GAP
+	cw.anchor_left = 0.5
+	cw.anchor_right = 0.5
+	cw.anchor_top = 1.0
+	cw.anchor_bottom = 1.0
+	cw.offset_left = -widget_w * 0.5
+	cw.offset_right = widget_w * 0.5
+	cw.offset_top = -(HotbarSlot.SLOT_SIZE + 12.0 + CooldownWidget._DISC_SIZE + 6.0)
+	cw.offset_bottom = -(HotbarSlot.SLOT_SIZE + 12.0 + 6.0)
+	container.add_child(cw)
+	return cw
+
+
+## Build the top-right info labels (biome, clock) and top-centre zone badge
+## for one player's container. Stores refs in p1 or p2 member vars via [param pid].
+func _build_top_labels(container: Control, pid: int) -> void:
+	const MARGIN: float = 12.0
+	# Zone badge — top-centre.
+	var zone := Label.new()
+	zone.name = "ZoneBadge"
+	zone.add_theme_font_size_override("font_size", 15)
+	zone.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
+	zone.add_theme_constant_override("outline_size", 2)
+	zone.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	zone.anchor_left = 0.5
+	zone.anchor_right = 0.5
+	zone.offset_left = -150
+	zone.offset_right = 150
+	zone.offset_top = MARGIN
+	zone.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	zone.visible = false
+	container.add_child(zone)
+	# Biome label — top-right.
+	var biome := Label.new()
+	biome.name = "BiomeLabel"
+	biome.add_theme_font_size_override("font_size", 13)
+	biome.add_theme_color_override("font_color", Color(0.85, 0.9, 0.95))
+	biome.anchor_left = 1.0
+	biome.anchor_right = 1.0
+	biome.offset_left = -160
+	biome.offset_top = MARGIN
+	biome.offset_right = -MARGIN
+	biome.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	biome.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(biome)
+	# Clock label — below biome label.
+	var clock := Label.new()
+	clock.name = "ClockLabel"
+	clock.add_theme_font_size_override("font_size", 13)
+	clock.add_theme_color_override("font_color", Color(0.9, 0.9, 0.7))
+	clock.anchor_left = 1.0
+	clock.anchor_right = 1.0
+	clock.offset_left = -160
+	clock.offset_top = MARGIN + 18
+	clock.offset_right = -MARGIN
+	clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	clock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(clock)
+	if pid == 0:
+		_zone_label_p1 = zone
+		_biome_label_p1 = biome
+		_clock_label_p1 = clock
+	else:
+		_zone_label_p2 = zone
+		_biome_label_p2 = biome
+		_clock_label_p2 = clock
+
+
+## Update top-right/top-centre labels each frame. Called from _process().
+func _update_top_labels() -> void:
+	# Clock (shared — same time for both players).
+	var h: int = int(TimeManager.time_of_day)
+	var m: int = int((TimeManager.time_of_day - h) * 60.0)
+	var period: String = String(TimeManager.get_period()).capitalize()
+	var clock_text: String = "%02d:%02d %s" % [h, m, period]
+	if _clock_label_p1 != null:
+		_clock_label_p1.text = clock_text
+	if _clock_label_p2 != null:
+		_clock_label_p2.text = clock_text
+	# Biome (shared — same overworld region).
+	var biome_text: String = ""
+	if MapManager.active_interior == null:
+		var reg: Region = WorldManager.active_region
+		if reg != null:
+			biome_text = "Biome: %s" % String(reg.biome).capitalize()
+	if _biome_label_p1 != null:
+		_biome_label_p1.text = biome_text
+		_biome_label_p1.visible = biome_text != ""
+	if _biome_label_p2 != null:
+		_biome_label_p2.text = biome_text
+		_biome_label_p2.visible = biome_text != ""
+	# Zone badge — derived from active interior.
+	var zone_text: String = ""
+	if MapManager.active_interior != null:
+		var map_id: String = String(MapManager.active_interior.map_id)
+		var floor_n: int = MapManager.active_interior.floor_num
+		if map_id.begins_with("labyrinth"):
+			zone_text = "LABYRINTH F%d" % floor_n
+		elif map_id.begins_with("house"):
+			zone_text = "HOUSE"
+		elif map_id.begins_with("city"):
+			zone_text = "CITY"
+		else:
+			zone_text = "DUNGEON F%d" % floor_n
+	if _zone_label_p1 != null:
+		_zone_label_p1.text = zone_text
+		_zone_label_p1.visible = zone_text != ""
+	if _zone_label_p2 != null:
+		_zone_label_p2.text = zone_text
+		_zone_label_p2.visible = zone_text != ""
+
+
+
 	if _player_p1 != null and _hearts_p1 != null:
 		_hearts_p1.update(_player_p1.health, _player_p1.max_health)
 	if _player_p2 != null and _hearts_p2 != null:
 		_hearts_p2.update(_player_p2.health, _player_p2.max_health)
+	# Status badges.
+	if _player_p1 != null and _status_badges_p1 != null:
+		_status_badges_p1.set_effects(_player_p1.active_effects)
+	if _player_p2 != null and _status_badges_p2 != null:
+		_status_badges_p2.set_effects(_player_p2.active_effects)
+	# Cooldown arcs.
+	if _player_p1 != null and _cooldown_p1 != null:
+		_cooldown_p1.update_ratios(
+				_player_p1.get_attack_cooldown_ratio(),
+				_player_p1.get_dodge_cooldown_ratio())
+	if _player_p2 != null and _cooldown_p2 != null:
+		_cooldown_p2.update_ratios(
+				_player_p2.get_attack_cooldown_ratio(),
+				_player_p2.get_dodge_cooldown_ratio())
+	# Active hotbar slot highlight.
+	if _player_p1 != null and _hotbar_p1 != null:
+		_hotbar_p1.set_active_slot(_player_p1.active_slot)
+	if _player_p2 != null and _hotbar_p2 != null:
+		_hotbar_p2.set_active_slot(_player_p2.active_slot)
+	# Top-right labels (biome, clock, zone).
+	_update_top_labels()
 
 
 func _on_player_died(pid: int) -> void:

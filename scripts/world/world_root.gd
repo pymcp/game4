@@ -608,8 +608,8 @@ func _paint_room_walls(interior: InteriorMap) -> void:
 ## whether the cell has floor immediately to its west and east.
 static func _nwall_col(fW: bool, fE: bool) -> int:
 	if fW: return 17   # floor to west → left end-cap
-	if fE: return 21   # floor to east → right end-cap
-	return 19          # wall on both sides → center
+	if fE: return 19   # floor to east → right end-cap
+	return 18          # wall on both sides → center
 
 
 ## Returns true if `cell` counts as "floor" for room-wall neighbor checks.

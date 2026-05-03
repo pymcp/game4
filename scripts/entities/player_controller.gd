@@ -45,6 +45,7 @@ var _attack_cooldown: float = 0.0
 const ATTACK_COOLDOWN_SEC: float = 0.35  ## seconds between swings
 var auto_mine: bool = false
 var auto_attack: bool = false
+var active_slot: int = 0
 var is_dead: bool = false
 var _invincible_timer: float = 0.0
 const _INVINCIBLE_DURATION: float = 3.0
@@ -432,6 +433,10 @@ func _physics_process(delta: float) -> void:
 		auto_mine = not auto_mine
 	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.AUTO_ATTACK)):
 		auto_attack = not auto_attack
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.HOTBAR_PREV)):
+		active_slot = wrapi(active_slot - 1, 0, 8)
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.HOTBAR_NEXT)):
+		active_slot = wrapi(active_slot + 1, 0, 8)
 	# ── Dodge input ──────────────────────────────────────────────────
 	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.DODGE)):
 		if _dodge_cooldown <= 0.0:
@@ -541,6 +546,16 @@ func _get_charge_multiplier() -> float:
 		return 1.0
 	var t: float = (_charge_timer - CHARGE_THRESHOLD_SEC) / (CHARGE_MAX_SEC - CHARGE_THRESHOLD_SEC)
 	return lerpf(1.0, CHARGE_DAMAGE_MULT, clampf(t, 0.0, 1.0))
+
+
+## Returns 0.0 (ready) → 1.0 (full cooldown) for the attack cooldown.
+func get_attack_cooldown_ratio() -> float:
+	return _attack_cooldown / ATTACK_COOLDOWN_SEC
+
+
+## Returns 0.0 (ready) → 1.0 (full cooldown) for the dodge cooldown.
+func get_dodge_cooldown_ratio() -> float:
+	return _dodge_cooldown / DODGE_COOLDOWN_SEC
 
 
 ## Returns charge progress 0.0–1.0 (for UI/visual feedback).

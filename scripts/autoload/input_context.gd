@@ -39,10 +39,6 @@ func get_active_actions(player_id: int) -> Array[StringName]:
 	match ctx:
 		Context.GAMEPLAY:
 			return [
-				PlayerActions.action(player_id, PlayerActions.UP),
-				PlayerActions.action(player_id, PlayerActions.DOWN),
-				PlayerActions.action(player_id, PlayerActions.LEFT),
-				PlayerActions.action(player_id, PlayerActions.RIGHT),
 				PlayerActions.action(player_id, PlayerActions.INTERACT),
 				PlayerActions.action(player_id, PlayerActions.ATTACK),
 				PlayerActions.action(player_id, PlayerActions.DODGE),
@@ -51,13 +47,11 @@ func get_active_actions(player_id: int) -> Array[StringName]:
 				PlayerActions.action(player_id, PlayerActions.INVENTORY),
 				PlayerActions.action(player_id, PlayerActions.AUTO_MINE),
 				PlayerActions.action(player_id, PlayerActions.AUTO_ATTACK),
+				PlayerActions.action(player_id, PlayerActions.HOTBAR_PREV),
+				PlayerActions.action(player_id, PlayerActions.HOTBAR_NEXT),
 			]
 		Context.INVENTORY:
 			return [
-				PlayerActions.action(player_id, PlayerActions.UP),
-				PlayerActions.action(player_id, PlayerActions.DOWN),
-				PlayerActions.action(player_id, PlayerActions.LEFT),
-				PlayerActions.action(player_id, PlayerActions.RIGHT),
 				PlayerActions.action(player_id, PlayerActions.INTERACT),
 				PlayerActions.action(player_id, PlayerActions.BACK),
 				PlayerActions.action(player_id, PlayerActions.TAB_PREV),
@@ -66,8 +60,6 @@ func get_active_actions(player_id: int) -> Array[StringName]:
 			]
 		Context.MENU:
 			return [
-				PlayerActions.action(player_id, PlayerActions.UP),
-				PlayerActions.action(player_id, PlayerActions.DOWN),
 				PlayerActions.action(player_id, PlayerActions.INTERACT),
 				PlayerActions.action(player_id, PlayerActions.BACK),
 			]

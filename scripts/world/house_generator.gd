@@ -15,17 +15,27 @@ extends RefCounted
 
 const MIN_DIM: int = 8
 const MAX_DIM: int = 14
+const MIN_DIM_COMPLEX: int = 22
+const MAX_DIM_COMPLEX: int = 30
+const MAX_ROOMS_COMPLEX: int = 5
 ## Max furniture items to scatter per house.
 const MAX_FURNITURE: int = 5
 
 
-static func generate(seed_val: int, style: StringName = &"wood") -> InteriorMap:
+static func generate(seed_val: int, style: StringName = &"wood",
+		complex: bool = false) -> InteriorMap:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_val
-	var w: int = rng.randi_range(MIN_DIM, MAX_DIM)
-	var h: int = rng.randi_range(MIN_DIM, MAX_DIM)
+	var min_d: int = MIN_DIM_COMPLEX if complex else MIN_DIM
+	var max_d: int = MAX_DIM_COMPLEX if complex else MAX_DIM
+	var w: int = rng.randi_range(min_d, max_d)
+	var h: int = rng.randi_range(min_d, max_d)
 
-	var m: InteriorMap = RoomGenerator.generate(rng, w, h)
+	var m: InteriorMap
+	if complex:
+		m = RoomGenerator.generate_complex(rng, w, h, MAX_ROOMS_COMPLEX)
+	else:
+		m = RoomGenerator.generate(rng, w, h)
 	m.map_id = &"house"
 	m.seed = seed_val
 	m.style = style

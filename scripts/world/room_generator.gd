@@ -23,12 +23,13 @@ const MAX_SIDE_ROOMS: int = 2
 ## Generate a complete [InteriorMap] of size `w × h`.
 ## The caller is responsible for setting map_id, origin_*, floor_num, style, etc.
 ## Minimum supported size is 4×4 (smaller is no-op / degenerate).
-static func generate(rng: RandomNumberGenerator, w: int, h: int) -> InteriorMap:
+static func generate(rng: RandomNumberGenerator, w: int, h: int,
+		max_side_rooms: int = MAX_SIDE_ROOMS) -> InteriorMap:
 	w = maxi(w, 4)
 	h = maxi(h, 4)
 	if mini(w, h) < MULTI_ROOM_THRESHOLD:
 		return _make_single_rect(rng, w, h)
-	return _make_multi_room(rng, w, h)
+	return _make_multi_room(rng, w, h, max_side_rooms)
 
 
 ## Carve a room-style chamber into an existing [InteriorMap] at `rect`.
@@ -98,9 +99,10 @@ static func _make_single_rect(rng: RandomNumberGenerator, w: int, h: int) -> Int
 	return m
 
 
-## Multi-room layout: one main room plus 1-2 side rooms connected by
+## Multi-room layout: one main room plus side rooms connected by
 ## INTERIOR_DOOR cells punched through shared walls.
-static func _make_multi_room(rng: RandomNumberGenerator, w: int, h: int) -> InteriorMap:
+static func _make_multi_room(rng: RandomNumberGenerator, w: int, h: int,
+		max_side_rooms: int) -> InteriorMap:
 	var m := InteriorMap.new()
 	m.width = w
 	m.height = h
@@ -120,9 +122,9 @@ static func _make_multi_room(rng: RandomNumberGenerator, w: int, h: int) -> Inte
 	var main_rect := Rect2i(main_x, main_y, main_w, main_h)
 	_fill_rect(m, main_rect, TerrainCodes.INTERIOR_FLOOR)
 
-	# Side rooms: attempt up to MAX_SIDE_ROOMS on random walls of the main room.
+	# Side rooms: attempt up to max_side_rooms on random walls of the main room.
 	var placed_rooms: Array[Rect2i] = [main_rect]
-	var side_count: int = rng.randi_range(1, MAX_SIDE_ROOMS)
+	var side_count: int = rng.randi_range(1, max_side_rooms)
 	for _i in side_count:
 		_try_add_side_room(rng, m, w, h, main_rect, placed_rooms)
 
@@ -224,3 +226,94 @@ static func _fill_rect(m: InteriorMap, rect: Rect2i, code: int) -> void:
 	for y in range(rect.position.y, rect.end.y):
 		for x in range(rect.position.x, rect.end.x):
 			m.set_at(Vector2i(x, y), code)
+
+
+## Complex layout: scatter 3–[max_rooms] rooms across a larger map,
+## then connect them in chain order with L-shaped corridors.
+## The map must be at least 16×16; smaller values are clamped.
+static func generate_complex(rng: RandomNumberGenerator, w: int, h: int,
+		max_rooms: int = 5) -> InteriorMap:
+	w = maxi(w, 16)
+	h = maxi(h, 16)
+	var m := InteriorMap.new()
+	m.width = w
+	m.height = h
+	m.tiles = PackedByteArray()
+	m.tiles.resize(w * h)
+	for i in w * h:
+		m.tiles[i] = TerrainCodes.INTERIOR_WALL
+
+	# Place rooms with a 2-tile padding gap between them so corridors are visible.
+	var rooms: Array[Rect2i] = []
+	var target: int = rng.randi_range(3, max_rooms)
+	for _attempt in 100:
+		if rooms.size() >= target:
+			break
+		var rw: int = rng.randi_range(4, 8)
+		var rh: int = rng.randi_range(4, 7)
+		var rx: int = rng.randi_range(1, w - rw - 1)
+		var ry: int = rng.randi_range(1, h - rh - 1)
+		var rect := Rect2i(rx, ry, rw, rh)
+		var ok: bool = true
+		for placed in rooms:
+			if rect.intersects(placed.grow(2)):
+				ok = false
+				break
+		if ok:
+			_fill_rect(m, rect, TerrainCodes.INTERIOR_FLOOR)
+			rooms.append(rect)
+
+	if rooms.is_empty():
+		return _make_single_rect(rng, w, h)
+
+	# Connect rooms in chain order with L-shaped corridors.
+	for i in range(1, rooms.size()):
+		_carve_corridor(m, rng, _rect_center(rooms[i - 1]), _rect_center(rooms[i]))
+
+	# Entry door on the south wall of the first room.
+	var main_rect: Rect2i = rooms[0]
+	var door := Vector2i(
+		main_rect.position.x + main_rect.size.x / 2,
+		clampi(main_rect.end.y - 1, 1, h - 2))
+	m.set_at(door, TerrainCodes.INTERIOR_DOOR)
+	m.entry_cell = Vector2i(door.x, door.y - 1)
+	m.exit_cell = door
+	return m
+
+
+static func _rect_center(rect: Rect2i) -> Vector2i:
+	return Vector2i(rect.position.x + rect.size.x / 2,
+			rect.position.y + rect.size.y / 2)
+
+
+## Carve an L-shaped corridor between two points (randomly H-first or V-first).
+static func _carve_corridor(m: InteriorMap, rng: RandomNumberGenerator,
+		from: Vector2i, to: Vector2i) -> void:
+	if rng.randi() % 2 == 0:
+		_carve_h(m, from.y, from.x, to.x)
+		_carve_v(m, to.x, from.y, to.y)
+	else:
+		_carve_v(m, from.x, from.y, to.y)
+		_carve_h(m, to.y, from.x, to.x)
+
+
+static func _carve_h(m: InteriorMap, y: int, x1: int, x2: int) -> void:
+	var step: int = signi(x2 - x1)
+	if step == 0:
+		return
+	var x: int = x1
+	while x != x2 + step:
+		if x >= 0 and x < m.width and y >= 0 and y < m.height:
+			m.set_at(Vector2i(x, y), TerrainCodes.INTERIOR_FLOOR)
+		x += step
+
+
+static func _carve_v(m: InteriorMap, x: int, y1: int, y2: int) -> void:
+	var step: int = signi(y2 - y1)
+	if step == 0:
+		return
+	var y: int = y1
+	while y != y2 + step:
+		if x >= 0 and x < m.width and y >= 0 and y < m.height:
+			m.set_at(Vector2i(x, y), TerrainCodes.INTERIOR_FLOOR)
+		y += step

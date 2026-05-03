@@ -100,3 +100,14 @@ func _refresh() -> void:
 		var slot: HotbarSlot = _row.get_child(i) as HotbarSlot
 		if slot != null:
 			slot.set_item(entry["id"], int(entry["count"]))
+
+
+## Highlight the slot at [param idx] as the active (selected) hotbar slot.
+## Pass -1 to clear all highlights.
+func set_active_slot(idx: int) -> void:
+	if _row == null:
+		return
+	for i in range(_row.get_child_count()):
+		var slot: HotbarSlot = _row.get_child(i) as HotbarSlot
+		if slot != null:
+			slot.set_active(i == idx)

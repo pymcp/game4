@@ -1142,8 +1142,19 @@ func _build_slots(entry: Dictionary) -> Array:
 			for i in arr.size():
 				var ent: Dictionary = arr[i]
 				var mask: int = int(ent.get("mask", 0))
+				const _X_OVERRIDE_MASKS: Array = [4, 5, 6, 8, 9, 10]
+				var lbl: String = "mask=%2d  (%s)" % [mask, _autotile_mask_desc(mask)]
+				if mask in _X_OVERRIDE_MASKS:
+					var fW_m: bool = (mask & 1) != 0
+					var fE_m: bool = (mask & 2) != 0
+					if fW_m:
+						lbl += "  [renders col 17: W-floor; edit y only]"
+					elif fE_m:
+						lbl += "  [renders col 19: E-floor; edit y only]"
+					else:
+						lbl += "  [renders col 18: center; edit y only]"
 				out.append({
-					"label": "mask=%2d  (%s)" % [mask, _autotile_mask_desc(mask)],
+					"label": lbl,
 					"path":  [field, i, "cell"],
 					"flip":  -1,
 				})
@@ -2557,7 +2568,7 @@ func _show_house_interior_preview_editor() -> void:
 	_house_interior_preview_editor.visible = true
 
 
-func _on_house_preview_wall_clicked(mask: int, style: StringName) -> void:
+func _on_house_preview_wall_clicked(mask: int, style: StringName, corner_idx: int) -> void:
 	var target_id: StringName
 	if mask == 0:
 		target_id = &"house_wall_wood_corners" if style == &"wood" \
@@ -2579,6 +2590,8 @@ func _on_house_preview_wall_clicked(mask: int, style: StringName) -> void:
 					item = item.get_next()
 			if mask > 0:
 				_on_preview_mask_clicked(mask)
+			elif corner_idx >= 0 and corner_idx < _slots.size():
+				_on_slot_pressed(corner_idx)
 			return
 
 

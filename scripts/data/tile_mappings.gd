@@ -454,12 +454,12 @@ static func default_mappings() -> TileMappings:
 		Vector2i(18, 4), # [2] fNE floor → SW-cap tile
 		Vector2i(20, 4), # [3] fNW floor → SE-cap tile
 	]
-	# Wood corners (base_row=6, solid-plank row=r+2=8, drip row=r+3=9):
+	# Wood corners:
 	m.house_wall_wood_corners = [
-		Vector2i(18, 8), # [0] fSE floor → NW-cap tile
-		Vector2i(20, 8), # [1] fSW floor → NE-cap tile
-		Vector2i(18, 9), # [2] fNE floor → SW-cap tile
-		Vector2i(20, 9), # [3] fNW floor → SE-cap tile
+		Vector2i(17, 5), # [0] fSE floor → NW-cap tile
+		Vector2i(19, 5), # [1] fSW floor → NE-cap tile
+		Vector2i(17, 7), # [2] fNE floor → SW-cap tile
+		Vector2i(19, 7), # [3] fNW floor → SE-cap tile
 	]
 	# Stone floor variants (dungeon_sheet.png cols 17-21, row 12):
 	m.house_floor_stone = [

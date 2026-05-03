@@ -288,8 +288,8 @@ func _tick_chase(delta: float) -> void:
 	if _world != null and (_path.is_empty() or _path_repath_timer <= 0.0
 			or goal_cell != _path_target_cell):
 		var start_cell: Vector2i = _pos_to_cell(position)
-		_path = Pathfinder.find_path(start_cell, goal_cell,
-			func(c: Vector2i) -> bool: return _world.is_walkable(c))
+		_path = Array(Pathfinder.find_path(start_cell, goal_cell,
+			func(c: Vector2i) -> bool: return _world.is_walkable(c)), TYPE_VECTOR2I, &"", null)
 		_path_target_cell = goal_cell
 		_path_repath_timer = PATH_REPATH_SEC + _lod_index * 0.125
 	# Determine the immediate destination cell.

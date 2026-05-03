@@ -23,6 +23,23 @@ static func ordered_by_domain(domain: StringName) -> Array:
 	return copy
 
 
+## Format a one-line recipe summary, e.g. "3× wood + 1× fiber → axe".
+static func format_recipe_label(recipe: CraftingRecipe) -> String:
+	if recipe == null:
+		return ""
+	var parts: Array = []
+	for ing in recipe.inputs:
+		var def: ItemDefinition = ItemRegistry.get_item(ing["id"])
+		var label: String = def.display_name if def != null else String(ing["id"])
+		parts.append("%d× %s" % [int(ing["count"]), label])
+	var out_def: ItemDefinition = ItemRegistry.get_item(recipe.output_id)
+	var out_name: String = out_def.display_name if out_def != null else String(recipe.output_id)
+	var prefix: String = ""
+	if int(recipe.output_count) > 1:
+		prefix = "%d× " % int(recipe.output_count)
+	return "%s → %s%s" % [" + ".join(parts), prefix, out_name]
+
+
 func set_crafter(domain: StringName, caravan_data: CaravanData) -> void:
 	_domain = domain
 	_caravan_data = caravan_data
@@ -63,7 +80,7 @@ func _build() -> void:
 		_ordered_ids.append(recipe.id)
 		var btn := Button.new()
 		btn.theme_type_variation = &"WoodButton"
-		btn.text = CraftingPanel.format_recipe_label(recipe)
+		btn.text = format_recipe_label(recipe)
 		btn.pressed.connect(_on_pressed.bind(recipe.id))
 		v.add_child(btn)
 		_buttons.append(btn)

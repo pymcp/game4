@@ -526,7 +526,7 @@ const _DEFAULT_HOUSE_WALL_STONE_CORNERS: Array = [
 static var HOUSE_WALL_STONE_CORNERS: Array = _DEFAULT_HOUSE_WALL_STONE_CORNERS
 
 const _DEFAULT_HOUSE_WALL_WOOD_CORNERS: Array = [
-	Vector2i(18, 8), Vector2i(20, 8), Vector2i(18, 9), Vector2i(20, 9),
+	Vector2i(17, 5), Vector2i(19, 5), Vector2i(17, 7), Vector2i(19, 7),
 ]
 static var HOUSE_WALL_WOOD_CORNERS: Array = _DEFAULT_HOUSE_WALL_WOOD_CORNERS
 

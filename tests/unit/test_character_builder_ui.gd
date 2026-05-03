@@ -224,6 +224,11 @@ func test_equipment_tab_removed() -> void:
 		"Equipment tab should be removed from Tab enum")
 
 
-func test_all_tab_is_index_zero() -> void:
-	assert_eq(int(InventoryScreen.Tab.ALL), 0,
-		"ALL tab should be index 0 after Equipment removal")
+func test_character_tab_is_first() -> void:
+	assert_eq(int(InventoryScreen.Tab.CHARACTER), 0,
+		"CHARACTER tab should be index 0 (first tab)")
+
+
+func test_all_tab_is_second() -> void:
+	assert_eq(int(InventoryScreen.Tab.ALL), 1,
+		"ALL tab should be index 1 after CHARACTER tab was moved first")

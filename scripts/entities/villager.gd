@@ -219,8 +219,8 @@ func _enter_wander() -> void:
 	rng.seed = (npc_seed ^ Time.get_ticks_msec()) & 0x7fffffff
 	var goal: Vector2i = pick_wander_target(rng, home_cell, wander_radius,
 		func(c: Vector2i) -> bool: return _world.is_walkable(c))
-	_path = Pathfinder.find_path(_current_cell(), goal,
-		func(c: Vector2i) -> bool: return _world.is_walkable(c))
+	_path = Array(Pathfinder.find_path(_current_cell(), goal,
+		func(c: Vector2i) -> bool: return _world.is_walkable(c)), TYPE_VECTOR2I, &"", null)
 	_path_target_cell = goal
 	_path_repath_timer = PATH_REPATH_SEC + _lod_index * 0.125
 	_state_timer = 0.0
@@ -263,8 +263,8 @@ func _tick_wander(delta: float) -> void:
 		_stuck_timer = 0.0
 		_last_pos = position
 	if _stuck_timer > STUCK_TIMEOUT_SEC or _path_repath_timer <= 0.0:
-		_path = Pathfinder.find_path(here, _path_target_cell,
-			func(c: Vector2i) -> bool: return _world.is_walkable(c))
+		_path = Array(Pathfinder.find_path(here, _path_target_cell,
+			func(c: Vector2i) -> bool: return _world.is_walkable(c)), TYPE_VECTOR2I, &"", null)
 		_path_repath_timer = PATH_REPATH_SEC
 		_stuck_timer = 0.0
 		if _path.is_empty():

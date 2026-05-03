@@ -54,6 +54,44 @@ static func build(opts: Dictionary) -> Node2D:
 		root.add_child(wspr)
 	return root
 
+
+## Update an existing root built by [method build] in-place.
+## Avoids tearing down and re-adding nodes on every option change.
+static func update(root: Node2D, opts: Dictionary) -> void:
+	var spec := _get_spec()
+	var layers: Array[Array] = [
+		["body",   _body_cell(opts),   1],
+		["torso",  _torso_cell(opts),  1],
+		["belt",   _belt_cell(opts),   1],
+		["cape",   _cape_cell(opts),   1],
+		["hair",   _hair_cell(opts),   1],
+		["face",   _face_cell(opts),   1],
+		["shield", _shield_cell(opts), 1],
+		["weapon", _weapon_cell(opts), 2],
+	]
+	for entry in layers:
+		var n: String = entry[0]
+		var cell: Vector2i = entry[1]
+		var height: int = int(entry[2])
+		var existing: Sprite2D = root.get_node_or_null(n) as Sprite2D
+		if cell.x < 0:
+			if existing != null:
+				existing.queue_free()
+			continue
+		if existing == null:
+			existing = _make_sprite(n, cell, height)
+			if n == "weapon":
+				existing.position = Vector2(0, -8)
+			root.add_child(existing)
+		else:
+			existing.region_rect = Rect2(
+				cell.x * spec.stride,
+				cell.y * spec.stride,
+				spec.tile_px,
+				spec.tile_px * height + spec.margin_px * (height - 1),
+			)
+			existing.visible = true
+
 static func _make_sprite(name: String, cell: Vector2i, height_tiles: int) -> Sprite2D:
 	var spec := _get_spec()
 	var spr := Sprite2D.new()

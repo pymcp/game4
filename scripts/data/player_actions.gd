@@ -25,6 +25,8 @@ const AUTO_ATTACK: StringName = &"auto_attack"
 const WORLDMAP:    StringName = &"worldmap"
 const DODGE:       StringName = &"dodge"
 const BLOCK:       StringName = &"block"
+const HOTBAR_PREV: StringName = &"hotbar_prev"
+const HOTBAR_NEXT: StringName = &"hotbar_next"
 
 # ── Action-name builders ────────────────────────────────────────────
 
