@@ -127,6 +127,15 @@ extends Resource
 ## Wall autotile for wood-style room walls (dungeon_sheet.png cols 17-21, rows 6-9).
 @export var house_wall_wood_autotile: Array[Dictionary] = []
 
+## Corner tiles for stone-style house walls (dungeon_sheet.png).
+## Exactly 4 entries, indexed by which single diagonal neighbor is floor:
+##   [0] fSE = NW-cap tile   [1] fSW = NE-cap tile
+##   [2] fNE = SW-cap tile   [3] fNW = SE-cap tile
+@export var house_wall_stone_corners: Array[Vector2i] = []
+
+## Corner tiles for wood-style house walls. Same index order as stone corners.
+@export var house_wall_wood_corners: Array[Vector2i] = []
+
 ## Floor tile variants for stone-style rooms (dungeon_sheet.png cols 17-21, row 12).
 ## Exactly 5 entries (one per column). WorldRoot picks one by seed % 5.
 @export var house_floor_stone: Array[Vector2i] = []
@@ -437,6 +446,20 @@ static func default_mappings() -> TileMappings:
 		{"mask": 7,  "cell": Vector2i(19, 9)},
 		{"mask": 11, "cell": Vector2i(19, 9)},
 		{"mask": 15, "cell": Vector2i(19, 9)},
+	]
+	# Stone corners (base_row=1, solid-plank row=r+2=3, drip row=r+3=4):
+	m.house_wall_stone_corners = [
+		Vector2i(18, 3), # [0] fSE floor → NW-cap tile
+		Vector2i(20, 3), # [1] fSW floor → NE-cap tile
+		Vector2i(18, 4), # [2] fNE floor → SW-cap tile
+		Vector2i(20, 4), # [3] fNW floor → SE-cap tile
+	]
+	# Wood corners (base_row=6, solid-plank row=r+2=8, drip row=r+3=9):
+	m.house_wall_wood_corners = [
+		Vector2i(18, 8), # [0] fSE floor → NW-cap tile
+		Vector2i(20, 8), # [1] fSW floor → NE-cap tile
+		Vector2i(18, 9), # [2] fNE floor → SW-cap tile
+		Vector2i(20, 9), # [3] fNW floor → SE-cap tile
 	]
 	# Stone floor variants (dungeon_sheet.png cols 17-21, row 12):
 	m.house_floor_stone = [

@@ -1,5 +1,5 @@
 ## Overview
-A 2D fantasy sandbox with local split-screen co-op (2 players). **Godot 4.3 stable**, **GDScript** only. All art from the **Kenney All-in-One** pack (CC0). When you read this, say "Hello there matey!" so I know you got it.
+A 2D fantasy sandbox with local split-screen co-op (2 players). **Godot 4.3 stable**, **GDScript** only. All art from the **Kenney All-in-One** pack (CC0). When you read this, say "Hello there matey! Loading ./github/copilot-instructions.md" so I know you got it.
 
 ## Key Rules
 - **Planning mode** — ask questions, do NOT make changes (not even via subagent).

@@ -1497,7 +1497,7 @@ func _handle_enter_interior(player: PlayerController, cell: Vector2i,
 	if kind == &"labyrinth":
 		var rng := RandomNumberGenerator.new()
 		rng.seed = MapManager.make_id(rid, cell, 1, kind).hash()
-		lsize = rng.randi_range(64, 96)
+		lsize = rng.randi_range(MapManager.LABYRINTH_SIZE_MIN, MapManager.LABYRINTH_SIZE_MAX)
 	var mid: StringName = MapManager.make_id(rid, cell, 1, kind)
 	var floor1: InteriorMap = MapManager.get_or_generate(mid, rid, cell, 1, lsize, kind)
 	var pid_e: int = player.player_id

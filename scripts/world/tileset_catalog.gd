@@ -517,19 +517,24 @@ static var HOUSE_FLOOR_WOOD: Array = _DEFAULT_HOUSE_FLOOR_WOOD
 const _DEFAULT_INTERIOR_FURNITURE: Dictionary = {}
 static var INTERIOR_FURNITURE: Dictionary = _DEFAULT_INTERIOR_FURNITURE
 
-# Corner lookup: diagonal index (SE=0, SW=1, NE=2, NW=3) → atlas_cell.
-# Stone base_row=1, wood base_row=6.  Indices match _HOUSE_CORNER_DIAG below.
-# [NW-corner, NE-corner, SW-corner, SE-corner] for stone/wood.
+# Corner lookup: diagonal index (fSE=0, fSW=1, fNE=2, fNW=3) → atlas_cell.
+# Stone base_row=1: solid row=r+2=3, drip row=r+3=4.
+# Wood  base_row=6: solid row=r+2=8, drip row=r+3=9.
+const _DEFAULT_HOUSE_WALL_STONE_CORNERS: Array = [
+	Vector2i(18, 3), Vector2i(20, 3), Vector2i(18, 4), Vector2i(20, 4),
+]
+static var HOUSE_WALL_STONE_CORNERS: Array = _DEFAULT_HOUSE_WALL_STONE_CORNERS
+
+const _DEFAULT_HOUSE_WALL_WOOD_CORNERS: Array = [
+	Vector2i(18, 8), Vector2i(20, 8), Vector2i(18, 9), Vector2i(20, 9),
+]
+static var HOUSE_WALL_WOOD_CORNERS: Array = _DEFAULT_HOUSE_WALL_WOOD_CORNERS
+
+## Returns [fSE, fSW, fNE, fNW] corner atlas cells for the given style.
+## Reads from TileMappings (loaded via _ensure_loaded).
 static func house_corner_cells(style: StringName) -> Array:
-	var r: int = 1 if style != &"wood" else 6
-	# NW/NE corners use the top-wall row (r+2 = solid plank/stone).
-	# SW/SE corners use the bottom-wall row (r+3 = ledge/drip).
-	return [
-		Vector2i(18, r + 2), # NW corner (SE diagonal floor)
-		Vector2i(20, r + 2), # NE corner (SW diagonal floor)
-		Vector2i(18, r + 3), # SW corner (NE diagonal floor)
-		Vector2i(20, r + 3), # SE corner (NW diagonal floor)
-	]
+	_ensure_loaded()
+	return HOUSE_WALL_WOOD_CORNERS if style == &"wood" else HOUSE_WALL_STONE_CORNERS
 
 # ─── Walkability rules (used by generators + collision) ────────────────
 const WALKABLE: Dictionary = {
@@ -622,6 +627,10 @@ static func _ensure_loaded() -> void:
 	var wood_at: Dictionary = m.build_house_wall_autotile_dict(&"wood")
 	if not wood_at.is_empty():
 		HOUSE_WALL_WOOD_AUTOTILE = wood_at
+	if m.house_wall_stone_corners.size() == 4:
+		HOUSE_WALL_STONE_CORNERS = m.house_wall_stone_corners
+	if m.house_wall_wood_corners.size() == 4:
+		HOUSE_WALL_WOOD_CORNERS = m.house_wall_wood_corners
 	if m.house_floor_stone.size() == 5:
 		HOUSE_FLOOR_STONE = m.house_floor_stone
 	if m.house_floor_wood.size() == 5:

@@ -92,9 +92,15 @@ const _MAPPINGS: Array = [
 	{"id": &"house_wall_stone_autotile",         "label": "House wall autotile – Stone (15-mask)",
 	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	 "field": &"house_wall_stone_autotile",         "kind": &"autotile_noflip"},
+	{"id": &"house_wall_stone_corners",          "label": "House wall corners – Stone (4 diagonals)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"house_wall_stone_corners",           "kind": &"house_corners"},
 	{"id": &"house_wall_wood_autotile",          "label": "House wall autotile – Wood (15-mask)",
 	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	 "field": &"house_wall_wood_autotile",          "kind": &"autotile_noflip"},
+	{"id": &"house_wall_wood_corners",           "label": "House wall corners – Wood (4 diagonals)",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"house_wall_wood_corners",            "kind": &"house_corners"},
 	{"id": &"house_floor_stone",                 "label": "House floor – Stone (5 variants)",
 	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	 "field": &"house_floor_stone",                 "kind": &"flat_list"},
@@ -152,6 +158,9 @@ const _MAPPINGS: Array = [
 	{"id": &"asset_browser",                      "label": "Import from Kenney",
 	 "sheet": "res://assets/tiles/roguelike/overworld_sheet.png",
 	 "field": &"_asset_browser",                    "kind": &"asset_browser"},
+	{"id": &"house_interior_preview",             "label": "House Interior Preview",
+	 "sheet": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	 "field": &"_house_interior_preview",           "kind": &"house_interior_preview"},
 
 ]
 
@@ -162,7 +171,7 @@ const _EDITOR_KINDS: Array[StringName] = [
 	&"asset_browser", &"loot_table_editor", &"crafting_editor", &"armor_set_editor",
 	&"biome_editor", &"shop_editor", &"quest_editor", &"dialogue_editor",
 	&"balance_overview", &"encounter_table_editor", &"chest_loot_editor",
-	&"overlay_set_editor",
+	&"overlay_set_editor", &"house_interior_preview",
 ]
 
 # Tile-sheet geometry. Matches WorldConst.TILE_PX (16) and the 1-px
@@ -196,6 +205,7 @@ var _balance_overview: BalanceOverview = null
 var _encounter_table_editor: EncounterTableEditor = null
 var _chest_loot_editor: ChestLootEditor = null
 var _overlay_set_editor: OverlaySetEditor = null
+var _house_interior_preview_editor: HouseInteriorPreviewEditor = null
 
 # Quest TODO panel state.
 var _quest_panel: ScrollContainer = null
@@ -1030,6 +1040,13 @@ func _select_mapping(entry: Dictionary) -> void:
 		_status_label.text = "Overlay Sets (terrain blending)"
 		return
 
+	if kind == &"house_interior_preview":
+		_hide_all_editors_except(&"house_interior_preview")
+		_show_house_interior_preview_editor()
+		_refresh_marks()
+		_status_label.text = "House Interior Preview"
+		return
+
 	_hide_all_editors()
 	_slot_root.visible = true
 	_header_label.visible = true
@@ -1128,6 +1145,21 @@ func _build_slots(entry: Dictionary) -> Array:
 				out.append({
 					"label": "mask=%2d  (%s)" % [mask, _autotile_mask_desc(mask)],
 					"path":  [field, i, "cell"],
+					"flip":  -1,
+				})
+		&"house_corners":
+			# Fixed 4-entry Array[Vector2i]: one slot per diagonal corner type.
+			const _CORNER_LABELS: Array = [
+				"fSE floor  (NW-cap tile)",
+				"fSW floor  (NE-cap tile)",
+				"fNE floor  (SW-cap tile)",
+				"fNW floor  (SE-cap tile)",
+			]
+			var arr: Array = value
+			for i in mini(arr.size(), 4):
+				out.append({
+					"label": "[%d] %s" % [i, _CORNER_LABELS[i]],
+					"path":  [field, i],
 					"flip":  -1,
 				})
 	return out
@@ -2490,8 +2522,9 @@ func _show_overlay_set_editor() -> void:
 
 
 func _hide_overlay_set_editor() -> void:
-	if _overlay_set_editor != null:
-		_overlay_set_editor.visible = false
+	if _overlay_set_editor == null or not _overlay_set_editor.visible:
+		return
+	_overlay_set_editor.visible = false
 	if _middle_pane != null:
 		_middle_pane.visible = true
 	if _right_pane != null:
@@ -2500,6 +2533,63 @@ func _hide_overlay_set_editor() -> void:
 
 func _on_overlay_set_dirty(_dirty: bool) -> void:
 	_mark_dirty()
+
+
+# ─── House Interior Preview integration ─────────────────────────────────
+
+func _show_house_interior_preview_editor() -> void:
+	_slot_root.visible = false
+	_slot_scroll.visible = false
+	_header_label.visible = false
+	_preview_label.visible = false
+	if _preview != null:
+		_preview.visible = false
+	_slots = []
+	_active_slot = -1
+
+	if _house_interior_preview_editor == null:
+		_house_interior_preview_editor = HouseInteriorPreviewEditor.new()
+		_house_interior_preview_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_house_interior_preview_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_house_interior_preview_editor.wall_cell_clicked.connect(_on_house_preview_wall_clicked)
+		_slot_root.get_parent().get_parent().add_child(_house_interior_preview_editor)
+	_house_interior_preview_editor.refresh()
+	_house_interior_preview_editor.visible = true
+
+
+func _on_house_preview_wall_clicked(mask: int, style: StringName) -> void:
+	var target_id: StringName
+	if mask == 0:
+		target_id = &"house_wall_wood_corners" if style == &"wood" \
+				else &"house_wall_stone_corners"
+	else:
+		target_id = &"house_wall_wood_autotile" if style == &"wood" \
+				else &"house_wall_stone_autotile"
+	for entry in _MAPPINGS:
+		if entry["id"] == target_id:
+			_select_mapping(entry)
+			# Select the matching tree item so the left pane reflects the switch.
+			var root: TreeItem = _tree.get_root()
+			if root != null:
+				var item: TreeItem = root.get_first_child()
+				while item != null:
+					if item.get_metadata(0) == target_id:
+						item.select(0)
+						break
+					item = item.get_next()
+			if mask > 0:
+				_on_preview_mask_clicked(mask)
+			return
+
+
+func _hide_house_interior_preview_editor() -> void:
+	if _house_interior_preview_editor == null or not _house_interior_preview_editor.visible:
+		return
+	_house_interior_preview_editor.visible = false
+	_slot_scroll.visible = true
+	_preview_label.visible = true
+	if _preview != null:
+		_preview.visible = true
 
 
 # ─── Editor visibility helpers ────────────────────────────────────────
@@ -2521,6 +2611,7 @@ func _hide_all_editors() -> void:
 	_hide_encounter_table_editor()
 	_hide_chest_loot_editor()
 	_hide_overlay_set_editor()
+	_hide_house_interior_preview_editor()
 
 
 func _hide_all_editors_except(kind: StringName) -> void:
@@ -2556,6 +2647,8 @@ func _hide_all_editors_except(kind: StringName) -> void:
 		_hide_chest_loot_editor()
 	if kind != &"overlay_set_editor":
 		_hide_overlay_set_editor()
+	if kind != &"house_interior_preview":
+		_hide_house_interior_preview_editor()
 
 
 func _on_navigate_to_mineable(resource_id: StringName) -> void:
