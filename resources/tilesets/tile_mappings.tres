@@ -204,127 +204,130 @@ interior_terrain = {
 "wall": [Vector2i(5, 1)]
 }
 house_wall_stone_autotile = Array[Dictionary]([{
-"mask": 4,
 "cell": Vector2i(19, 1),
-"flip": 0
+"flip": 0,
+"mask": 4
 }, {
-"mask": 8,
 "cell": Vector2i(19, 3),
-"flip": 0
+"flip": 0,
+"mask": 8
 }, {
-"mask": 2,
 "cell": Vector2i(19, 2),
-"flip": 0
+"flip": 0,
+"mask": 2
 }, {
-"mask": 1,
 "cell": Vector2i(19, 2),
-"flip": 0
+"flip": 0,
+"mask": 1
 }, {
-"mask": 6,
 "cell": Vector2i(17, 1),
-"flip": 0
+"flip": 0,
+"mask": 6
 }, {
-"mask": 5,
 "cell": Vector2i(21, 1),
-"flip": 0
+"flip": 0,
+"mask": 5
 }, {
-"mask": 10,
 "cell": Vector2i(17, 3),
-"flip": 0
+"flip": 0,
+"mask": 10
 }, {
-"mask": 9,
 "cell": Vector2i(21, 3),
-"flip": 0
+"flip": 0,
+"mask": 9
 }, {
-"mask": 3,
 "cell": Vector2i(19, 2),
-"flip": 0
+"flip": 0,
+"mask": 3
 }, {
-"mask": 12,
 "cell": Vector2i(19, 4),
-"flip": 0
+"flip": 0,
+"mask": 12
 }, {
-"mask": 14,
 "cell": Vector2i(19, 4),
-"flip": 0
+"flip": 0,
+"mask": 14
 }, {
-"mask": 13,
 "cell": Vector2i(19, 4),
-"flip": 0
+"flip": 0,
+"mask": 13
 }, {
-"mask": 7,
 "cell": Vector2i(19, 4),
-"flip": 0
+"flip": 0,
+"mask": 7
 }, {
-"mask": 11,
 "cell": Vector2i(19, 4),
-"flip": 0
+"flip": 0,
+"mask": 11
 }, {
-"mask": 15,
 "cell": Vector2i(19, 4),
-"flip": 0
+"flip": 0,
+"mask": 15
 }])
 house_wall_wood_autotile = Array[Dictionary]([{
-"mask": 4,
-"cell": Vector2i(19, 6),
-"flip": 0
+"cell": Vector2i(18, 5),
+"flip": 0,
+"mask": 4
 }, {
-"mask": 8,
-"cell": Vector2i(19, 8),
-"flip": 0
+"cell": Vector2i(18, 5),
+"flip": 0,
+"mask": 8
 }, {
-"mask": 2,
-"cell": Vector2i(19, 7),
-"flip": 0
-}, {
-"mask": 1,
-"cell": Vector2i(19, 7),
-"flip": 0
-}, {
-"mask": 6,
 "cell": Vector2i(17, 6),
-"flip": 0
+"flip": 0,
+"mask": 2
 }, {
-"mask": 5,
-"cell": Vector2i(21, 6),
-"flip": 0
+"cell": Vector2i(19, 6),
+"flip": 0,
+"mask": 1
 }, {
-"mask": 10,
-"cell": Vector2i(17, 8),
-"flip": 0
-}, {
-"mask": 9,
-"cell": Vector2i(21, 8),
-"flip": 0
-}, {
-"mask": 3,
 "cell": Vector2i(19, 7),
-"flip": 0
+"flip": 0,
+"mask": 6
 }, {
-"mask": 12,
-"cell": Vector2i(19, 9),
-"flip": 0
+"cell": Vector2i(17, 7),
+"flip": 0,
+"mask": 5
 }, {
-"mask": 14,
-"cell": Vector2i(19, 9),
-"flip": 0
+"cell": Vector2i(19, 5),
+"flip": 0,
+"mask": 10
 }, {
-"mask": 13,
-"cell": Vector2i(19, 9),
-"flip": 0
+"cell": Vector2i(17, 5),
+"flip": 0,
+"mask": 9
 }, {
-"mask": 7,
-"cell": Vector2i(19, 9),
-"flip": 0
+"cell": Vector2i(18, 6),
+"flip": 0,
+"mask": 3
 }, {
-"mask": 11,
-"cell": Vector2i(19, 9),
-"flip": 0
+"cell": Vector2i(17, 9),
+"flip": 0,
+"mask": 12
 }, {
-"mask": 15,
-"cell": Vector2i(19, 9),
-"flip": 0
+"cell": Vector2i(20, 5),
+"flip": 0,
+"mask": 14
+}, {
+"cell": Vector2i(16, 5),
+"flip": 0,
+"mask": 13
+}, {
+"cell": Vector2i(18, 6),
+"flip": 0,
+"mask": 7
+}, {
+"cell": Vector2i(17, 5),
+"flip": 0,
+"mask": 11
+}, {
+"cell": Vector2i(19, 5),
+"flip": 0,
+"mask": 15
 }])
+house_floor_stone = Array[Vector2i]([Vector2i(16, 11), Vector2i(17, 11), Vector2i(18, 11), Vector2i(19, 11), Vector2i(20, 11)])
+house_floor_wood = Array[Vector2i]([Vector2i(16, 13), Vector2i(17, 13), Vector2i(18, 13), Vector2i(19, 13), Vector2i(20, 13)])
+interior_furniture = {}
 sheet_overrides = {
 "_item_editor": "res://assets/characters/roguelike/characters_sheet.png",
 "caravan_wagon": "res://assets/icons/hires/items.png"

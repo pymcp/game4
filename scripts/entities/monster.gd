@@ -40,6 +40,12 @@ var _attack_range_tiles: float = 1.25
 var _attack_style: StringName = &"slam"
 var _attack_element: int = 0
 var _attack_cooldown: float = 0.0
+var _stagger_timer: float = 0.0
+const STAGGER_DURATION: float = 0.6
+var _telegraph_timer: float = 0.0
+var _telegraph_duration: float = 0.5
+var _telegraph_target: PlayerController = null
+var _telegraph_indicator: Sprite2D = null
 var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
 var _heart_display: HeartDisplay = null
 var _action_vfx: ActionVFX = null
@@ -73,6 +79,7 @@ func _ready() -> void:
 	_attack_range_tiles = CreatureSpriteRegistry.get_attack_range_tiles(monster_kind)
 	_attack_style = CreatureSpriteRegistry.get_attack_style(monster_kind)
 	_attack_element = CreatureSpriteRegistry.get_element(monster_kind)
+	_telegraph_duration = CreatureSpriteRegistry.get_telegraph_duration(monster_kind)
 	# Hitbox radius: explicit JSON override → auto-calc from sprite → default.
 	var explicit_hb: float = CreatureSpriteRegistry.get_hitbox_radius(monster_kind)
 	if explicit_hb >= 0.0:
@@ -137,6 +144,9 @@ func _process(delta: float) -> void:
 		return
 	if _is_stunned():
 		return
+	if _stagger_timer > 0.0:
+		_stagger_timer -= delta
+		return
 	if _attack_cooldown > 0.0:
 		_attack_cooldown -= delta
 	# Throttle target scan: re-evaluate every TARGET_SCAN_INTERVAL seconds.
@@ -195,7 +205,25 @@ func _tick_attack(target: PlayerController, to_target: Vector2) -> void:
 			_sprite.flip_h = (to_target.x > 0.0)
 	if _attack_cooldown > 0.0:
 		return
+	# Telegraph phase: show windup indicator before dealing damage.
+	if _telegraph_timer > 0.0:
+		_telegraph_timer -= get_process_delta_time()
+		if _telegraph_timer <= 0.0:
+			_finish_attack(target, to_target)
+		return
+	# Start a new telegraph.
+	_telegraph_timer = _telegraph_duration
+	_telegraph_target = target
+	_show_telegraph(to_target)
+
+
+## Called when the telegraph timer expires — deliver the actual hit.
+func _finish_attack(target: PlayerController, to_target: Vector2) -> void:
+	_hide_telegraph()
 	_attack_cooldown = _attack_speed
+	_telegraph_target = null
+	if not is_instance_valid(target):
+		return
 	if target.has_method("take_hit"):
 		target.call("take_hit", _attack_damage, self, _attack_element)
 	# Lunge + particle VFX.
@@ -205,6 +233,18 @@ func _tick_attack(target: PlayerController, to_target: Vector2) -> void:
 				int(floor(target.position.x / float(WorldConst.TILE_PX))),
 				int(floor(target.position.y / float(WorldConst.TILE_PX))))
 		_action_vfx.play_creature_attack(target_cell, to_norm, _attack_style, _attack_element)
+
+
+## Show a red flash/pulse on the sprite to telegraph an incoming attack.
+func _show_telegraph(_to_target: Vector2) -> void:
+	if _sprite != null:
+		_sprite.modulate = Color(1.5, 0.5, 0.5, 1.0)
+
+
+## Clear the telegraph visual.
+func _hide_telegraph() -> void:
+	if _sprite != null:
+		_sprite.modulate = Color.WHITE
 
 
 func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
@@ -294,6 +334,12 @@ func _tick_effects(delta: float) -> void:
 
 func _is_stunned() -> bool:
 	return _cached_stunned
+
+
+## Called by player parry — freezes the monster for STAGGER_DURATION seconds.
+func stagger() -> void:
+	_stagger_timer = STAGGER_DURATION
+	ActionParticles.flash_hit(self)
 
 
 func _get_speed_multiplier() -> float:

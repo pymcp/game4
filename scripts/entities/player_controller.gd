@@ -48,6 +48,23 @@ var auto_attack: bool = false
 var is_dead: bool = false
 var _invincible_timer: float = 0.0
 const _INVINCIBLE_DURATION: float = 3.0
+
+# ── Dodge roll state ─────────────────────────────────────────────────
+const DODGE_COOLDOWN_SEC: float = 0.8
+const DODGE_DURATION_SEC: float = 0.2
+const DODGE_DISTANCE_PX: float = 40.0   ## 2.5 tiles
+const DODGE_IFRAMES_SEC: float = 0.15
+var _dodge_cooldown: float = 0.0
+var _dodge_timer: float = 0.0           ## > 0 while mid-roll
+var _dodge_dir: Vector2 = Vector2.ZERO
+var is_dodging: bool = false
+
+# ── Block / parry state ──────────────────────────────────────────────
+const PARRY_WINDOW_SEC: float = 0.15
+const BLOCK_DAMAGE_MULT: float = 0.25   ## take 25% damage while blocking
+const BLOCK_SPEED_MULT: float = 0.5
+var is_blocking: bool = false
+var _block_timer: float = 0.0           ## time since block started (for parry window)
 const _DEATH_WAIT_SEC: float = 5.0
 const _AUTO_MINE_RADIUS: int = 1       ## tiles around player to scan
 const _MELEE_REACH_PX: float = 24.0    ## native-px radius for melee auto-attack
@@ -376,6 +393,29 @@ func _physics_process(delta: float) -> void:
 		_sprite_root.position = Vector2.ZERO
 		return
 	_attack_cooldown = max(0.0, _attack_cooldown - delta)
+	_dodge_cooldown = max(0.0, _dodge_cooldown - delta)
+	# ── Dodge roll tick ──────────────────────────────────────────────
+	if _dodge_timer > 0.0:
+		_dodge_timer -= delta
+		var speed: float = DODGE_DISTANCE_PX / DODGE_DURATION_SEC
+		_step(_dodge_dir * speed * delta)
+		if _dodge_timer <= 0.0:
+			is_dodging = false
+			# Restore sprite shape after squish.
+			if _sprite_root != null:
+				_sprite_root.scale = Vector2(_facing_x, 1)
+		return  # No other input during dodge.
+	# ── Block state ──────────────────────────────────────────────────
+	var block_action: StringName = PlayerActions.action(player_id, PlayerActions.BLOCK)
+	if Input.is_action_pressed(block_action):
+		if not is_blocking:
+			is_blocking = true
+			_block_timer = 0.0
+		else:
+			_block_timer += delta
+	else:
+		is_blocking = false
+		_block_timer = 0.0
 	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.INTERACT)):
 		_try_interact()
 		# Re-check context: interact may have opened a menu (caravan, shop, etc.).
@@ -385,18 +425,25 @@ func _physics_process(delta: float) -> void:
 		auto_mine = not auto_mine
 	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.AUTO_ATTACK)):
 		auto_attack = not auto_attack
-	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.ATTACK)):
-		if is_mounted and _mount != null and _mount.can_jump:
-			_mount.try_hop(_facing_dir)
-		elif _attack_cooldown <= 0.0:
-			try_attack()
-			_attack_cooldown = ATTACK_COOLDOWN_SEC
-	# Auto-mine: mine nearest mineable within radius when cooldown ready.
-	if auto_mine and _attack_cooldown <= 0.0:
-		_tick_auto_mine()
-	# Auto-attack: attack nearby hostiles or fire ranged in facing dir.
-	if auto_attack and _attack_cooldown <= 0.0:
-		_tick_auto_attack()
+	# ── Dodge input ──────────────────────────────────────────────────
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.DODGE)):
+		if _dodge_cooldown <= 0.0:
+			_start_dodge()
+			return
+	# ── Attack (blocked while blocking) ──────────────────────────────
+	if not is_blocking:
+		if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.ATTACK)):
+			if is_mounted and _mount != null and _mount.can_jump:
+				_mount.try_hop(_facing_dir)
+			elif _attack_cooldown <= 0.0:
+				try_attack()
+				_attack_cooldown = ATTACK_COOLDOWN_SEC
+		# Auto-mine: mine nearest mineable within radius when cooldown ready.
+		if auto_mine and _attack_cooldown <= 0.0:
+			_tick_auto_mine()
+		# Auto-attack: attack nearby hostiles or fire ranged in facing dir.
+		if auto_attack and _attack_cooldown <= 0.0:
+			_tick_auto_attack()
 	var input := Vector2(
 		Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.RIGHT))
 			- Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.LEFT)),
@@ -407,7 +454,10 @@ func _physics_process(delta: float) -> void:
 	if moving:
 		if input.length() > 1.0:
 			input = input.normalized()
-		_step(input * get_move_speed() * delta)
+		var speed: float = get_move_speed()
+		if is_blocking:
+			speed *= BLOCK_SPEED_MULT
+		_step(input * speed * delta)
 		if input.x > 0.05:
 			_facing_x = 1
 		elif input.x < -0.05:
@@ -424,6 +474,39 @@ func _physics_process(delta: float) -> void:
 		if _action_vfx == null or not _action_vfx.is_playing():
 			_bob_t = 0.0
 			_sprite_root.position = Vector2.ZERO
+
+
+# ── Dodge roll ────────────────────────────────────────────────────────
+
+func _start_dodge() -> void:
+	# Direction: use current movement input, fall back to facing direction.
+	var input := Vector2(
+		Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.RIGHT))
+			- Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.LEFT)),
+		Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.DOWN))
+			- Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.UP)),
+	)
+	if input.length_squared() < 0.01:
+		input = Vector2(_facing_dir)
+	_dodge_dir = input.normalized()
+	_dodge_timer = DODGE_DURATION_SEC
+	_dodge_cooldown = DODGE_COOLDOWN_SEC
+	is_dodging = true
+	is_blocking = false
+	_block_timer = 0.0
+	# VFX: squish sprite (narrow + tall) during roll.
+	if _sprite_root != null:
+		_sprite_root.scale = Vector2(_facing_x * 0.7, 1.3)
+
+
+## True if currently in dodge i-frame window (invincible).
+func is_dodge_invincible() -> bool:
+	return is_dodging and _dodge_timer > (DODGE_DURATION_SEC - DODGE_IFRAMES_SEC)
+
+
+## True if in parry window (first PARRY_WINDOW_SEC of blocking).
+func is_parrying() -> bool:
+	return is_blocking and _block_timer <= PARRY_WINDOW_SEC
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -676,10 +759,22 @@ func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 	# Invincible while in a conversation.
 	if in_conversation:
 		return
+	# Dodge i-frames: fully invincible.
+	if is_dodge_invincible():
+		return
+	# Parry: perfect block in first 0.15s — negate all damage + stagger attacker.
+	if is_parrying():
+		ActionParticles.flash_hit(self)  # visual feedback (parry flash)
+		if _attacker != null and _attacker.has_method("stagger"):
+			_attacker.stagger()
+		return
 	var defense: int = _armor_defense()
 	var effective: int = max(1, damage - defense)
 	if &"iron_skin" in unlocked_passives:
 		effective = max(1, effective - 1)
+	# Block: reduce damage by 75%.
+	if is_blocking:
+		effective = max(1, int(effective * BLOCK_DAMAGE_MULT))
 	health = max(0, health - effective)
 	ActionParticles.flash_hit(self)
 	if _damage_heart_vfx != null:

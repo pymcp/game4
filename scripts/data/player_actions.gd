@@ -23,6 +23,8 @@ const TAB_NEXT:    StringName = &"tab_next"
 const AUTO_MINE:   StringName = &"auto_mine"
 const AUTO_ATTACK: StringName = &"auto_attack"
 const WORLDMAP:    StringName = &"worldmap"
+const DODGE:       StringName = &"dodge"
+const BLOCK:       StringName = &"block"
 
 # ── Action-name builders ────────────────────────────────────────────
 

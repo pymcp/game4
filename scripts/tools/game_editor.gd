@@ -367,23 +367,28 @@ class PreviewView extends Control:
 
 	const FRAME: int = 5
 	const PREVIEW_ZOOM: int = 3
-	## Dimensions of the synthetic room+hallway preview map.
-	const _ROOM_W: int = 11
+	## Dimensions of the synthetic room preview map.
+	const _ROOM_W: int = 13
 	const _ROOM_H: int = 11
-	## 0 = wall, 1 = floor. 5×4 room (cols 1-5, rows 1-4) with 2-wide
-	## corridor (cols 2-3, rows 5-8) exiting south.
+	## 0 = wall, 1 = floor. Layout designed to exercise all 15 non-zero
+	## cardinal floor-neighbor masks:
+	##   - L-shaped room corners → masks 5, 6, 9, 10
+	##   - Outer borders → masks 1, 2, 4, 8
+	##   - Horizontal beam (3 wide) → masks 12, 13, 14
+	##   - Vertical column (3 tall) → masks 3, 7, 11
+	##   - Isolated pillar → mask 15
 	const _ROOM_MAP: Array = [
-		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
-		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
-		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
-		[0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
-		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-		[0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+		[0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+		[0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0],
+		[0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0],
+		[0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0],
+		[0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0],
+		[0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+		[0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+		[0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 	]
 
 	var texture: Texture2D = null
@@ -395,6 +400,8 @@ class PreviewView extends Control:
 	var autotile_dict: Dictionary = {}
 	## The 4-bit mask of the currently selected slot. -1 = nothing selected.
 	var highlighted_mask: int = -1
+	## Explicit floor cell for the autotile room preview. Vector2i(-1,-1) = none.
+	var floor_cell_override: Vector2i = Vector2i(-1, -1)
 
 	func _ready() -> void:
 		_resize()
@@ -406,10 +413,12 @@ class PreviewView extends Control:
 		_resize()
 		queue_redraw()
 
-	func set_autotile_data(tex: Texture2D, at_dict: Dictionary, active_mask: int = -1) -> void:
+	func set_autotile_data(tex: Texture2D, at_dict: Dictionary,
+			active_mask: int = -1, floor_cell: Vector2i = Vector2i(-1, -1)) -> void:
 		texture = tex
 		autotile_dict = at_dict
 		highlighted_mask = active_mask
+		floor_cell_override = floor_cell
 		cells = []  # not used for autotile_room layout
 		layout = &"autotile_room"
 		_resize()
@@ -432,15 +441,19 @@ class PreviewView extends Control:
 
 	func _draw_autotile_room(src_step: int, dest_step: float) -> void:
 		var bg_dark := Color(0.08, 0.08, 0.10)
-		# Pick a floor tile: prefer mask=15 (all floors), else first entry.
-		var floor_atlas := Vector2i(0, 0)
-		var floor_entry: Variant = autotile_dict.get(15, null)
-		if floor_entry is Array and (floor_entry as Array).size() >= 1:
-			floor_atlas = (floor_entry as Array)[0]
-		elif not autotile_dict.is_empty():
-			var first: Variant = autotile_dict.values()[0]
-			if first is Array and (first as Array).size() >= 1:
-				floor_atlas = (first as Array)[0]
+		# Use the explicit floor cell if provided; otherwise fall back to
+		# mask=15 entry or first entry in autotile_dict.
+		var floor_atlas := Vector2i(-1, -1)
+		if floor_cell_override.x >= 0:
+			floor_atlas = floor_cell_override
+		else:
+			var floor_entry: Variant = autotile_dict.get(15, null)
+			if floor_entry is Array and (floor_entry as Array).size() >= 1:
+				floor_atlas = (floor_entry as Array)[0]
+			elif not autotile_dict.is_empty():
+				var first: Variant = autotile_dict.values()[0]
+				if first is Array and (first as Array).size() >= 1:
+					floor_atlas = (first as Array)[0]
 		for gy in _ROOM_H:
 			for gx in _ROOM_W:
 				var dest := Rect2(
@@ -448,11 +461,14 @@ class PreviewView extends Control:
 					Vector2(dest_step, dest_step))
 				if _ROOM_MAP[gy][gx] == 1:
 					# Floor cell.
-					var src := Rect2(
-						float(floor_atlas.x * src_step),
-						float(floor_atlas.y * src_step),
-						float(tile_px), float(tile_px))
-					draw_texture_rect_region(texture, dest, src)
+					if floor_atlas.x >= 0:
+						var src := Rect2(
+							float(floor_atlas.x * src_step),
+							float(floor_atlas.y * src_step),
+							float(tile_px), float(tile_px))
+						draw_texture_rect_region(texture, dest, src)
+					else:
+						draw_rect(dest, Color(0.15, 0.12, 0.10), true)
 				else:
 					# Wall cell — compute 4-bit mask.
 					var mask: int = 0
@@ -1149,6 +1165,19 @@ static func _key_str(k: Variant) -> String:
 func _rebuild_slot_ui() -> void:
 	for c in _slot_root.get_children():
 		c.queue_free()
+	# "Add" row for named-kind mappings (lets user create new dictionary keys).
+	var cur_kind: StringName = _current_mapping.get("kind", &"")
+	if cur_kind == &"named":
+		var add_row := HBoxContainer.new()
+		var le := LineEdit.new()
+		le.placeholder_text = "new_key_name"
+		le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		add_row.add_child(le)
+		var add_btn := Button.new()
+		add_btn.text = "+ Add"
+		add_btn.pressed.connect(_on_named_add.bind(le))
+		add_row.add_child(add_btn)
+		_slot_root.add_child(add_row)
 	for i in _slots.size():
 		var slot: Dictionary = _slots[i]
 		var row := HBoxContainer.new()
@@ -1178,6 +1207,13 @@ func _rebuild_slot_ui() -> void:
 			flip_h.button_pressed = (int(slot["flip_h"]) == 1)
 			flip_h.toggled.connect(_on_flip_h_toggled.bind(i))
 			row.add_child(flip_h)
+		# Named-kind slots get a remove button.
+		if cur_kind == &"named":
+			var rm_btn := Button.new()
+			rm_btn.text = "✕"
+			rm_btn.tooltip_text = "Remove '%s'" % slot["label"]
+			rm_btn.pressed.connect(_on_named_remove.bind(i))
+			row.add_child(rm_btn)
 		_slot_root.add_child(row)
 
 
@@ -1188,6 +1224,51 @@ func _on_slot_pressed(idx: int) -> void:
 	if idx >= 0 and idx < _slots.size():
 		_status_label.text = "active slot: %s = %s" % [
 				_slots[idx]["label"], _str_cell(_get_slot_cell(idx))]
+
+
+func _on_named_add(line_edit: LineEdit) -> void:
+	var key: String = line_edit.text.strip_edges()
+	if key.is_empty():
+		_status_label.text = "enter a name first"
+		return
+	var field: StringName = _current_mapping.get("field", &"")
+	if field == &"":
+		return
+	var d: Dictionary = _mappings_resource.get(field)
+	var sn: StringName = StringName(key)
+	if d.has(sn):
+		_status_label.text = "'%s' already exists" % key
+		return
+	d[sn] = Vector2i(-1, -1)
+	_mark_dirty()
+	_slots = _build_slots(_current_mapping)
+	# Activate the newly added slot.
+	for i in _slots.size():
+		if _slots[i]["label"] == key:
+			_active_slot = i
+			break
+	_rebuild_slot_ui()
+	_refresh_marks()
+	_status_label.text = "added '%s' — click atlas to assign a cell" % key
+
+
+func _on_named_remove(idx: int) -> void:
+	if idx < 0 or idx >= _slots.size():
+		return
+	var slot: Dictionary = _slots[idx]
+	var path: Array = slot["path"]
+	if path.size() < 2:
+		return
+	var field: StringName = path[0]
+	var key: Variant = path[1]
+	var d: Dictionary = _mappings_resource.get(field)
+	d.erase(key)
+	_mark_dirty()
+	_active_slot = -1
+	_slots = _build_slots(_current_mapping)
+	_rebuild_slot_ui()
+	_refresh_marks()
+	_status_label.text = "removed '%s'" % _key_str(key)
 
 
 ## Called when the user clicks a wall cell in the autotile room preview.
@@ -1556,7 +1637,17 @@ func _refresh_preview() -> void:
 					var slot_idx: int = int(active_path[1])
 					if slot_idx >= 0 and slot_idx < slot_arr.size():
 						active_mask = int(slot_arr[slot_idx].get("mask", -1))
-			_preview.set_autotile_data(tex, at_dict, active_mask)
+			# Resolve actual floor tile for house wall autotiles.
+			var floor_cell := Vector2i(-1, -1)
+			if field == &"house_wall_stone_autotile":
+				var pool: Array = _mappings_resource.house_floor_stone
+				if not pool.is_empty():
+					floor_cell = pool[0]
+			elif field == &"house_wall_wood_autotile":
+				var pool: Array = _mappings_resource.house_floor_wood
+				if not pool.is_empty():
+					floor_cell = pool[0]
+			_preview.set_autotile_data(tex, at_dict, active_mask, floor_cell)
 			return
 		_:
 			for i in _slots.size():

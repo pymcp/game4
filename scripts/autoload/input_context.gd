@@ -45,6 +45,8 @@ func get_active_actions(player_id: int) -> Array[StringName]:
 				PlayerActions.action(player_id, PlayerActions.RIGHT),
 				PlayerActions.action(player_id, PlayerActions.INTERACT),
 				PlayerActions.action(player_id, PlayerActions.ATTACK),
+				PlayerActions.action(player_id, PlayerActions.DODGE),
+				PlayerActions.action(player_id, PlayerActions.BLOCK),
 				PlayerActions.action(player_id, PlayerActions.BACK),
 				PlayerActions.action(player_id, PlayerActions.INVENTORY),
 				PlayerActions.action(player_id, PlayerActions.AUTO_MINE),

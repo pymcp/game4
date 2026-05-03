@@ -15,6 +15,7 @@ const _ACTION_LABELS: Dictionary = {
 	&"inventory": "Inventory",
 	&"auto_mine": "Auto-Mine", &"auto_attack": "Auto-Attack",
 	&"tab_prev": "Tab ◀", &"tab_next": "Tab ▶",
+	&"dodge": "Dodge", &"block": "Block",
 }
 
 ## Actions whose label gets highlighted when their toggle is active.

@@ -160,6 +160,31 @@ Toggle inputs: `p*_auto_mine` (C / Numpad7), `p*_auto_attack` (V / Numpad8).
 - **Auto-attack ranged**: fires in facing direction, dot-product alignment (>0.7), 80px reach.
 - `ControlsHud` shows bold green "(ON)" when active.
 
+## Skillful Combat (Dodge / Block / Parry / Telegraph)
+Reactive combat loop: enemies telegraph → player reads → dodge or block/parry → punish stagger window.
+
+### Dodge Roll
+- Input: `p*_dodge` (Space / Numpad1). Cooldown `0.8s`, duration `0.2s`, distance `40px`.
+- I-frames during first `0.15s` of dodge — `take_hit()` returns immediately.
+- Direction: movement input or current facing. Visual squish (0.7x width, 1.3x height).
+- Cancels block on activation.
+
+### Block & Parry
+- Input: `p*_block` (Left Shift / Numpad2). Hold to block.
+- **Parry window**: first `0.15s` of block. Successful parry negates all damage and calls `attacker.stagger()`.
+- **Block**: after parry window, reduces damage to `25%` (min 1). Movement slowed to `50%`.
+- Auto-attack pauses while blocking.
+
+### Enemy Telegraphs
+- Enemies (Monster, NPC) show a red tint (`Color(1.5, 0.5, 0.5)`) before attacking.
+- Duration from `CreatureSpriteRegistry.get_telegraph_duration(kind)` — defaults to `max(0.2, attack_speed * 0.5)`.
+- Configurable per creature via `telegraph_duration` field in `creature_sprites.json`.
+
+### Stagger
+- On successful parry, `stagger()` is called on the attacker.
+- `Monster`: `_stagger_timer = 0.6s`, blocks all action while active.
+- `NPC`: enters `State.STAGGERED` for `0.6s`, then transitions to CHASE.
+
 ## Dialogue System
 - `DialogueTree → DialogueNode → DialogueChoice` (Resource subclasses in `scripts/data/`).
 - `GameState` — `String→bool` flag dict for quest/world state.

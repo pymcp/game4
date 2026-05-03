@@ -702,9 +702,17 @@ static func _add_dungeon_source_to(ts: TileSet) -> void:
 	ts.add_source(src, 1)
 	var cols: int = (tex.get_width() + spec.margin_px) / spec.stride
 	var rows: int = (tex.get_height() + spec.margin_px) / spec.stride
+	# Wall rows (stone 1-4, wood 6-9) must be walkable=false so wall sprites
+	# painted on the Decoration layer block movement. All other rows default
+	# to walkable=true so house floor tiles are traversable.
+	const _WALL_ROWS: Array[int] = [1, 2, 3, 4, 6, 7, 8, 9]
 	for y in rows:
+		var walkable: bool = not (y in _WALL_ROWS)
 		for x in cols:
 			src.create_tile(Vector2i(x, y))
+			var td: TileData = src.get_tile_data(Vector2i(x, y), 0)
+			if td != null:
+				td.set_custom_data(CUSTOM_WALKABLE, walkable)
 
 
 ## Returns the rune overlay TileSet (uses 3 atlases — one per color).
@@ -815,6 +823,8 @@ static func _build(png_path: String, terrain_cells: Dictionary,
 		for cell in obstacle_cells:
 			if cell_to_terrain.has(cell):
 				continue  # Don't override explicitly-tagged terrain tiles (e.g. door).
+			if not src.has_tile(cell):
+				continue  # Mineable sprites reference the overworld sheet; skip for other TileSets.
 			var data: TileData = src.get_tile_data(cell, 0)
 			if data != null:
 				data.set_custom_data(CUSTOM_WALKABLE, false)

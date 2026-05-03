@@ -188,6 +188,15 @@ static func get_attack_speed(kind: StringName) -> float:
 	return float(get_entry(kind).get("attack_speed", 1.0))
 
 
+## Telegraph duration in seconds before an attack lands.
+## Defaults to attack_speed * 0.5 (half the cooldown), min 0.2s.
+static func get_telegraph_duration(kind: StringName) -> float:
+	var entry: Dictionary = get_entry(kind)
+	if entry.has("telegraph_duration"):
+		return float(entry["telegraph_duration"])
+	return maxf(0.2, get_attack_speed(kind) * 0.5)
+
+
 ## Attack range in tiles. Defaults to 1.25.
 static func get_attack_range_tiles(kind: StringName) -> float:
 	return float(get_entry(kind).get("attack_range_tiles", 1.25))
