@@ -65,6 +65,13 @@ const BLOCK_DAMAGE_MULT: float = 0.25   ## take 25% damage while blocking
 const BLOCK_SPEED_MULT: float = 0.5
 var is_blocking: bool = false
 var _block_timer: float = 0.0           ## time since block started (for parry window)
+
+# ── Charge attack state ──────────────────────────────────────────────
+const CHARGE_MAX_SEC: float = 1.0       ## time to reach full charge
+const CHARGE_DAMAGE_MULT: float = 2.0   ## bonus multiplier at full charge
+const CHARGE_THRESHOLD_SEC: float = 0.2 ## hold time before it counts as charging
+var _charge_timer: float = 0.0          ## how long attack has been held
+var is_charging: bool = false
 const _DEATH_WAIT_SEC: float = 5.0
 const _AUTO_MINE_RADIUS: int = 1       ## tiles around player to scan
 const _MELEE_REACH_PX: float = 24.0    ## native-px radius for melee auto-attack
@@ -432,17 +439,30 @@ func _physics_process(delta: float) -> void:
 			return
 	# ── Attack (blocked while blocking) ──────────────────────────────
 	if not is_blocking:
-		if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.ATTACK)):
+		var atk_action: StringName = PlayerActions.action(player_id, PlayerActions.ATTACK)
+		if Input.is_action_just_pressed(atk_action):
 			if is_mounted and _mount != null and _mount.can_jump:
 				_mount.try_hop(_facing_dir)
 			elif _attack_cooldown <= 0.0:
-				try_attack()
+				_charge_timer = 0.0
+				is_charging = true
+		elif is_charging and Input.is_action_pressed(atk_action):
+			_charge_timer = minf(_charge_timer + delta, CHARGE_MAX_SEC)
+			if _charge_timer >= CHARGE_THRESHOLD_SEC:
+				_show_charge_visual()
+		elif is_charging:
+			# Released — fire the attack with charge multiplier.
+			var mult: float = _get_charge_multiplier()
+			is_charging = false
+			_hide_charge_visual()
+			if _attack_cooldown <= 0.0:
+				try_attack(mult)
 				_attack_cooldown = ATTACK_COOLDOWN_SEC
 		# Auto-mine: mine nearest mineable within radius when cooldown ready.
-		if auto_mine and _attack_cooldown <= 0.0:
+		if auto_mine and _attack_cooldown <= 0.0 and not is_charging:
 			_tick_auto_mine()
 		# Auto-attack: attack nearby hostiles or fire ranged in facing dir.
-		if auto_attack and _attack_cooldown <= 0.0:
+		if auto_attack and _attack_cooldown <= 0.0 and not is_charging:
 			_tick_auto_attack()
 	var input := Vector2(
 		Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.RIGHT))
@@ -494,6 +514,11 @@ func _start_dodge() -> void:
 	is_dodging = true
 	is_blocking = false
 	_block_timer = 0.0
+	# Cancel charge on dodge.
+	if is_charging:
+		is_charging = false
+		_charge_timer = 0.0
+		_hide_charge_visual()
 	# VFX: squish sprite (narrow + tall) during roll.
 	if _sprite_root != null:
 		_sprite_root.scale = Vector2(_facing_x * 0.7, 1.3)
@@ -507,6 +532,37 @@ func is_dodge_invincible() -> bool:
 ## True if in parry window (first PARRY_WINDOW_SEC of blocking).
 func is_parrying() -> bool:
 	return is_blocking and _block_timer <= PARRY_WINDOW_SEC
+
+
+## Returns the damage multiplier based on current charge level.
+## Below threshold → 1.0 (normal). At max → CHARGE_DAMAGE_MULT.
+func _get_charge_multiplier() -> float:
+	if _charge_timer < CHARGE_THRESHOLD_SEC:
+		return 1.0
+	var t: float = (_charge_timer - CHARGE_THRESHOLD_SEC) / (CHARGE_MAX_SEC - CHARGE_THRESHOLD_SEC)
+	return lerpf(1.0, CHARGE_DAMAGE_MULT, clampf(t, 0.0, 1.0))
+
+
+## Returns charge progress 0.0–1.0 (for UI/visual feedback).
+func get_charge_ratio() -> float:
+	if not is_charging or _charge_timer < CHARGE_THRESHOLD_SEC:
+		return 0.0
+	return clampf((_charge_timer - CHARGE_THRESHOLD_SEC) / (CHARGE_MAX_SEC - CHARGE_THRESHOLD_SEC), 0.0, 1.0)
+
+
+func _show_charge_visual() -> void:
+	if _sprite_root == null:
+		return
+	var ratio: float = get_charge_ratio()
+	# Yellow-white glow intensifies with charge.
+	var glow: float = 1.0 + ratio * 1.5
+	_sprite_root.modulate = Color(glow, glow, 1.0 + ratio * 0.5, 1.0)
+
+
+func _hide_charge_visual() -> void:
+	if _sprite_root == null:
+		return
+	_sprite_root.modulate = Color.WHITE
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -775,6 +831,11 @@ func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 	# Block: reduce damage by 75%.
 	if is_blocking:
 		effective = max(1, int(effective * BLOCK_DAMAGE_MULT))
+	# Getting hit interrupts charge.
+	if is_charging:
+		is_charging = false
+		_charge_timer = 0.0
+		_hide_charge_visual()
 	health = max(0, health - effective)
 	ActionParticles.flash_hit(self)
 	if _damage_heart_vfx != null:
@@ -876,7 +937,7 @@ func _try_record_kill(entity: Node) -> void:
 		caravan_data.travel_logs[player_id].record_kill()
 
 
-func try_attack() -> Dictionary:
+func try_attack(charge_mult: float = 1.0) -> Dictionary:
 	var res: Dictionary = {}
 
 	# --- Entity hit scan first (melee / punch) ---
@@ -885,6 +946,7 @@ func try_attack() -> Dictionary:
 		var weapon_id: StringName = equipment.get_equipped(ItemDefinition.Slot.WEAPON)
 		var wdef: ItemDefinition = ItemRegistry.get_item(weapon_id) if weapon_id != &"" else null
 		var power: int = max(1, get_effective_stat(&"strength")) if wdef == null else max(1, wdef.power + get_effective_stat(&"strength"))
+		power = int(power * charge_mult)
 		var elem: int = wdef.element if wdef != null else 0
 		hit_entity.call("take_hit", power, self, elem)
 		_try_record_kill(hit_entity)
@@ -897,7 +959,7 @@ func try_attack() -> Dictionary:
 
 	# --- No hostile in range — find nearest mineable in facing cone ---
 	var target: Vector2i = _find_facing_mineable()
-	var damage: int = _compute_mine_damage(target)
+	var damage: int = int(_compute_mine_damage(target) * charge_mult)
 	res = _world.mine_at(target, damage)
 
 	var is_mineable: bool = _world._mineable.has(target) or res.get("hit", false)

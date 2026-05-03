@@ -170,3 +170,68 @@ func test_block_constants_reasonable() -> void:
 	assert_lt(PlayerController.BLOCK_DAMAGE_MULT, 1.0, "Block should reduce damage")
 	assert_gt(PlayerController.BLOCK_SPEED_MULT, 0.0)
 	assert_lt(PlayerController.BLOCK_SPEED_MULT, 1.0, "Block should slow movement")
+
+
+# ─── Charge attack ──────────────────────────────────────────────────
+
+func test_charge_constants_reasonable() -> void:
+	assert_gt(PlayerController.CHARGE_MAX_SEC, 0.0)
+	assert_gt(PlayerController.CHARGE_DAMAGE_MULT, 1.0, "Charge should boost damage")
+	assert_gt(PlayerController.CHARGE_THRESHOLD_SEC, 0.0)
+	assert_lt(PlayerController.CHARGE_THRESHOLD_SEC, PlayerController.CHARGE_MAX_SEC,
+		"Threshold must be less than max charge time")
+
+func test_charge_initial_state() -> void:
+	var p := _make_player()
+	assert_false(p.is_charging, "Should not be charging initially")
+	assert_eq(p._charge_timer, 0.0, "Charge timer starts at 0")
+
+func test_get_charge_ratio_zero_when_not_charging() -> void:
+	var p := _make_player()
+	assert_eq(p.get_charge_ratio(), 0.0)
+
+func test_get_charge_ratio_zero_below_threshold() -> void:
+	var p := _make_player()
+	p.is_charging = true
+	p._charge_timer = PlayerController.CHARGE_THRESHOLD_SEC * 0.5
+	assert_eq(p.get_charge_ratio(), 0.0, "Below threshold should report 0")
+
+func test_get_charge_ratio_full_at_max() -> void:
+	var p := _make_player()
+	p.is_charging = true
+	p._charge_timer = PlayerController.CHARGE_MAX_SEC
+	assert_almost_eq(p.get_charge_ratio(), 1.0, 0.001, "Max charge should be 1.0")
+
+func test_get_charge_ratio_mid() -> void:
+	var p := _make_player()
+	p.is_charging = true
+	# Halfway between threshold and max.
+	p._charge_timer = PlayerController.CHARGE_THRESHOLD_SEC + \
+		(PlayerController.CHARGE_MAX_SEC - PlayerController.CHARGE_THRESHOLD_SEC) * 0.5
+	assert_almost_eq(p.get_charge_ratio(), 0.5, 0.001, "Mid charge should be ~0.5")
+
+func test_charge_multiplier_no_charge() -> void:
+	var p := _make_player()
+	p._charge_timer = 0.0
+	assert_eq(p._get_charge_multiplier(), 1.0, "No charge = normal damage")
+
+func test_charge_multiplier_below_threshold() -> void:
+	var p := _make_player()
+	p._charge_timer = PlayerController.CHARGE_THRESHOLD_SEC * 0.5
+	assert_eq(p._get_charge_multiplier(), 1.0, "Below threshold = normal damage")
+
+func test_charge_multiplier_full_charge() -> void:
+	var p := _make_player()
+	p._charge_timer = PlayerController.CHARGE_MAX_SEC
+	assert_almost_eq(p._get_charge_multiplier(), PlayerController.CHARGE_DAMAGE_MULT, 0.001,
+		"Full charge = max multiplier")
+
+func test_charge_cancelled_by_hit() -> void:
+	var p := _make_player()
+	p.health = 10
+	p.max_health = 10
+	p.is_charging = true
+	p._charge_timer = 0.5
+	p.take_hit(1)
+	assert_false(p.is_charging, "Hit should cancel charge")
+	assert_eq(p._charge_timer, 0.0, "Charge timer should reset on hit")

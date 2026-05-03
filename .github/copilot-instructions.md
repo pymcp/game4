@@ -185,6 +185,13 @@ Reactive combat loop: enemies telegraph → player reads → dodge or block/parr
 - `Monster`: `_stagger_timer = 0.6s`, blocks all action while active.
 - `NPC`: enters `State.STAGGERED` for `0.6s`, then transitions to CHASE.
 
+### Charge Attack
+- Hold attack button to charge. After `0.2s` threshold, yellow glow intensifies on sprite.
+- Release to fire — damage multiplied up to `2.0x` at full charge (`1.0s`).
+- Applies to both entity hits and mining.
+- Cancelled by: taking damage, dodging, or blocking.
+- `get_charge_ratio() -> float` returns 0.0–1.0 for UI feedback.
+
 ## Dialogue System
 - `DialogueTree → DialogueNode → DialogueChoice` (Resource subclasses in `scripts/data/`).
 - `GameState` — `String→bool` flag dict for quest/world state.
