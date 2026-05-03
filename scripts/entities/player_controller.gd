@@ -931,7 +931,11 @@ func _try_record_kill(entity: Node) -> void:
 	if kind_v == null or StringName(kind_v) == &"":
 		kind_v = entity.get("kind")
 	if kind_v != null and StringName(kind_v) != &"":
-		gain_xp(CreatureSpriteRegistry.get_xp_reward(StringName(kind_v)))
+		var xp_override: Variant = entity.get("xp_reward_override")
+		if xp_override != null and int(xp_override) >= 0:
+			gain_xp(int(xp_override))
+		else:
+			gain_xp(CreatureSpriteRegistry.get_xp_reward(StringName(kind_v)))
 	# Record kill in caravan travel log.
 	if caravan_data != null and caravan_data.travel_logs.size() > player_id:
 		caravan_data.travel_logs[player_id].record_kill()

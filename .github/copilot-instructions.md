@@ -93,6 +93,23 @@ See [docs/conventions.md](docs/conventions.md) for full details. Critical points
 - `Villager` has 4 states: `IDLE`, `WANDER`, `DEFEND`, `FLEE`. `is_cowardly` export (30% random for generated NPCs) determines fight-or-flight. `take_hit()` triggers threat response. `_tick_defend()` uses `ActionVFX.play_creature_attack()`.
 - All damageable entities (`PlayerController`, `Villager`, `NPC`, `Monster`, `Pet`) flash white on hit via `ActionParticles.flash_hit()`.
 
+### Monster Tier System
+5-tier variant system for dungeon difficulty scaling. Both floor-based and random elite promotion.
+
+- `MonsterTier` (`scripts/data/monster_tier.gd`) — `class_name MonsterTier extends RefCounted`. Pure data helper with static functions.
+  - `enum Tier { NORMAL, TOUGH, HARDENED, VETERAN, ELITE }` (0–4).
+  - Multiplier arrays: `HP_MULT` [1.0,1.25,1.75,2.5,3.5], `DMG_MULT` [1.0,1.1,1.3,1.6,2.0], `SCALE_MULT` [1.0,1.05,1.1,1.15,1.25], `XP_MULT` [1.0,1.25,1.75,2.5,3.5].
+  - `TINT_FACTORS` — 5 Colors shifting warmer per tier.
+  - `ELITE_PROMOTION_CHANCE = 0.05` — any monster has 5% chance to become Elite regardless of floor.
+  - `_FLOOR_WEIGHTS` — 5 bands: floors 1-4 (normal only), 5-9 (70/30), 10-14 (50/30/20), 15-19 (40/25/20/15), 20+ (30/25/20/15/10).
+  - `static func roll_tier(floor_num, rng) -> int` — floor band selection + elite promotion roll.
+  - `static func display_name(base_name, tier) -> String` — prepends tier prefix (e.g. "Veteran Slime").
+  - `static func apply_color(base_tint, tier) -> Color` — multiplies base tint by tier color factor.
+
+- **Monster integration**: `Monster` has `var tier: int = 0` and `var xp_reward_override: int = -1`. In `_ready()`, tier > 0 applies damage/scale/tint multipliers. Tier 1+ shows a colored name label above hearts. Tier 3+ (Veteran/Elite) gets a GPUParticles2D aura with additive blend.
+- **NPC parity**: `NPC` has the same `tier` and `xp_reward_override` vars. In `_ready()`, tier > 0 applies damage/HP/scale/tint multipliers.
+- **Spawn pipeline**: `LabyrinthGenerator._scatter_enemies()` calls `MonsterTier.roll_tier(floor_num, rng)` for each spawn entry. Overworld monsters default to tier 0. `WorldRoot._spawn_monster()` reads `entry.tier` and applies HP/XP multipliers.
+
 ## Death & Revival
 - `PlayerController` emits `signal player_died(player_id)` when `health` reaches 0.
 - `Game` connects the signal → pauses via `PauseManager.set_paused(true)` → shows `MathDeathScreen`.

@@ -24,6 +24,8 @@ const _BOB_AMP_PX: float = 1.0
 @export var drops: Array = []  ## [{id: StringName, count: int}]
 @export var resistances: Dictionary = {}  ## Element enum → float multiplier (0.0=immune, 2.0=weak)
 @export var monster_kind: StringName = &"slime"  ## Creature type key
+var tier: int = 0  ## MonsterTier.Tier — set by _spawn_monster before _ready()
+var xp_reward_override: int = -1  ## If >= 0, used instead of registry value.
 
 var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
 var active_effects: Array = []  ## [{effect_id, remaining, tick_timer}]
@@ -49,6 +51,7 @@ var _telegraph_indicator: Sprite2D = null
 var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
 var _heart_display: HeartDisplay = null
 var _action_vfx: ActionVFX = null
+var _tier_name_label: Label = null
 ## LOD / performance.
 var _lod_sleeping: bool = false
 var _lod_index: int = 0
@@ -80,6 +83,12 @@ func _ready() -> void:
 	_attack_style = CreatureSpriteRegistry.get_attack_style(monster_kind)
 	_attack_element = CreatureSpriteRegistry.get_element(monster_kind)
 	_telegraph_duration = CreatureSpriteRegistry.get_telegraph_duration(monster_kind)
+	# Apply tier multipliers to combat stats.
+	if tier > 0:
+		_attack_damage = int(ceil(_attack_damage * MonsterTier.DMG_MULT[tier]))
+		if _sprite != null:
+			_sprite.scale *= MonsterTier.SCALE_MULT[tier]
+			_sprite.modulate = MonsterTier.apply_color(_sprite.modulate, tier)
 	# Hitbox radius: explicit JSON override → auto-calc from sprite → default.
 	var explicit_hb: float = CreatureSpriteRegistry.get_hitbox_radius(monster_kind)
 	if explicit_hb >= 0.0:
@@ -99,6 +108,12 @@ func _ready() -> void:
 	_heart_display.position = Vector2(-10, heart_y)
 	_heart_display.visible = false
 	add_child(_heart_display)
+	# Tier name label — only for tier 1+ monsters.
+	if tier > 0:
+		_setup_tier_label(heart_y)
+	# Tier aura particles — only for tier 3+ (Veteran/Elite).
+	if tier >= MonsterTier.Tier.VETERAN:
+		_setup_tier_aura()
 	# Attack VFX — lunges the sprite toward the target.
 	_action_vfx = ActionVFX.new()
 	add_child(_action_vfx)
@@ -135,7 +150,10 @@ func _process(delta: float) -> void:
 	# Update overhead hearts.
 	if _heart_display != null:
 		_heart_display.update(health, max_health)
-		_heart_display.visible = health > 0 and health < max_health
+		var show_overhead: bool = health > 0 and health < max_health
+		_heart_display.visible = show_overhead
+		if _tier_name_label != null:
+			_tier_name_label.visible = show_overhead
 	_tick_effects(delta)
 	if health <= 0:
 		return
@@ -344,3 +362,46 @@ func stagger() -> void:
 
 func _get_speed_multiplier() -> float:
 	return _cached_speed_mult
+
+
+## Set up overhead tier name label for tier 1+ monsters.
+func _setup_tier_label(heart_y: float) -> void:
+	var base_name: String = CreatureSpriteRegistry.get_display_name(monster_kind)
+	var label_text: String = MonsterTier.display_name(base_name, tier)
+	_tier_name_label = Label.new()
+	_tier_name_label.text = label_text
+	_tier_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_tier_name_label.add_theme_font_size_override("font_size", 8)
+	_tier_name_label.add_theme_color_override("font_color",
+		MonsterTier.apply_color(Color.WHITE, tier))
+	_tier_name_label.position = Vector2(-20, heart_y - 10)
+	_tier_name_label.custom_minimum_size = Vector2(40, 0)
+	_tier_name_label.visible = false
+	add_child(_tier_name_label)
+
+
+## Set up radial aura particles for tier 3+ (Veteran/Elite).
+func _setup_tier_aura() -> void:
+	var particles := GPUParticles2D.new()
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = 6.0
+	mat.direction = Vector3(0, -1, 0)
+	mat.spread = 180.0
+	mat.initial_velocity_min = 2.0
+	mat.initial_velocity_max = 4.0
+	mat.gravity = Vector3.ZERO
+	mat.scale_min = 0.3
+	mat.scale_max = 0.6
+	var aura_color: Color = MonsterTier.apply_color(
+		CreatureSpriteRegistry.get_tint(monster_kind), tier)
+	aura_color.a = 0.5 if tier >= MonsterTier.Tier.ELITE else 0.3
+	mat.color = aura_color
+	particles.process_material = mat
+	particles.amount = 6
+	particles.lifetime = 1.0 if tier >= MonsterTier.Tier.ELITE else 1.5
+	particles.emitting = true
+	# Additive blend for glow effect.
+	particles.material = CanvasItemMaterial.new()
+	(particles.material as CanvasItemMaterial).blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	add_child(particles)

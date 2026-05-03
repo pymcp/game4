@@ -57,6 +57,8 @@ static func _cell_center(cell: Vector2i) -> Vector2:
 ## a "team" tag read by other actors.
 @export var hostile: bool = false
 
+var tier: int = 0  ## MonsterTier.Tier — set before _ready() for stat/visual scaling.
+var xp_reward_override: int = -1  ## If >= 0, used instead of registry value.
 var state: State = State.IDLE
 var target: Node2D = null
 var home_cell: Vector2i = Vector2i.ZERO
@@ -191,6 +193,15 @@ func _ready() -> void:
 	_heart_display.position = Vector2(-10, heart_y)
 	_heart_display.visible = false
 	add_child(_heart_display)
+	# Apply tier stat/visual multipliers.
+	if tier > 0:
+		attack_damage = int(ceil(attack_damage * MonsterTier.DMG_MULT[tier]))
+		max_health = int(ceil(max_health * MonsterTier.HP_MULT[tier]))
+		health = max_health
+		if _npc_sprite is Sprite2D:
+			var spr: Sprite2D = _npc_sprite as Sprite2D
+			spr.scale *= MonsterTier.SCALE_MULT[tier]
+			spr.modulate = MonsterTier.apply_color(spr.modulate, tier)
 	# Attack VFX — lunges the sprite toward the target.
 	_action_vfx = ActionVFX.new()
 	add_child(_action_vfx)

@@ -229,6 +229,16 @@ static func get_xp_reward(kind: StringName) -> int:
 	return int(get_entry(kind).get("xp_reward", 10))
 
 
+## Human-readable name for this creature. Falls back to capitalizing the kind.
+static func get_display_name(kind: StringName) -> String:
+	if LootTableRegistry.has_table(kind):
+		var table: Dictionary = LootTableRegistry.get_table(kind)
+		var dn: Variant = table.get("display_name", "")
+		if dn is String and dn != "":
+			return dn
+	return String(kind).capitalize()
+
+
 ## All creature kinds that are mounts.
 static func all_mount_kinds() -> Array:
 	_ensure_loaded()

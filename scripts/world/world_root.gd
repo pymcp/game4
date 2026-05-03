@@ -584,8 +584,8 @@ func _paint_room_walls(interior: InteriorMap) -> void:
 					elif fNE: atlas = corner_cells[2] # SW corner
 					else: atlas = corner_cells[3]     # SE corner
 				else:
-					# Multi-diagonal or isolated → passthrough center (row 4/9).
-					atlas = Vector2i(19, 4 if style != &"wood" else 9)
+					# Multi-diagonal or isolated → solid center (row 3/8).
+					atlas = Vector2i(19, 3 if style != &"wood" else 8)
 			else:
 				var entry: Variant = wall_lut.get(mask, null)
 				if entry == null:
@@ -596,8 +596,11 @@ func _paint_room_walls(interior: InteriorMap) -> void:
 					atlas.x = _nwall_col(fW, fE)
 				elif mask == 8 or mask == 9 or mask == 10:
 					atlas.x = _nwall_col(fW, fE)
-			# Place floor underneath wall on Ground layer, wall sprite on Decoration.
-			ground.set_cell(cell, 1, floor_cell, 0)
+			# Place floor underneath wall, except for drip/perspective tiles whose
+			# transparent tips would bleed the interior floor colour outside the room.
+			var drip_row: int = 9 if style == &"wood" else 4
+			if atlas.y != drip_row:
+				ground.set_cell(cell, 1, floor_cell, 0)
 			decoration.set_cell(cell, 1, atlas, 0)
 
 
@@ -1688,14 +1691,20 @@ func _spawn_villager(entry: Dictionary) -> void:
 func _spawn_monster(entry: Dictionary) -> void:
 	var cell: Vector2i = entry.get("cell", Vector2i.ZERO)
 	var kind: StringName = entry.get("monster_kind", &"slime")
+	var mtier: int = int(entry.get("tier", 0))
 	var m: Monster = _MonsterScene.instantiate() as Monster
 	m.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
 	m.monster_kind = kind
+	m.tier = mtier
 	# Configure from loot table.
 	if LootTableRegistry.has_table(kind):
-		m.max_health = LootTableRegistry.get_health(kind)
+		var base_hp: int = LootTableRegistry.get_health(kind)
+		m.max_health = int(ceil(base_hp * MonsterTier.HP_MULT[mtier]))
 		m.health = m.max_health
 		m.resistances = LootTableRegistry.get_resistances(kind)
+	# Apply tier XP multiplier.
+	var base_xp: int = CreatureSpriteRegistry.get_xp_reward(kind)
+	m.xp_reward_override = int(ceil(base_xp * MonsterTier.XP_MULT[mtier]))
 	m.died.connect(_on_monster_died)
 	m._lod_index = _spawn_index % 4
 	_spawn_index += 1

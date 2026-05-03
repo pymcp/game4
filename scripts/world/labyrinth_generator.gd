@@ -295,7 +295,7 @@ static func _scatter_enemies(rng: RandomNumberGenerator, m: InteriorMap,
 			"kind": kind,
 			"monster_kind": kind,
 			"cell": jcell,
-			"variant": rng.randi(),
+			"tier": MonsterTier.roll_tier(floor_num, rng),
 		})
 
 
