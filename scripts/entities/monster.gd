@@ -21,14 +21,14 @@ const _BOB_AMP_PX: float = 1.0
 
 @export var max_health: int = 3
 @export var health: int = 3
-@export var drops: Array = []  ## [{id: StringName, count: int}]
+@export var drops: Array[Dictionary] = []  ## [{id: StringName, count: int}]
 @export var resistances: Dictionary = {}  ## Element enum → float multiplier (0.0=immune, 2.0=weak)
 @export var monster_kind: StringName = &"slime"  ## Creature type key
 var tier: int = 0  ## MonsterTier.Tier — set by _spawn_monster before _ready()
 var xp_reward_override: int = -1  ## If >= 0, used instead of registry value.
 
 var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
-var active_effects: Array = []  ## [{effect_id, remaining, tick_timer}]
+var active_effects: Array[Dictionary] = []  ## [{effect_id, remaining, tick_timer}]
 var _world: WorldRoot = null
 var _sprite: Sprite2D = null
 var _facing_right: bool = false

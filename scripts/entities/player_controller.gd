@@ -95,7 +95,7 @@ var dungeon_fog: DungeonFogData = DungeonFogData.new()
 var world_map: WorldMapView = null
 var dungeon_map: DungeonMapView = null
 ## Active status effects: Array of {effect_id: StringName, remaining: float, tick_timer: float}
-var active_effects: Array = []
+var active_effects: Array[Dictionary] = []
 var xp: int = 0
 var level: int = 1
 var unlocked_passives: Array[StringName] = []

@@ -30,7 +30,7 @@ static func _get_spec() -> SheetSpec:
 static func build(opts: Dictionary) -> Node2D:
 	var root := Node2D.new()
 	root.name = "Character"
-	var layers: Array = [
+	var layers: Array[Array] = [
 		["body", _body_cell(opts)],
 		["torso", _torso_cell(opts)],
 		["belt", _belt_cell(opts)],

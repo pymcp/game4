@@ -20,6 +20,10 @@ static func instance() -> Game:
 	return t.get_first_node_in_group(&"game") as Game
 
 
+const _MathDeathScene: PackedScene = preload("res://scenes/ui/MathDeathScreen.tscn")
+const _FloorConfirmMenuScene: PackedScene = preload("res://scenes/ui/FloorConfirmMenu.tscn")
+const _CaravanMenuScene: PackedScene = preload("res://scenes/ui/CaravanMenu.tscn")
+
 @onready var _vp_p1: SubViewport = $Split/P1Container/P1ViewportContainer/P1Viewport
 @onready var _vp_p2: SubViewport = $Split/P2Container/P2ViewportContainer/P2Viewport
 @onready var _container_p1: Control = $Split/P1Container
@@ -71,7 +75,7 @@ func _ready() -> void:
 	_controls_p2 = _build_controls_hud(_container_p2, 1)
 	_hearts_p1 = _build_heart_display(_container_p1)
 	_hearts_p2 = _build_heart_display(_container_p2)
-	_math_death = load("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
+	_math_death = _MathDeathScene.instantiate() as MathDeathScreen
 	_math_death.name = "MathDeathScreen"
 	_math_death.answered_correctly.connect(_on_math_answer_correct)
 	add_child(_math_death)
@@ -273,16 +277,14 @@ func _build_dungeon_map_view(container: Control) -> DungeonMapView:
 
 
 func _build_floor_confirm_menu(container: Control) -> FloorConfirmMenu:
-	var scene := load("res://scenes/ui/FloorConfirmMenu.tscn") as PackedScene
-	var menu := scene.instantiate() as FloorConfirmMenu
+	var menu := _FloorConfirmMenuScene.instantiate() as FloorConfirmMenu
 	menu.name = "FloorConfirmMenu"
 	container.add_child(menu)
 	return menu
 
 
 func _build_caravan_menu(container: Control) -> CaravanMenu:
-	var scene := load("res://scenes/ui/CaravanMenu.tscn") as PackedScene
-	var menu := scene.instantiate() as CaravanMenu
+	var menu := _CaravanMenuScene.instantiate() as CaravanMenu
 	menu.name = "CaravanMenu"
 	container.add_child(menu)
 	return menu

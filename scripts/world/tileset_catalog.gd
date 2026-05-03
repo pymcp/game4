@@ -462,40 +462,40 @@ static var INTERIOR_TERRAIN_CELLS: Dictionary = _DEFAULT_INTERIOR_TERRAIN
 # Corner tiles (mask=0) are looked up via diagonal checks in WorldRoot.
 # Dict schema: {mask → Vector2i atlas_cell}.
 const _DEFAULT_HOUSE_WALL_STONE_AUTOTILE: Dictionary = {
-	4:  Vector2i(19, 1),  # S only → N-wall center
-	8:  Vector2i(19, 3),  # N only → S-wall center
+	4:  Vector2i(19, 3),  # S only → N-wall center (solid stone)
+	8:  Vector2i(19, 4),  # N only → S-wall center (ledge/drip)
 	2:  Vector2i(19, 2),  # E only → side wall
 	1:  Vector2i(19, 2),  # W only → side wall
-	6:  Vector2i(17, 1),  # S+E → N-wall left end-cap
-	5:  Vector2i(21, 1),  # S+W → N-wall right end-cap
-	10: Vector2i(17, 3),  # N+E → S-wall left end-cap
-	9:  Vector2i(21, 3),  # N+W → S-wall right end-cap
-	3:  Vector2i(19, 2),  # N+S → side wall
-	12: Vector2i(19, 4),  # E+W → NS passthrough
-	14: Vector2i(19, 4),  # S+E+W
-	13: Vector2i(19, 4),  # N+E+W
-	7:  Vector2i(19, 4),  # S+E+N
-	11: Vector2i(19, 4),  # N+S+W
-	15: Vector2i(19, 4),  # all neighbors
+	6:  Vector2i(19, 3),  # S+E → N-wall left end-cap  [x set by _nwall_col]
+	5:  Vector2i(19, 3),  # S+W → N-wall right end-cap [x set by _nwall_col]
+	10: Vector2i(19, 4),  # N+E → S-wall left end-cap  [x set by _nwall_col]
+	9:  Vector2i(19, 4),  # N+W → S-wall right end-cap [x set by _nwall_col]
+	3:  Vector2i(19, 3),  # N+S → solid passthrough
+	12: Vector2i(19, 3),  # E+W → solid passthrough
+	14: Vector2i(19, 3),  # S+E+W
+	13: Vector2i(19, 3),  # N+E+W
+	7:  Vector2i(19, 3),  # S+E+N
+	11: Vector2i(19, 3),  # N+S+W
+	15: Vector2i(19, 3),  # all neighbors
 }
 static var HOUSE_WALL_STONE_AUTOTILE: Dictionary = _DEFAULT_HOUSE_WALL_STONE_AUTOTILE
 
 const _DEFAULT_HOUSE_WALL_WOOD_AUTOTILE: Dictionary = {
-	4:  Vector2i(19, 6),
-	8:  Vector2i(19, 8),
-	2:  Vector2i(19, 7),
-	1:  Vector2i(19, 7),
-	6:  Vector2i(17, 6),
-	5:  Vector2i(21, 6),
-	10: Vector2i(17, 8),
-	9:  Vector2i(21, 8),
-	3:  Vector2i(19, 7),
-	12: Vector2i(19, 9),
-	14: Vector2i(19, 9),
-	13: Vector2i(19, 9),
-	7:  Vector2i(19, 9),
-	11: Vector2i(19, 9),
-	15: Vector2i(19, 9),
+	4:  Vector2i(19, 8),  # S only → N-wall center (solid plank)
+	8:  Vector2i(19, 9),  # N only → S-wall center (ledge/drip)
+	2:  Vector2i(19, 7),  # E only → side wall
+	1:  Vector2i(19, 7),  # W only → side wall
+	6:  Vector2i(19, 8),  # S+E → N-wall left end-cap  [x set by _nwall_col]
+	5:  Vector2i(19, 8),  # S+W → N-wall right end-cap [x set by _nwall_col]
+	10: Vector2i(19, 9),  # N+E → S-wall left end-cap  [x set by _nwall_col]
+	9:  Vector2i(19, 9),  # N+W → S-wall right end-cap [x set by _nwall_col]
+	3:  Vector2i(19, 8),  # N+S → solid passthrough
+	12: Vector2i(19, 8),  # E+W → solid passthrough
+	14: Vector2i(19, 8),  # S+E+W
+	13: Vector2i(19, 8),  # N+E+W
+	7:  Vector2i(19, 8),  # S+E+N
+	11: Vector2i(19, 8),  # N+S+W
+	15: Vector2i(19, 8),  # all neighbors
 }
 static var HOUSE_WALL_WOOD_AUTOTILE: Dictionary = _DEFAULT_HOUSE_WALL_WOOD_AUTOTILE
 
@@ -522,13 +522,13 @@ static var INTERIOR_FURNITURE: Dictionary = _DEFAULT_INTERIOR_FURNITURE
 # [NW-corner, NE-corner, SW-corner, SE-corner] for stone/wood.
 static func house_corner_cells(style: StringName) -> Array:
 	var r: int = 1 if style != &"wood" else 6
-	# SE diag → NW corner tile (18, r); SW diag → NE corner tile (20, r)
-	# NE diag → SW corner tile (18, r+2); NW diag → SE corner tile (20, r+2)
+	# NW/NE corners use the top-wall row (r+2 = solid plank/stone).
+	# SW/SE corners use the bottom-wall row (r+3 = ledge/drip).
 	return [
-		Vector2i(18, r),     # NW corner (SE diagonal floor)
-		Vector2i(20, r),     # NE corner (SW diagonal floor)
-		Vector2i(18, r + 2), # SW corner (NE diagonal floor)
-		Vector2i(20, r + 2), # SE corner (NW diagonal floor)
+		Vector2i(18, r + 2), # NW corner (SE diagonal floor)
+		Vector2i(20, r + 2), # NE corner (SW diagonal floor)
+		Vector2i(18, r + 3), # SW corner (NE diagonal floor)
+		Vector2i(20, r + 3), # SE corner (NW diagonal floor)
 	]
 
 # ─── Walkability rules (used by generators + collision) ────────────────

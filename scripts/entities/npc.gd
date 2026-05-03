@@ -48,7 +48,7 @@ static func _cell_center(cell: Vector2i) -> Vector2:
 @export var sight_radius_tiles: float = SIGHT_RADIUS_TILES
 @export var attack_range_tiles: float = ATTACK_RADIUS_TILES
 @export var leash_radius_tiles: float = LEASH_RADIUS_TILES
-@export var drops: Array = []  # Array of {id: StringName, count: int}
+@export var drops: Array[Dictionary] = []  # Array of {id: StringName, count: int}
 @export var resistances: Dictionary = {}  # Element enum → float multiplier
 
 ## When `true`, this NPC counts as an enemy for pets and other ally AI
@@ -71,7 +71,7 @@ var _telegraph_timer: float = 0.0
 var _telegraph_duration: float = 0.5
 var _wander_target_cell: Vector2i = Vector2i.ZERO
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
-var _path: Array = []
+var _path: Array[Vector2i] = []
 var _path_target_cell: Vector2i = Vector2i(0x7fffffff, 0x7fffffff)
 var _path_repath_timer: float = 0.0
 var _bob_t: float = 0.0

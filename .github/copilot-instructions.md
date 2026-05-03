@@ -153,7 +153,7 @@ Mining is **tile-based** — decorations on `TileMapLayer`, not `Sprite2D` nodes
 ### Data-driven mineable resources
 - Definitions in `resources/mineables.json`. SpritePicker's **Mineable Resources** category edits this.
 - `MineableRegistry` (`scripts/data/mineable_registry.gd`) — static loader/cache. `build_hp_table()`, `build_drops_table()`, `build_pickaxe_bonus_set()`, `build_decoration_cells()`, `build_tall_kinds()`, `get_biome_weights(biome_id)`.
-- `WorldRoot` lazy static vars (`MINEABLE_HP`, `MINEABLE_DROPS`, `PICKAXE_BONUS_KINDS`) compute from registry on first access. `reload_mineable_tables()` clears caches.
+- `WorldRoot` `const` dictionaries (`MINEABLE_HP`, `MINEABLE_DROPS`, `PICKAXE_BONUS_KINDS`) are hardcoded in `world_root.gd`. `MineableRegistry` provides builder methods (`build_hp_table()` etc.) for use by other systems but WorldRoot uses inline consts.
 - `TilesetCatalog` merges mineable sprites from registry. `WorldGenerator._scatter_decorations()` merges biome weights.
 
 ### Runtime flow
@@ -309,8 +309,7 @@ Mining is **tile-based** — decorations are painted on a `TileMapLayer` (`Decor
 ### Data-driven mineable resources
 - All mineable resource definitions live in `resources/mineables.json`. The SpritePicker tool's **Mineable Resources** category reads and writes this file.
 - `MineableRegistry` (`scripts/data/mineable_registry.gd`) — static loader/cache for the JSON. Provides `build_hp_table()`, `build_drops_table()`, `build_pickaxe_bonus_set()`, `build_decoration_cells()`, `build_tall_kinds()`, `get_biome_weights(biome_id)`.
-- `WorldRoot.MINEABLE_HP`, `MINEABLE_DROPS`, `PICKAXE_BONUS_KINDS` are now **lazy static vars** that compute from `MineableRegistry` on first access.
-- `WorldRoot.reload_mineable_tables()` clears all caches (call after SpritePicker saves).
+- `WorldRoot.MINEABLE_HP`, `MINEABLE_DROPS`, `PICKAXE_BONUS_KINDS` are **`const` dictionaries** hardcoded in `world_root.gd`. `MineableRegistry` provides builder methods used by `TilesetCatalog` and `WorldGenerator` but WorldRoot itself uses inline consts.
 - `TilesetCatalog` merges mineable decoration sprites from `MineableRegistry.build_decoration_cells()` on top of `TileMappings` data. `is_tall_decoration()` reads from `MineableRegistry.build_tall_kinds()`.
 - `WorldGenerator._scatter_decorations()` merges mineable biome weights from `MineableRegistry.get_biome_weights()` with the biome's non-mineable `decoration_weights`.
 
