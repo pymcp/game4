@@ -47,7 +47,8 @@ static func make_id(region_id: Vector2i, cell: Vector2i, floor_num: int = 1,
 ## `style` is forwarded to [HouseGenerator] (&"wood" or &"stone").
 func get_or_generate(map_id: StringName, region_id: Vector2i,
 		cell: Vector2i, floor_num: int = 1, size: int = DEFAULT_FLOOR_SIZE,
-		kind: StringName = &"dungeon", style: StringName = &"wood") -> InteriorMap:
+		kind: StringName = &"dungeon", style: StringName = &"wood",
+		force_boss_kind: StringName = &"") -> InteriorMap:
 	if interiors.has(map_id):
 		return interiors[map_id]
 	var seed_val: int = _seed_for(region_id, cell, floor_num)
@@ -55,7 +56,7 @@ func get_or_generate(map_id: StringName, region_id: Vector2i,
 	if kind == &"house":
 		m = HouseGenerator.generate(seed_val, style)
 	elif kind == &"labyrinth":
-		m = LabyrinthGenerator.generate(seed_val, size, size, floor_num)
+		m = LabyrinthGenerator.generate(seed_val, size, size, floor_num, force_boss_kind)
 	else:
 		m = DungeonGenerator.generate(seed_val, size, size)
 	m.map_id = map_id

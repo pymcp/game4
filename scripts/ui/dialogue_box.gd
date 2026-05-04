@@ -58,7 +58,7 @@ func show_line(speaker: String, body: String) -> void:
 	_speaker_label.text = speaker
 	_body_label.text = body
 	_clear_choices()
-	_hint_label.text = "[E] close"
+	_hint_label.text = "[H] close"
 	_hint_label.visible = true
 	_resize_panel()
 	_outer.visible = true
@@ -90,10 +90,10 @@ func show_node(node: DialogueNode, stats: Dictionary = {}) -> void:
 	_build_choices(node.choices)
 
 	if _visible_choices.is_empty():
-		_hint_label.text = "[E] close"
+		_hint_label.text = "[H] close"
 		_hint_label.visible = true
 	else:
-		_hint_label.text = "[1-%d] or [↑↓ + E] select" % _visible_choices.size()
+		_hint_label.text = "[1-%d] or [\u2191\u2193 + H] select" % _visible_choices.size()
 		_hint_label.visible = true
 		_selected_idx = 0
 		_highlight(_selected_idx)

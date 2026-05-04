@@ -182,10 +182,14 @@ func _enter_view(pid: int, view_kind: StringName, region: Region,
 	# Place the player, avoiding cells already occupied by other players.
 	var spawn_cell: Vector2i = _pending_spawn[pid]
 	_pending_spawn[pid] = _NO_OVERRIDE
-	if spawn_cell == _NO_OVERRIDE:
+	var has_override: bool = (spawn_cell != _NO_OVERRIDE)
+	if not has_override:
 		spawn_cell = inst.default_spawn_cell(view_kind, resolved_region,
 				interior)
-	spawn_cell = inst.find_safe_spawn_cell(spawn_cell, 16, true)
+	# When an explicit override was provided (e.g. exiting dungeon to its
+	# entrance), allow landing on the door cell — prime_door_cache prevents
+	# re-triggering. Otherwise avoid doors for natural spawns.
+	spawn_cell = inst.find_safe_spawn_cell(spawn_cell, 16, not has_override)
 	# If another player already occupies this cell, nudge one tile right.
 	for other_pid in range(_players.size()):
 		if other_pid == pid:

@@ -24,7 +24,7 @@ const _LARGE_DIST: int = 99999
 
 
 static func generate(seed_val: int, width: int, height: int,
-		floor_num: int = 1) -> InteriorMap:
+		floor_num: int = 1, force_boss_kind: StringName = &"") -> InteriorMap:
 	width  = clampi(width,  InteriorMap.MIN_SIZE, InteriorMap.MAX_SIZE)
 	height = clampi(height, InteriorMap.MIN_SIZE, InteriorMap.MAX_SIZE)
 
@@ -108,8 +108,10 @@ static func generate(seed_val: int, width: int, height: int,
 		})
 
 	var boss_interval: int = EncounterTableRegistry.get_boss_interval(&"labyrinth")
-	if floor_num > 0 and (floor_num % boss_interval) == 0:
-		_carve_boss_room(rng, m, junctions, exit_idx, floor_num, connection)
+	var spawn_boss: bool = (floor_num > 0 and (floor_num % boss_interval) == 0) \
+			or force_boss_kind != &""
+	if spawn_boss:
+		_carve_boss_room(rng, m, junctions, exit_idx, floor_num, connection, force_boss_kind)
 
 	# Insert stone room-wall chambers for boss/chest rooms before enemy scatter
 	# so chamber walls are correctly placed before loot cells are tested.
@@ -201,7 +203,8 @@ static func _pick_far_junction(start: int, total: int, connection: Array) -> int
 
 static func _carve_boss_room(rng: RandomNumberGenerator, m: InteriorMap,
 		junctions: Array, exit_idx: int,
-		floor_num: int, connection: Array) -> void:
+		floor_num: int, connection: Array,
+		force_boss_kind: StringName = &"") -> void:
 	var boss_jidx: int = exit_idx
 	var dead_ends: Array[int] = []
 	for idx in connection.size():
@@ -229,7 +232,7 @@ static func _carve_boss_room(rng: RandomNumberGenerator, m: InteriorMap,
 			room_cells.append(cell)
 	m.boss_room_cells = room_cells
 
-	var boss_kind: StringName = _pick_boss_kind(rng)
+	var boss_kind: StringName = force_boss_kind if force_boss_kind != &"" else _pick_boss_kind(rng)
 
 	var adds_data: Array = []
 	var adds_list: Array = CreatureSpriteRegistry.get_boss_adds(boss_kind)

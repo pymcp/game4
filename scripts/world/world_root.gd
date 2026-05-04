@@ -2127,9 +2127,9 @@ func debug_spawn_mount_for(player: PlayerController) -> void:
 		print("[F8] mount \"%s\" @ %s" % [mount.mount_kind, str(cell)])
 
 
-## Debug: teleport player directly into the moonstone mine (Mara's quest cave).
-## If the entrance hasn't been injected into this region yet, injects it first.
-## Only works from the overworld. Triggered by F4 (see pause_manager.gd).
+## Debug: teleport player directly into the moonstone mine boss floor (floor 2).
+## Creates a labyrinth entrance near the player if needed and enters floor 2
+## with the corrupted_golem boss. Triggered by F4 (see pause_manager.gd).
 func debug_teleport_to_mara_cave_for(player: PlayerController) -> void:
 	if player == null or not is_instance_valid(player):
 		push_warning("[F4] no player")
@@ -2140,7 +2140,7 @@ func debug_teleport_to_mara_cave_for(player: PlayerController) -> void:
 	if _region == null:
 		push_warning("[F4] no region loaded")
 		return
-	# Find the quest_mine labyrinth entrance, injecting it if necessary.
+	# Find or inject a labyrinth entrance.
 	var mine_cell: Vector2i = Vector2i(-9999, -9999)
 	for entry in _region.dungeon_entrances:
 		if entry.get("quest_mine", false):
@@ -2158,23 +2158,37 @@ func debug_teleport_to_mara_cave_for(player: PlayerController) -> void:
 	if mine_cell == Vector2i(-9999, -9999):
 		push_warning("[F4] could not locate or inject moonstone mine entrance")
 		return
-	# Generate (or retrieve from cache) the labyrinth interior for this entrance.
+	# Build floor 1 (needed as parent linkage).
 	var rid: Vector2i = _region.region_id
 	var rng := RandomNumberGenerator.new()
 	rng.seed = MapManager.make_id(rid, mine_cell, 1, &"labyrinth").hash()
 	var lsize: int = rng.randi_range(MapManager.LABYRINTH_SIZE_MIN, MapManager.LABYRINTH_SIZE_MAX)
-	var mid: StringName = MapManager.make_id(rid, mine_cell, 1, &"labyrinth")
-	var interior: InteriorMap = MapManager.get_or_generate(mid, rid, mine_cell, 1, lsize, &"labyrinth")
-	interior.max_floor = 2
-	interior.location_name = "Moonstone Mine"
+	var mid1: StringName = MapManager.make_id(rid, mine_cell, 1, &"labyrinth")
+	var floor1: InteriorMap = MapManager.get_or_generate(mid1, rid, mine_cell, 1, lsize, &"labyrinth")
+	floor1.max_floor = 2
+	floor1.location_name = "Moonstone Mine"
+	# Generate floor 2 with forced corrupted_golem boss.
+	var mid2: StringName = MapManager.make_id(rid, mine_cell, 2, &"labyrinth")
+	# Clear cached floor 2 if it was previously generated without the boss.
+	if MapManager.interiors.has(mid2):
+		MapManager.interiors.erase(mid2)
+	var rng2 := RandomNumberGenerator.new()
+	rng2.seed = mid2.hash()
+	var lsize2: int = rng2.randi_range(MapManager.LABYRINTH_SIZE_MIN, MapManager.LABYRINTH_SIZE_MAX)
+	var floor2: InteriorMap = MapManager.get_or_generate(
+			mid2, rid, mine_cell, 2, lsize2, &"labyrinth", &"wood", &"corrupted_golem")
+	floor2.max_floor = 2
+	floor2.location_name = "Moonstone Mine"
+	floor2.parent_map_id = mid1
+	floor2.parent_entrance_cell = floor1.exit_cell
 	QuestTracker.notify_location_reached("moonstone_mine")
 	var pid_f: int = player.player_id
 	var region_ref: Region = _region
 	_play_cave_transition(pid_f, func() -> void:
 		Sfx.play(&"dungeon_enter")
-		World.instance().transition_player(pid_f, &"labyrinth", region_ref, interior),
-		"Floor 1")
-	print("[F4] teleporting P%d to moonstone mine @ %s" % [pid_f + 1, str(mine_cell)])
+		World.instance().transition_player(pid_f, &"labyrinth", region_ref, floor2),
+		"Floor 2 (Boss)")
+	print("[F4] teleporting P%d to moonstone mine boss floor 2 @ %s" % [pid_f + 1, str(mine_cell)])
 
 
 func debug_spawn_interactables_for(player: PlayerController) -> void:
