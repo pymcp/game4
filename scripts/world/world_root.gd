@@ -1368,7 +1368,12 @@ func _build_door_index(view_kind: StringName) -> void:
 	elif _interior != null:
 		if view_kind == &"dungeon" or view_kind == &"labyrinth":
 			_doors[_interior.entry_cell] = {"kind": &"stairs_up"}
-			_doors[_interior.exit_cell] = {"kind": &"stairs_down"}
+			var at_max: bool = (_interior.max_floor > 0
+					and _interior.floor_num >= _interior.max_floor)
+			if not at_max:
+				_doors[_interior.exit_cell] = {"kind": &"stairs_down"}
+			else:
+				_doors[_interior.exit_cell] = {"kind": &"stairs_exit"}
 		else:
 			_doors[_interior.exit_cell] = {"kind": &"interior_exit"}
 
@@ -1390,9 +1395,10 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 					MapManager.DEFAULT_FLOOR_SIZE, &"house", hstyle)
 			World.instance().transition_player(player.player_id, &"house", _region, house)
 		&"labyrinth_enter":
-			if door.get("quest_mine", false):
+			var _quest_mine: bool = door.get("quest_mine", false)
+			if _quest_mine:
 				QuestTracker.notify_location_reached("moonstone_mine")
-			_handle_enter_interior(player, cell, &"labyrinth")
+			_handle_enter_interior(player, cell, &"labyrinth", _quest_mine)
 		&"interior_exit":
 			if _interior != null:
 				Sfx.play(&"dungeon_exit")
@@ -1497,12 +1503,32 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 					Sfx.play(&"dungeon_enter")
 					World.instance().transition_player(pid3, deeper_kind, origin_r3, deeper, entry_cell),
 					"Floor %d" % deeper.floor_num)
-
-
-## Common handler for dungeon/labyrinth overworld entrances. Checks if the
-## player has been here before and offers a resume prompt if so.
-func _handle_enter_interior(player: PlayerController, cell: Vector2i,
-		kind: StringName) -> void:
+		&"stairs_exit":
+			# Final floor of a capped interior — step triggers exit to surface.
+			if _interior == null:
+				return
+			var pid_ex: int = player.player_id
+			var exit_origin_ex: Vector2i = _interior.origin_cell
+			var exit_rid_ex: Vector2i = _interior.origin_region_id
+			var game_ex: Game = Game.instance()
+			if game_ex != null:
+				game_ex.show_floor_confirm_menu(pid_ex,
+						"Exit the dungeon?",
+						["Exit to Surface", "Stay on Floor %d" % _interior.floor_num],
+						func(idx: int) -> void:
+							if idx == 0:
+								_play_cave_transition(pid_ex,
+										func() -> void:
+											Sfx.play(&"dungeon_exit")
+											var r_ex: Region = WorldManager.get_or_generate(exit_rid_ex)
+											World.instance().transition_player(
+													pid_ex, &"overworld", r_ex, null, exit_origin_ex)))
+			else:
+				_play_cave_transition(pid_ex, func() -> void:
+					Sfx.play(&"dungeon_exit")
+					var r_ex: Region = WorldManager.get_or_generate(exit_rid_ex)
+					World.instance().transition_player(pid_ex, &"overworld", r_ex, null, exit_origin_ex))
+		kind: StringName, quest_mine: bool = false) -> void:
 	var rid: Vector2i = _region.region_id
 	# Deterministic size for labyrinths derived from the entrance seed.
 	var lsize: int = MapManager.DEFAULT_FLOOR_SIZE
@@ -1512,6 +1538,10 @@ func _handle_enter_interior(player: PlayerController, cell: Vector2i,
 		lsize = rng.randi_range(MapManager.LABYRINTH_SIZE_MIN, MapManager.LABYRINTH_SIZE_MAX)
 	var mid: StringName = MapManager.make_id(rid, cell, 1, kind)
 	var floor1: InteriorMap = MapManager.get_or_generate(mid, rid, cell, 1, lsize, kind)
+	if quest_mine and floor1.max_floor == 0:
+		floor1.max_floor = 2
+	if quest_mine and floor1.location_name == "":
+		floor1.location_name = "Moonstone Mine"
 	var pid_e: int = player.player_id
 	var deepest: InteriorMap = MapManager.get_deepest_cached_interior(rid, cell, kind)
 	if deepest != null and deepest.floor_num > 1:
@@ -1675,21 +1705,15 @@ func _spawn_scattered_npcs() -> void:
 
 
 func _spawn_mine_leak(boss_pos: Vector2) -> void:
-	# Spawn a QuestInteractable for the mine leak objective behind where the boss was.
-	var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
-	qi.quest_id = "herbalist_remedy"
-	qi.objective_id = "seal_leak"
-	qi.interact_speaker = ""
-	qi.interact_text = "You seal the crack with loose stone. Dark fluid stops seeping through."
-	qi.give_item_id = &"contaminated_ore"
-	qi.give_item_count = 1
-	qi.position = boss_pos + Vector2(0, -24)
-	var spr: Sprite2D = qi.get_node("Sprite2D") as Sprite2D
-	if spr != null:
-		var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
-		img.fill(Color(0.35, 0.25, 0.4, 0.9))
-		spr.texture = ImageTexture.create_from_image(img)
-	entities.add_child(qi)
+	# Spawn a TreasureChest containing the quest reward (contaminated ore).
+	# Opening it advances the seal_leak objective and gives the ore as a pickup.
+	var chest: TreasureChest = _TreasureChestScene.instantiate() as TreasureChest
+	chest.floor_num = _interior.floor_num if _interior != null else 1
+	chest.fixed_loot = [{"id": &"contaminated_ore", "count": 1}]
+	chest.quest_id = &"herbalist_remedy"
+	chest.quest_objective_id = &"seal_leak"
+	chest.position = boss_pos + Vector2(0, -24)
+	entities.add_child(chest)
 
 
 func _maybe_inject_mara() -> void:
@@ -2096,6 +2120,56 @@ func debug_spawn_mount_for(player: PlayerController) -> void:
 		mount.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
 		entities.add_child(mount)
 		print("[F8] mount \"%s\" @ %s" % [mount.mount_kind, str(cell)])
+
+
+## Debug: teleport player directly into the moonstone mine (Mara's quest cave).
+## If the entrance hasn't been injected into this region yet, injects it first.
+## Only works from the overworld. Triggered by F4 (see pause_manager.gd).
+func debug_teleport_to_mara_cave_for(player: PlayerController) -> void:
+	if player == null or not is_instance_valid(player):
+		push_warning("[F4] no player")
+		return
+	if _interior != null:
+		print("[F4] skipped — already inside an interior")
+		return
+	if _region == null:
+		push_warning("[F4] no region loaded")
+		return
+	# Find the quest_mine labyrinth entrance, injecting it if necessary.
+	var mine_cell: Vector2i = Vector2i(-9999, -9999)
+	for entry in _region.dungeon_entrances:
+		if entry.get("quest_mine", false):
+			mine_cell = entry.get("cell", Vector2i(-9999, -9999))
+			break
+	if mine_cell == Vector2i(-9999, -9999):
+		var centre: Vector2i = Vector2i(
+			int(floor(player.position.x / float(WorldConst.TILE_PX))),
+			int(floor(player.position.y / float(WorldConst.TILE_PX))))
+		_inject_moonstone_mine(centre)
+		for entry in _region.dungeon_entrances:
+			if entry.get("quest_mine", false):
+				mine_cell = entry.get("cell", Vector2i(-9999, -9999))
+				break
+	if mine_cell == Vector2i(-9999, -9999):
+		push_warning("[F4] could not locate or inject moonstone mine entrance")
+		return
+	# Generate (or retrieve from cache) the labyrinth interior for this entrance.
+	var rid: Vector2i = _region.region_id
+	var rng := RandomNumberGenerator.new()
+	rng.seed = MapManager.make_id(rid, mine_cell, 1, &"labyrinth").hash()
+	var lsize: int = rng.randi_range(MapManager.LABYRINTH_SIZE_MIN, MapManager.LABYRINTH_SIZE_MAX)
+	var mid: StringName = MapManager.make_id(rid, mine_cell, 1, &"labyrinth")
+	var interior: InteriorMap = MapManager.get_or_generate(mid, rid, mine_cell, 1, lsize, &"labyrinth")
+	interior.max_floor = 2
+	interior.location_name = "Moonstone Mine"
+	QuestTracker.notify_location_reached("moonstone_mine")
+	var pid_f: int = player.player_id
+	var region_ref: Region = _region
+	_play_cave_transition(pid_f, func() -> void:
+		Sfx.play(&"dungeon_enter")
+		World.instance().transition_player(pid_f, &"labyrinth", region_ref, interior),
+		"Floor 1")
+	print("[F4] teleporting P%d to moonstone mine @ %s" % [pid_f + 1, str(mine_cell)])
 
 
 func debug_spawn_interactables_for(player: PlayerController) -> void:

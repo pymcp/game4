@@ -3,8 +3,8 @@
 		"description_flavor": "Mara's handwritten formula for neutralizing mine toxins.",
 		"display_name": "Antidote Recipe",
 		"hires_cell": [
-			1,
-			3
+			0,
+			2
 		],
 		"hires_sheet": "items",
 		"slot": "none",
@@ -197,8 +197,8 @@
 		"description_flavor": "A rare blue mushroom prized by herbalists.",
 		"display_name": "Blue Nightcap",
 		"hires_cell": [
-			2,
-			3
+			1,
+			2
 		],
 		"hires_sheet": "items",
 		"slot": "none",
@@ -234,8 +234,8 @@
 		"description_flavor": "Crystal-clear water from a mountain spring.",
 		"display_name": "Clean Spring Water",
 		"hires_cell": [
-			3,
-			3
+			2,
+			2
 		],
 		"hires_sheet": "items",
 		"slot": "none",
@@ -245,8 +245,8 @@
 		"description_flavor": "Dark-veined ore leaking a foul substance.",
 		"display_name": "Contaminated Ore",
 		"hires_cell": [
-			4,
-			3
+			3,
+			2
 		],
 		"hires_sheet": "items",
 		"slot": "none",
@@ -619,8 +619,8 @@
 		"display_name": "Tonic",
 		"heal_amount": 5,
 		"hires_cell": [
-			5,
-			3
+			4,
+			2
 		],
 		"hires_sheet": "items",
 		"slot": "none",

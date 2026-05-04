@@ -52,6 +52,10 @@ var _clock_label_p1: Label = null
 var _clock_label_p2: Label = null
 var _zone_label_p1: Label = null
 var _zone_label_p2: Label = null
+var _toast_label_p1: Label = null
+var _toast_label_p2: Label = null
+var _toast_tween_p1: Tween = null
+var _toast_tween_p2: Tween = null
 var _player_p1: PlayerController = null
 var _player_p2: PlayerController = null
 var _math_death: MathDeathScreen = null
@@ -103,6 +107,9 @@ func _ready() -> void:
 	_confirm_menu_p2 = _build_floor_confirm_menu(_container_p2)
 	_caravan_menu_p1 = _build_caravan_menu(_container_p1)
 	_caravan_menu_p2 = _build_caravan_menu(_container_p2)
+	_toast_label_p1 = _build_location_toast(_container_p1)
+	_toast_label_p2 = _build_location_toast(_container_p2)
+	MapManager.active_interior_changed.connect(_on_active_interior_changed_toast)
 	call_deferred("_wire_hud_and_cameras")
 
 
@@ -337,16 +344,18 @@ func _build_heart_display(container: Control) -> HeartDisplay:
 	var hd := HeartDisplay.new(47.0)
 	hd.name = "HeartDisplay"
 	hd.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Anchored beside the hotbar on the left — same bottom row.
+	# Right edge flush against the hotbar's left edge; hearts grow leftward.
 	var bar_w: float = HotbarSlot.SLOT_SIZE * 8 + 4 * 7
 	hd.anchor_left = 0.5
 	hd.anchor_right = 0.5
 	hd.anchor_top = 1.0
 	hd.anchor_bottom = 1.0
-	hd.offset_left = -bar_w * 0.5 - 120.0 - 8.0
+	hd.offset_left = -bar_w * 0.5 - 8.0 - 300.0  # generous max width
 	hd.offset_right = -bar_w * 0.5 - 8.0
 	hd.offset_top = -HotbarSlot.SLOT_SIZE - 12.0
 	hd.offset_bottom = -12.0
+	hd.size_flags_horizontal = Control.SIZE_SHRINK_END
+	hd.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	container.add_child(hd)
 	return hd
 
@@ -376,6 +385,66 @@ func _build_cooldown_widget(container: Control) -> CooldownWidget:
 	cw.offset_bottom = -12.0
 	container.add_child(cw)
 	return cw
+
+
+## Build the centred location toast label for one player's container.
+## The label starts invisible; _show_location_toast animates it.
+func _build_location_toast(container: Control) -> Label:
+	var lbl := Label.new()
+	lbl.name = "LocationToast"
+	lbl.add_theme_font_size_override("font_size", 22)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.95, 0.7))
+	lbl.add_theme_constant_override("outline_size", 3)
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	lbl.anchor_left = 0.5
+	lbl.anchor_right = 0.5
+	lbl.anchor_top = 0.5
+	lbl.anchor_bottom = 0.5
+	lbl.offset_left = -200.0
+	lbl.offset_right = 200.0
+	lbl.offset_top = -60.0
+	lbl.offset_bottom = -20.0
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.modulate.a = 0.0
+	container.add_child(lbl)
+	return lbl
+
+
+## Animate the location toast for [param lbl], killing any running tween first.
+func _show_location_toast(lbl: Label, tween_ref: Array, text: String) -> void:
+	if lbl == null:
+		return
+	lbl.text = text
+	if tween_ref[0] != null and (tween_ref[0] as Tween).is_valid():
+		(tween_ref[0] as Tween).kill()
+	lbl.modulate.a = 0.0
+	var tw: Tween = create_tween()
+	tween_ref[0] = tw
+	tw.tween_property(lbl, "modulate:a", 1.0, 0.4).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(2.0)
+	tw.tween_property(lbl, "modulate:a", 0.0, 0.8).set_ease(Tween.EASE_IN)
+
+
+## Called when MapManager.active_interior_changed fires.
+func _on_active_interior_changed_toast(interior: InteriorMap) -> void:
+	if interior == null:
+		return
+	# Build toast text: prefer location_name, fall back to kind + floor.
+	var name_text: String = interior.location_name
+	if name_text == "":
+		var map_str: String = String(interior.map_id)
+		var at_idx: int = map_str.find("@")
+		var kind_str: String = map_str.substr(0, at_idx) if at_idx >= 0 else "dungeon"
+		name_text = kind_str.capitalize()
+	var floor_suffix: String = " — Floor %d" % interior.floor_num
+	var toast_text: String = name_text + floor_suffix
+	var ref1: Array = [_toast_tween_p1]
+	var ref2: Array = [_toast_tween_p2]
+	_show_location_toast(_toast_label_p1, ref1, toast_text)
+	_toast_tween_p1 = ref1[0]
+	_show_location_toast(_toast_label_p2, ref2, toast_text)
+	_toast_tween_p2 = ref2[0]
 
 
 ## Build the top-right info labels (biome, clock) and top-centre zone badge
@@ -434,7 +503,36 @@ func _build_top_labels(container: Control, pid: int) -> void:
 		_clock_label_p2 = clock
 
 
-## Update top-right/top-centre labels each frame. Called from _process().
+func _process(_delta: float) -> void:
+	# Hearts.
+	if _player_p1 != null and _hearts_p1 != null:
+		_hearts_p1.update(_player_p1.health, _player_p1.max_health)
+	if _player_p2 != null and _hearts_p2 != null:
+		_hearts_p2.update(_player_p2.health, _player_p2.max_health)
+	# Status badges.
+	if _player_p1 != null and _status_badges_p1 != null:
+		_status_badges_p1.set_effects(_player_p1.active_effects)
+	if _player_p2 != null and _status_badges_p2 != null:
+		_status_badges_p2.set_effects(_player_p2.active_effects)
+	# Cooldown bars.
+	if _player_p1 != null and _cooldown_p1 != null:
+		_cooldown_p1.update_ratios(
+				_player_p1.get_attack_cooldown_ratio(),
+				_player_p1.get_dodge_cooldown_ratio())
+	if _player_p2 != null and _cooldown_p2 != null:
+		_cooldown_p2.update_ratios(
+				_player_p2.get_attack_cooldown_ratio(),
+				_player_p2.get_dodge_cooldown_ratio())
+	# Active hotbar slot highlight.
+	if _player_p1 != null and _hotbar_p1 != null:
+		_hotbar_p1.set_active_slot(_player_p1.active_slot)
+	if _player_p2 != null and _hotbar_p2 != null:
+		_hotbar_p2.set_active_slot(_player_p2.active_slot)
+	# Top-right labels (biome, clock, zone).
+	_update_top_labels()
+
+
+## Update top-right/top-centre labels each frame.
 func _update_top_labels() -> void:
 	# Clock (shared — same time for both players).
 	var h: int = int(TimeManager.time_of_day)
@@ -476,34 +574,6 @@ func _update_top_labels() -> void:
 	if _zone_label_p2 != null:
 		_zone_label_p2.text = zone_text
 		_zone_label_p2.visible = zone_text != ""
-
-
-
-	if _player_p1 != null and _hearts_p1 != null:
-		_hearts_p1.update(_player_p1.health, _player_p1.max_health)
-	if _player_p2 != null and _hearts_p2 != null:
-		_hearts_p2.update(_player_p2.health, _player_p2.max_health)
-	# Status badges.
-	if _player_p1 != null and _status_badges_p1 != null:
-		_status_badges_p1.set_effects(_player_p1.active_effects)
-	if _player_p2 != null and _status_badges_p2 != null:
-		_status_badges_p2.set_effects(_player_p2.active_effects)
-	# Cooldown arcs.
-	if _player_p1 != null and _cooldown_p1 != null:
-		_cooldown_p1.update_ratios(
-				_player_p1.get_attack_cooldown_ratio(),
-				_player_p1.get_dodge_cooldown_ratio())
-	if _player_p2 != null and _cooldown_p2 != null:
-		_cooldown_p2.update_ratios(
-				_player_p2.get_attack_cooldown_ratio(),
-				_player_p2.get_dodge_cooldown_ratio())
-	# Active hotbar slot highlight.
-	if _player_p1 != null and _hotbar_p1 != null:
-		_hotbar_p1.set_active_slot(_player_p1.active_slot)
-	if _player_p2 != null and _hotbar_p2 != null:
-		_hotbar_p2.set_active_slot(_player_p2.active_slot)
-	# Top-right labels (biome, clock, zone).
-	_update_top_labels()
 
 
 func _on_player_died(pid: int) -> void:

@@ -442,6 +442,15 @@ func debug_spawn_interactables() -> void:
 			inst.debug_spawn_interactables_for(_players[pid])
 
 
+## Debug: teleport both players into the moonstone mine (Mara's quest cave).
+## Triggered by F4 (see pause_manager.gd).
+func debug_teleport_to_mara_cave() -> void:
+	for pid in range(2):
+		var inst: WorldRoot = get_player_world(pid)
+		if inst != null:
+			inst.debug_teleport_to_mara_cave_for(_players[pid])
+
+
 func debug_toggle_tile_labels() -> void:
 	for inst in _instances.values():
 		if inst.has_method("debug_toggle_tile_labels"):

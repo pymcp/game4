@@ -62,6 +62,10 @@ func get_or_generate(map_id: StringName, region_id: Vector2i,
 	m.origin_region_id = region_id
 	m.origin_cell = cell
 	m.floor_num = floor_num
+	# Assign a deterministic name for dungeons/labyrinths on floor 1.
+	# Callers may override location_name after this call for named locations.
+	if (kind == &"dungeon" or kind == &"labyrinth") and floor_num == 1:
+		m.location_name = InteriorMap.pick_name(seed_val)
 	interiors[map_id] = m
 	interior_generated.emit(map_id)
 	return m
@@ -92,6 +96,10 @@ func descend_from(current: InteriorMap, size: int = -1) -> InteriorMap:
 	if m.parent_map_id == &"":
 		m.parent_map_id = current.map_id
 		m.parent_entrance_cell = current.exit_cell
+	if m.max_floor == 0 and current.max_floor > 0:
+		m.max_floor = current.max_floor
+	if m.location_name == "" and current.location_name != "":
+		m.location_name = current.location_name
 	return m
 
 

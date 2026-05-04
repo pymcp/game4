@@ -55,6 +55,40 @@ const MAX_SIZE: int = 96
 ## Boss spawn data: {kind: StringName, cell: Vector2i, adds: [{kind, cell}]}.
 ## Empty dict when this floor has no boss room.
 @export var boss_data: Dictionary = {}
+## Maximum depth for this interior chain. 0 = unlimited (default).
+## When floor_num == max_floor, stairs_down are suppressed so the player
+## cannot descend further. Propagated automatically by MapManager.descend_from.
+@export var max_floor: int = 0
+## Human-readable name shown in the location toast when entering.
+## Stamped by MapManager.get_or_generate; callers may override for named
+## locations (e.g. "Moonstone Mine").
+@export var location_name: String = ""
+
+## Deterministic random name list used to name generic dungeons/labyrinths.
+static var _DUNGEON_NAMES: Array[String] = [
+	"Ashfall Catacombs", "Bonewhisper Depths", "Carrion Hollow",
+	"Duskstone Warren", "Ember Vault", "Festering Grotto",
+	"Gloomhaven Burrow", "Howling Rift", "Ironblood Keep",
+	"Jackal's Den", "Korrith's Tomb", "Lichen Pit",
+	"Murkmere Cavern", "Nightshard Mine", "Obsidian Tangle",
+	"Pale Root Hollow", "Quarry of Sighs", "Rattlecage Dungeon",
+	"Saltmaw Cavern", "Thornveil Labyrinth", "Umbral Passage",
+	"Venomstone Depths", "Wailing Chasm", "Xenolith Vault",
+	"Yellowing Halls", "Zephyr Crypt", "Ashen Gate",
+	"Blightfold Tunnel", "Coldbone Cave", "Darkroot Descent",
+	"Eroded Sanctum", "Frostbitten Keep", "Grimrock Hollow",
+	"Hearthstone Delve", "Inkwater Abyss", "Jagged Maw",
+	"Kelpweed Grotto", "Loststone Labyrinth", "Mossbreach Cavern",
+	"Nettlevein Pit", "Ossuary of Storms", "Putrid Warren",
+	"Quavering Deep", "Rusthaven Tunnels", "Scourgebone Rift",
+	"Tidewrack Catacombs", "Underglass Mine", "Vapour Hollow",
+	"Whisperstone Depths", "Xorn's Crossing", "Yellowstone Pit",
+]
+
+## Pick a deterministic name from the list using an integer seed.
+static func pick_name(seed_val: int) -> String:
+	var idx: int = absi(seed_val) % _DUNGEON_NAMES.size()
+	return _DUNGEON_NAMES[idx]
 
 ## Visual style for room-wall rendering: &"wood" (default) or &"stone".
 ## Drives which dungeon_sheet.png row set the renderer uses for walls/floors.

@@ -35,6 +35,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key := event as InputEventKey
 		match key.keycode:
+			KEY_F4:
+				_dispatch_debug(&"debug_teleport_to_mara_cave")
+				get_viewport().set_input_as_handled()
 			KEY_F8:
 				_dispatch_debug(&"debug_spawn_villager")
 				_dispatch_debug(&"debug_spawn_monster")
