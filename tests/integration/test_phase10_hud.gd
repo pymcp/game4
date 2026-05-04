@@ -17,13 +17,15 @@ func test_hud_hotbars_mirror_player_inventory() -> void:
 	assert_not_null(World.instance().get_player(1), "P2 player exists")
 
 	var p1: PlayerController = World.instance().get_player(0)
-	# Add an item to P1's inventory; hotbar should refresh via signal.
+	# Add a weapon (hotbar-eligible) and a material (filtered out).
+	p1.inventory.add(&"base_axe", 1)
 	p1.inventory.add(&"wood", 3)
 	await get_tree().process_frame
 
 	var view := Hotbar.build_view(p1.inventory, 8)
-	assert_eq(view[0]["id"], &"wood", "first slot has wood")
-	assert_eq(view[0]["count"], 3, "count = 3")
+	assert_eq(view[0]["id"], &"base_axe", "first slot has weapon")
+	assert_eq(view[0]["count"], 1, "count = 1")
+	assert_eq(view[1]["id"], StringName(""), "wood is filtered out of hotbar")
 
 	# P2 hotbar still empty.
 	var p2: PlayerController = World.instance().get_player(1)

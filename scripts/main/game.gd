@@ -334,10 +334,19 @@ func open_caravan_menu(pid: int) -> void:
 
 
 func _build_heart_display(container: Control) -> HeartDisplay:
-	var hd := HeartDisplay.new(12.0)
+	var hd := HeartDisplay.new(47.0)
 	hd.name = "HeartDisplay"
-	hd.position = Vector2(8, 8)
 	hd.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Anchored beside the hotbar on the left — same bottom row.
+	var bar_w: float = HotbarSlot.SLOT_SIZE * 8 + 4 * 7
+	hd.anchor_left = 0.5
+	hd.anchor_right = 0.5
+	hd.anchor_top = 1.0
+	hd.anchor_bottom = 1.0
+	hd.offset_left = -bar_w * 0.5 - 120.0 - 8.0
+	hd.offset_right = -bar_w * 0.5 - 8.0
+	hd.offset_top = -HotbarSlot.SLOT_SIZE - 12.0
+	hd.offset_bottom = -12.0
 	container.add_child(hd)
 	return hd
 
@@ -345,8 +354,7 @@ func _build_heart_display(container: Control) -> HeartDisplay:
 func _build_status_badges(container: Control) -> StatusBadges:
 	var sb := StatusBadges.new()
 	sb.name = "StatusBadges"
-	# Positioned just below the heart display row.
-	sb.position = Vector2(8, 8 + 16)
+	sb.position = Vector2(8, 8)
 	sb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	container.add_child(sb)
 	return sb
@@ -355,17 +363,17 @@ func _build_status_badges(container: Control) -> StatusBadges:
 func _build_cooldown_widget(container: Control) -> CooldownWidget:
 	var cw := CooldownWidget.new()
 	cw.name = "CooldownWidget"
-	# Sits just above the hotbar, horizontally centred.
+	# Anchored beside the hotbar on the right — same bottom row.
 	var bar_w: float = HotbarSlot.SLOT_SIZE * 8 + 4 * 7
-	var widget_w: float = CooldownWidget._DISC_SIZE * 2 + CooldownWidget._GAP
+	var widget_w: float = CooldownWidget._LABEL_W + CooldownWidget._BAR_W
 	cw.anchor_left = 0.5
 	cw.anchor_right = 0.5
 	cw.anchor_top = 1.0
 	cw.anchor_bottom = 1.0
-	cw.offset_left = -widget_w * 0.5
-	cw.offset_right = widget_w * 0.5
-	cw.offset_top = -(HotbarSlot.SLOT_SIZE + 12.0 + CooldownWidget._DISC_SIZE + 6.0)
-	cw.offset_bottom = -(HotbarSlot.SLOT_SIZE + 12.0 + 6.0)
+	cw.offset_left = bar_w * 0.5 + 8.0
+	cw.offset_right = bar_w * 0.5 + 8.0 + widget_w
+	cw.offset_top = -HotbarSlot.SLOT_SIZE - 12.0
+	cw.offset_bottom = -12.0
 	container.add_child(cw)
 	return cw
 

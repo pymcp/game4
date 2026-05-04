@@ -27,6 +27,7 @@ const DODGE:       StringName = &"dodge"
 const BLOCK:       StringName = &"block"
 const HOTBAR_PREV: StringName = &"hotbar_prev"
 const HOTBAR_NEXT: StringName = &"hotbar_next"
+const USE_ITEM:    StringName = &"use_item"
 
 # ── Action-name builders ────────────────────────────────────────────
 

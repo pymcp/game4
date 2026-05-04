@@ -437,6 +437,8 @@ func _physics_process(delta: float) -> void:
 		active_slot = wrapi(active_slot - 1, 0, 8)
 	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.HOTBAR_NEXT)):
 		active_slot = wrapi(active_slot + 1, 0, 8)
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.USE_ITEM)):
+		_use_active_hotbar_item()
 	# ── Dodge input ──────────────────────────────────────────────────
 	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.DODGE)):
 		if _dodge_cooldown <= 0.0:
@@ -556,6 +558,25 @@ func get_attack_cooldown_ratio() -> float:
 ## Returns 0.0 (ready) → 1.0 (full cooldown) for the dodge cooldown.
 func get_dodge_cooldown_ratio() -> float:
 	return _dodge_cooldown / DODGE_COOLDOWN_SEC
+
+
+## Consume the consumable in the active hotbar slot, or equip if it is a weapon/shield.
+func _use_active_hotbar_item() -> void:
+	if inventory == null or active_slot >= inventory.size:
+		return
+	var slot: Variant = inventory.slots[active_slot]
+	if slot == null:
+		return
+	var id: StringName = slot["id"]
+	var def: ItemDefinition = ItemRegistry.get_item(id)
+	if def == null:
+		return
+	if def.consumable:
+		if def.heal_amount > 0:
+			health = min(health + def.heal_amount, max_health)
+		inventory.remove(id, 1)
+	elif def.slot == ItemDefinition.Slot.WEAPON or def.slot == ItemDefinition.Slot.OFF_HAND:
+		equipment.equip(def.slot, id)
 
 
 ## Returns charge progress 0.0–1.0 (for UI/visual feedback).
