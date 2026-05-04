@@ -7,9 +7,7 @@
 ##
 ## Layout (inspired by classic RPG menus):
 ##   - Left: vertical category tabs (Equipment, All, Weapons, Armor, Tools,
-##     Materials, Crafting).
-##   - Right: content area that changes per tab (paperdoll, item grid, or
-##     crafting panel).
+##     Materials).
 ##   - Bottom: control hints bar.
 ##
 ## Keyboard navigation: arrow keys move a cursor in the grid / tab list,
@@ -35,25 +33,26 @@ const EQUIPMENT_SLOT_ORDER: Array = [
 	ItemDefinition.Slot.TOOL,
 ]
 
-enum Tab { ALL, WEAPONS, ARMOR, TOOLS, MATERIALS, CHARACTER }
+enum Tab { CHARACTER, ALL, WEAPONS, ARMOR, MATERIALS, TOOLS }
 
 const TAB_LABELS: Array = [
+	"Character",
 	"All Items",
 	"Weapons",
 	"Armor",
-	"Tools",
 	"Materials",
-	"Character",
+	"Tools",
 ]
 
 # Slot filter: which ItemDefinition.Slot values are shown per tab.
 # null means "show all".
 const TAB_SLOT_FILTER: Dictionary = {
+	Tab.CHARACTER: null,
 	Tab.ALL: null,
 	Tab.WEAPONS: [ItemDefinition.Slot.WEAPON],
 	Tab.ARMOR: [ItemDefinition.Slot.HEAD, ItemDefinition.Slot.BODY, ItemDefinition.Slot.FEET, ItemDefinition.Slot.OFF_HAND],
-	Tab.TOOLS: [ItemDefinition.Slot.TOOL],
 	Tab.MATERIALS: [ItemDefinition.Slot.NONE],
+	Tab.TOOLS: [ItemDefinition.Slot.TOOL],
 }
 
 
@@ -245,7 +244,8 @@ func open() -> void:
 		return
 	visible = true
 	InputContext.set_context(_player.player_id, InputContext.Context.INVENTORY)
-	_cursor = 0
+	# Start cursor on the active hotbar slot so the player sees what's selected.
+	_cursor = clampi(_player.active_slot, 0, TOTAL_SLOTS - 1)
 	_select_tab(Tab.ALL)
 	_refresh()
 
@@ -639,6 +639,9 @@ func _move_cursor(dx: int, dy: int) -> void:
 	row = clampi(row + dy, 0, (total - 1) / num_cols)
 	var new_idx: int = row * num_cols + col
 	_cursor = clampi(new_idx, 0, total - 1)
+	# Sync active_slot when cursor moves within the hotbar range (first 8 slots).
+	if _player != null and _cursor < 8:
+		_player.active_slot = _cursor
 	_refresh_cursor()
 
 
@@ -1179,19 +1182,18 @@ func _refresh_char_labels() -> void:
 func _refresh_char_preview() -> void:
 	if _char_preview_viewport == null:
 		return
-	# Remove old preview.
-	if _char_preview_root != null and is_instance_valid(_char_preview_root):
-		_char_preview_root.queue_free()
-		_char_preview_root = null
 	# Build fresh character preview (body features only, no weapon/shield).
 	var preview_opts: Dictionary = _char_opts.duplicate()
 	preview_opts.erase("weapon")
 	preview_opts.erase("shield_material")
-	_char_preview_root = CharacterBuilder.build(preview_opts)
-	# Center the sprite stack in the viewport.
-	_char_preview_root.position = Vector2(
-		_CHAR_VIEWPORT_SIZE * 0.5, _CHAR_VIEWPORT_SIZE * 0.5 + 4)
-	_char_preview_viewport.add_child(_char_preview_root)
+	if _char_preview_root != null and is_instance_valid(_char_preview_root):
+		# Update sprites in-place to avoid per-keystroke node churn.
+		CharacterBuilder.update(_char_preview_root, preview_opts)
+	else:
+		_char_preview_root = CharacterBuilder.build(preview_opts)
+		_char_preview_root.position = Vector2(
+			_CHAR_VIEWPORT_SIZE * 0.5, _CHAR_VIEWPORT_SIZE * 0.5 + 4)
+		_char_preview_viewport.add_child(_char_preview_root)
 
 
 func _apply_char_opts_to_player() -> void:

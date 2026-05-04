@@ -292,19 +292,29 @@ static func _scatter_decorations(region: Region) -> void:
 					break  # one decoration per cell
 
 
-## Scatter NPCs onto walkable, decoration-free cells. Density is biome-driven
-## (`BiomeDefinition.npc_density`); kinds picked from `BiomeDefinition.npc_kinds`.
-## Stays well clear of region center so spawns aren't ON top of players.
+## Minimum Chebyshev distance from any spawn_point a monster may occupy.
+## Monster aggro range is 8 tiles; 10 gives a 2-tile safety margin so no
+## monster can be in aggro range right as the player spawns.
+const MONSTER_SAFE_RADIUS: int = 10
+
+## Returns true when [param cell] is too close to any known player spawn point.
+static func _is_safe_from_spawns(cell: Vector2i, region: Region) -> bool:
+	for sp: Vector2i in region.spawn_points:
+		if maxi(absi(cell.x - sp.x), absi(cell.y - sp.y)) < MONSTER_SAFE_RADIUS:
+			return false
+	return true
+
+## Scatter NPCs onto walkable, decoration-free cells. Density and creature
+## kinds are now driven by EncounterTableRegistry per-biome overworld tables.
+## Monsters are kept well clear of every known player spawn point.
 static func _scatter_npcs(region: Region) -> void:
 	if region.is_ocean:
 		return
 	var biome: BiomeDefinition = BiomeRegistry.get_biome(region.biome)
 	if biome == null:
 		return
-	var density: float = biome.npc_density
-	var kinds: Array = biome.npc_kinds
-	if density <= 0.0 or kinds.is_empty():
-		return
+	var region_distance: int = absi(region.region_id.x) + absi(region.region_id.y)
+	var density: float = clampf(0.002 + region_distance * 0.0002, 0.002, 0.006)
 	# Build a quick set of decoration cells to avoid double-occupancy.
 	var occupied: Dictionary = {}
 	for entry in region.decorations:
@@ -312,7 +322,6 @@ static func _scatter_npcs(region: Region) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = region.seed ^ 0x9c022e
 	var size := Region.SIZE
-	var center := Vector2i(size / 2, size / 2)
 	for y in size:
 		for x in size:
 			var cell := Vector2i(x, y)
@@ -320,20 +329,28 @@ static func _scatter_npcs(region: Region) -> void:
 				continue
 			if not region.is_walkable_at(cell):
 				continue
-			# Keep a small buffer around the player spawn.
-			if abs(cell.x - center.x) + abs(cell.y - center.y) < 6:
+			# Skip cells within aggro range (+margin) of any spawn point.
+			if not _is_safe_from_spawns(cell, region):
 				continue
 			if rng.randf() < density:
-				var kind: StringName = kinds[rng.randi() % kinds.size()]
+				var creature: StringName = EncounterTableRegistry.pick_overworld_creature(
+						String(region.biome), region_distance, rng)
+				var tier: int = 0
+				if region_distance > 1:
+					tier = MonsterTier.roll_tier(region_distance, rng)
 				var entry: Dictionary = {
-					"kind": kind,
+					"kind": &"monster",
+					"monster_kind": creature,
 					"cell": cell,
 					"variant": rng.randi(),
+					"tier": tier,
 				}
-				# ~30% of generated villagers are cowardly.
-				if kind == &"villager":
-					entry["is_cowardly"] = rng.randf() < 0.3
 				region.npcs_scatter.append(entry)
+	# Trim to cap so distant regions don't become unplayably dense.
+	const MAX_MONSTERS_PER_REGION: int = 50
+	if region.npcs_scatter.size() > MAX_MONSTERS_PER_REGION:
+		region.npcs_scatter.shuffle()
+		region.npcs_scatter.resize(MAX_MONSTERS_PER_REGION)
 
 
 static func _pick_spawn_points(region: Region) -> void:

@@ -121,7 +121,7 @@ func test_interior_npcs_spawn() -> void:
 	var interior: InteriorMap = world._active_interior
 	var npc_count := 0
 	for c in world.entities.get_children():
-		if c is NPC:
+		if c is Monster or c is Villager:
 			npc_count += 1
 	assert_eq(npc_count, interior.npcs_scatter.size(),
 		"interior NPCs spawned to match scatter list")

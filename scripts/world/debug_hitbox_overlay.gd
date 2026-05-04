@@ -41,8 +41,6 @@ func _draw() -> void:
 			_draw_player(child as PlayerController)
 		elif child is Monster:
 			_draw_monster(child as Monster)
-		elif child is NPC:
-			_draw_npc(child as NPC)
 		elif child is Villager:
 			_draw_villager(child as Villager)
 		elif child is Pet:
@@ -77,20 +75,6 @@ func _draw_monster(m: Monster) -> void:
 	var sight_px: float = Monster.SIGHT_RADIUS_TILES * _TILE_PX
 	_draw_ring(m.position, sight_px, Color(1, 1, 0.2, 0.15))
 	_draw_label(m.position + Vector2(0, -10), "M", Color(1, 0.6, 0.2))
-
-
-func _draw_npc(n: NPC) -> void:
-	if not n.hostile or n.health <= 0:
-		return
-	_draw_hitbox_circle(n.position, n.hitbox_radius, Color(1, 0.5, 0.1, 0.5))
-	var attack_px: float = n.attack_range_tiles * _TILE_PX
-	_draw_ring(n.position, attack_px, Color(1, 0.5, 0.1, 0.35))
-	var sight_px: float = n.sight_radius_tiles * _TILE_PX
-	_draw_ring(n.position, sight_px, Color(1, 1, 0.2, 0.15))
-	# Leash radius — how far NPC chases before returning home.
-	var leash_px: float = n.leash_radius_tiles * _TILE_PX
-	_draw_ring(n.position, leash_px, Color(0.8, 0.7, 0.1, 0.1))
-	_draw_label(n.position + Vector2(0, -10), "N", Color(1, 0.6, 0.2))
 
 
 func _draw_villager(v: Villager) -> void:

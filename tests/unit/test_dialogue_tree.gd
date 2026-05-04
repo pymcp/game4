@@ -176,7 +176,7 @@ func test_healer_mara_tres_loads() -> void:
 	var root: DialogueNode = tree.root as DialogueNode
 	assert_eq(root.speaker, "Mara")
 	assert_true(root.text.length() > 0, "root text is non-empty")
-	assert_eq(root.choices.size(), 3, "Mara has 3 root choices")
+	assert_eq(root.choices.size(), 7, "Mara has 7 root choices (3 initial + 4 flag-gated)")
 
 
 func test_healer_mara_root_choices_have_labels() -> void:
@@ -190,18 +190,30 @@ func test_healer_mara_root_choices_have_labels() -> void:
 func test_healer_mara_stat_checks_present() -> void:
 	var tree: DialogueTree = load("res://resources/dialogue/healer_mara.tres") as DialogueTree
 	var root: DialogueNode = tree.root as DialogueNode
-	# First choice should have wisdom check, second charisma
-	var c0: DialogueChoice = root.choices[0] as DialogueChoice
-	var c1: DialogueChoice = root.choices[1] as DialogueChoice
-	assert_eq(c0.stat_check, &"wisdom", "first choice checks wisdom")
-	assert_eq(c1.stat_check, &"charisma", "second choice checks charisma")
+	# Find choices with stat checks among root choices.
+	var wisdom_found: bool = false
+	var charisma_found: bool = false
+	for i in root.choices.size():
+		var c: DialogueChoice = root.choices[i] as DialogueChoice
+		if c.stat_check == &"wisdom":
+			wisdom_found = true
+		elif c.stat_check == &"charisma":
+			charisma_found = true
+	assert_true(wisdom_found, "first choice checks wisdom")
+	assert_true(charisma_found, "second choice checks charisma")
 
 
 func test_healer_mara_branching_depth() -> void:
 	# Verify at least one branch goes two levels deep.
 	var tree: DialogueTree = load("res://resources/dialogue/healer_mara.tres") as DialogueTree
 	var root: DialogueNode = tree.root as DialogueNode
-	var c0: DialogueChoice = root.choices[0] as DialogueChoice
-	assert_not_null(c0.next_node, "first choice has a next_node")
-	var lvl2: DialogueNode = c0.next_node as DialogueNode
-	assert_true(lvl2.choices.size() > 0, "level-2 node has sub-choices")
+	# Find a choice with a next_node that itself has sub-choices.
+	var found_depth: bool = false
+	for i in root.choices.size():
+		var c: DialogueChoice = root.choices[i] as DialogueChoice
+		if c.next_node != null:
+			var lvl2: DialogueNode = c.next_node as DialogueNode
+			if lvl2.choices.size() > 0:
+				found_depth = true
+				break
+	assert_true(found_depth, "level-2 node has sub-choices")

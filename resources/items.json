@@ -1,4 +1,15 @@
 {
+	"antidote_recipe": {
+		"description_flavor": "Mara's handwritten formula for neutralizing mine toxins.",
+		"display_name": "Antidote Recipe",
+		"hires_cell": [
+			0,
+			2
+		],
+		"hires_sheet": "items",
+		"slot": "none",
+		"stack_size": 1
+	},
 	"armor": {
 		"armor_sprite": [
 			9,
@@ -182,6 +193,17 @@
 		"stack_size": 1,
 		"weapon_category": "sword"
 	},
+	"blue_nightcap": {
+		"description_flavor": "A rare blue mushroom prized by herbalists.",
+		"display_name": "Blue Nightcap",
+		"hires_cell": [
+			1,
+			2
+		],
+		"hires_sheet": "items",
+		"slot": "none",
+		"stack_size": 99
+	},
 	"boots": {
 		"description_flavor": "Slightly increases movement speed.",
 		"display_name": "Leather Boots",
@@ -207,6 +229,28 @@
 			52,
 			0
 		]
+	},
+	"clean_spring_water": {
+		"description_flavor": "Crystal-clear water from a mountain spring.",
+		"display_name": "Clean Spring Water",
+		"hires_cell": [
+			2,
+			2
+		],
+		"hires_sheet": "items",
+		"slot": "none",
+		"stack_size": 99
+	},
+	"contaminated_ore": {
+		"description_flavor": "Dark-veined ore leaking a foul substance.",
+		"display_name": "Contaminated Ore",
+		"hires_cell": [
+			3,
+			2
+		],
+		"hires_sheet": "items",
+		"slot": "none",
+		"stack_size": 99
 	},
 	"copper_ore": {
 		"description_flavor": "A lump of unrefined copper.",
@@ -568,6 +612,19 @@
 		"reach": 20,
 		"slot": "weapon",
 		"weapon_category": "axe"
+	},
+	"tonic": {
+		"consumable": true,
+		"description_flavor": "A restorative herbal tonic brewed by Mara.",
+		"display_name": "Tonic",
+		"heal_amount": 5,
+		"hires_cell": [
+			4,
+			2
+		],
+		"hires_sheet": "items",
+		"slot": "none",
+		"stack_size": 10
 	},
 	"wood": {
 		"description_flavor": "A bundle of sturdy logs.",

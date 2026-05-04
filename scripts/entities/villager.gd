@@ -47,6 +47,9 @@ const _FLEE_SPEED_MULT: float = 1.5
 @export var is_cowardly: bool = false
 @export var max_health: int = 5
 @export var health: int = 5
+## Name used to look up quests in QuestRegistry (e.g. "Mara").
+## Leave empty for generic villagers that have no quests.
+@export var quest_giver_name: String = ""
 
 var in_conversation: bool = false  ## Set by WorldRoot during dialogue.
 var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
@@ -54,7 +57,7 @@ var state: State = State.IDLE
 var _world: WorldRoot = null
 var _sprite_root: Node2D = null
 var _state_timer: float = 0.0
-var _path: Array = []
+var _path: Array[Vector2i] = []
 var _path_target_cell: Vector2i = Vector2i.ZERO
 var _path_repath_timer: float = 0.0
 var _last_pos: Vector2 = Vector2.ZERO
@@ -64,6 +67,10 @@ var _threat_target: Node2D = null
 var _attack_cooldown: float = 0.0
 var _heart_display: HeartDisplay = null
 var _action_vfx: ActionVFX = null
+var _quest_indicator: Label = null
+var _indicator_bob_t: float = 0.0
+## Quest IDs this villager gives (populated in _ready from QuestRegistry).
+var _giver_quest_ids: Array[String] = []
 ## LOD / performance.
 var _lod_sleeping: bool = false
 var _lod_index: int = 0
@@ -161,6 +168,8 @@ func _ready() -> void:
 	_action_vfx = ActionVFX.new()
 	add_child(_action_vfx)
 	_action_vfx.setup(self, null, _world, _sprite_root)
+	# Quest indicator — shown above the villager when quests are available/ready.
+	_setup_quest_indicator()
 
 
 func _build_appearance() -> void:
@@ -184,6 +193,8 @@ func _physics_process(delta: float) -> void:
 	if _heart_display != null:
 		_heart_display.update(health, max_health)
 		_heart_display.visible = health > 0 and health < max_health
+	# Tick quest indicator bob.
+	_tick_indicator_bob(delta)
 	if health <= 0:
 		return
 	# Freeze while in a conversation.
@@ -219,8 +230,8 @@ func _enter_wander() -> void:
 	rng.seed = (npc_seed ^ Time.get_ticks_msec()) & 0x7fffffff
 	var goal: Vector2i = pick_wander_target(rng, home_cell, wander_radius,
 		func(c: Vector2i) -> bool: return _world.is_walkable(c))
-	_path = Pathfinder.find_path(_current_cell(), goal,
-		func(c: Vector2i) -> bool: return _world.is_walkable(c))
+	_path = Array(Pathfinder.find_path(_current_cell(), goal,
+		func(c: Vector2i) -> bool: return _world.is_walkable(c)), TYPE_VECTOR2I, &"", null)
 	_path_target_cell = goal
 	_path_repath_timer = PATH_REPATH_SEC + _lod_index * 0.125
 	_state_timer = 0.0
@@ -263,8 +274,8 @@ func _tick_wander(delta: float) -> void:
 		_stuck_timer = 0.0
 		_last_pos = position
 	if _stuck_timer > STUCK_TIMEOUT_SEC or _path_repath_timer <= 0.0:
-		_path = Pathfinder.find_path(here, _path_target_cell,
-			func(c: Vector2i) -> bool: return _world.is_walkable(c))
+		_path = Array(Pathfinder.find_path(here, _path_target_cell,
+			func(c: Vector2i) -> bool: return _world.is_walkable(c)), TYPE_VECTOR2I, &"", null)
 		_path_repath_timer = PATH_REPATH_SEC
 		_stuck_timer = 0.0
 		if _path.is_empty():
@@ -385,6 +396,8 @@ func _tick_flee(delta: float) -> void:
 func interact(player: PlayerController) -> bool:
 	if _world == null or player == null:
 		return false
+	# Check quest turn-in before dialogue.
+	_try_quest_turn_in(player)
 	if shop_id != &"" and ShopRegistry.has_shop(String(shop_id)):
 		_world.open_shop(player, String(shop_id), self)
 		return true
@@ -396,3 +409,85 @@ func interact(player: PlayerController) -> bool:
 	var line: String = VillagerDialogue.pick_line(npc_seed)
 	_world.show_dialogue(player.player_id, speaker, line, self)
 	return true
+
+
+# ---------- Quest indicator ----------
+
+func _setup_quest_indicator() -> void:
+	if quest_giver_name.is_empty():
+		return
+	# Cache which quests this villager gives.
+	_giver_quest_ids = QuestRegistry.get_quests_by_giver(quest_giver_name)
+	if _giver_quest_ids.is_empty():
+		return
+	# Build the indicator label.
+	_quest_indicator = Label.new()
+	_quest_indicator.position = Vector2(-4, -32)
+	_quest_indicator.add_theme_font_size_override("font_size", 14)
+	_quest_indicator.z_index = 5
+	_quest_indicator.visible = false
+	add_child(_quest_indicator)
+	# Connect to QuestTracker signals so we refresh on state changes.
+	QuestTracker.quest_started.connect(_refresh_indicator)
+	QuestTracker.quest_completed.connect(_refresh_indicator)
+	_refresh_indicator()
+
+
+func _refresh_indicator(_arg1: Variant = null, _arg2: Variant = null) -> void:
+	if _quest_indicator == null:
+		return
+	var show_exclaim: bool = false
+	var show_question: bool = false
+	for qid in _giver_quest_ids:
+		if QuestTracker.is_quest_complete(qid):
+			continue
+		if not QuestTracker.is_quest_active(qid):
+			# Quest not yet started — check prerequisites are met.
+			var prereqs_ok: bool = true
+			for prereq in QuestRegistry.get_prerequisites(qid):
+				if not QuestTracker.is_quest_complete(prereq):
+					prereqs_ok = false
+					break
+			if prereqs_ok:
+				show_exclaim = true
+		elif QuestTracker.is_quest_ready_to_complete(qid):
+			show_question = true
+	if show_question:
+		_quest_indicator.text = "?"
+		_quest_indicator.add_theme_color_override("font_color", Color(0.9, 0.85, 0.5))
+		_quest_indicator.visible = true
+	elif show_exclaim:
+		_quest_indicator.text = "!"
+		_quest_indicator.add_theme_color_override("font_color", Color(1.0, 0.9, 0.1))
+		_quest_indicator.visible = true
+	else:
+		_quest_indicator.visible = false
+	_indicator_bob_t = 0.0
+
+
+func _tick_indicator_bob(delta: float) -> void:
+	if _quest_indicator == null or not _quest_indicator.visible:
+		return
+	_indicator_bob_t += delta
+	_quest_indicator.position.y = -32.0 + sin(_indicator_bob_t * TAU * 1.5) * 3.0
+
+
+## Mark any "talk" objectives targeting this NPC in active quests, then
+## auto-complete quests that become ready.
+func _try_quest_turn_in(_player: PlayerController) -> void:
+	if quest_giver_name.is_empty():
+		return
+	for qid in _giver_quest_ids:
+		if not QuestTracker.is_quest_active(qid):
+			continue
+		var branch_id: String = QuestTracker.get_active_branch(qid)
+		var branch: Dictionary = QuestRegistry.get_branch(qid, branch_id)
+		for obj in branch.get("objectives", []):
+			if obj.get("type", "") != "talk":
+				continue
+			if obj.get("npc", "") != quest_giver_name:
+				continue
+			QuestTracker.mark_objective_done(qid, obj["id"])
+		# Auto-complete if all objectives now met.
+		if QuestTracker.is_quest_ready_to_complete(qid):
+			QuestTracker.complete_quest(qid)

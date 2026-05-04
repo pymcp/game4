@@ -24,7 +24,7 @@ const _LARGE_DIST: int = 99999
 
 
 static func generate(seed_val: int, width: int, height: int,
-		floor_num: int = 1) -> InteriorMap:
+		floor_num: int = 1, force_boss_kind: StringName = &"") -> InteriorMap:
 	width  = clampi(width,  InteriorMap.MIN_SIZE, InteriorMap.MAX_SIZE)
 	height = clampi(height, InteriorMap.MIN_SIZE, InteriorMap.MAX_SIZE)
 
@@ -108,8 +108,14 @@ static func generate(seed_val: int, width: int, height: int,
 		})
 
 	var boss_interval: int = EncounterTableRegistry.get_boss_interval(&"maze")
-	if floor_num > 0 and (floor_num % boss_interval) == 0:
-		_carve_boss_room(rng, m, junctions, exit_idx, floor_num, connection)
+	var spawn_boss: bool = (floor_num > 0 and (floor_num % boss_interval) == 0) \
+			or force_boss_kind != &""
+	if spawn_boss:
+		_carve_boss_room(rng, m, junctions, exit_idx, floor_num, connection, force_boss_kind)
+
+	# Insert stone room-wall chambers for boss/chest rooms before enemy scatter
+	# so chamber walls are correctly placed before loot cells are tested.
+	_insert_room_chambers(rng, m, junctions, connection, exit_idx)
 
 	_scatter_enemies(rng, m, junctions, entry_idx, floor_num)
 
@@ -197,7 +203,8 @@ static func _pick_far_junction(start: int, total: int, connection: Array) -> int
 
 static func _carve_boss_room(rng: RandomNumberGenerator, m: InteriorMap,
 		junctions: Array, exit_idx: int,
-		floor_num: int, connection: Array) -> void:
+		floor_num: int, connection: Array,
+		force_boss_kind: StringName = &"") -> void:
 	var boss_jidx: int = exit_idx
 	var dead_ends: Array[int] = []
 	for idx in connection.size():
@@ -225,7 +232,7 @@ static func _carve_boss_room(rng: RandomNumberGenerator, m: InteriorMap,
 			room_cells.append(cell)
 	m.boss_room_cells = room_cells
 
-	var boss_kind: StringName = _pick_boss_kind(rng)
+	var boss_kind: StringName = force_boss_kind if force_boss_kind != &"" else _pick_boss_kind(rng)
 
 	var adds_data: Array = []
 	var adds_list: Array = CreatureSpriteRegistry.get_boss_adds(boss_kind)
@@ -291,5 +298,40 @@ static func _scatter_enemies(rng: RandomNumberGenerator, m: InteriorMap,
 			"kind": kind,
 			"monster_kind": kind,
 			"cell": jcell,
-			"variant": rng.randi(),
+			"tier": MonsterTier.roll_tier(floor_num, rng),
 		})
+
+
+# ─── Room chambers ────────────────────────────────────────────────────────
+
+## Insert stone room-wall chambers into `m` for the boss room and up to
+## one dead-end chest room so they visually stand apart from corridors.
+## Called from generate() after boss room and chest_scatter are finalized.
+static func _insert_room_chambers(rng: RandomNumberGenerator, m: InteriorMap,
+		junctions: Array, connection: Array, exit_idx: int) -> void:
+	# Boss room: build a chamber rect around the boss junction.
+	if not m.boss_room_cells.is_empty():
+		var boss_centre: Vector2i = m.boss_room_cells[m.boss_room_cells.size() / 2]
+		var br := Rect2i(
+			boss_centre.x - _BOSS_ROOM_HALF,
+			boss_centre.y - _BOSS_ROOM_HALF,
+			_BOSS_ROOM_HALF * 2 + 1,
+			_BOSS_ROOM_HALF * 2 + 1)
+		_insert_room_chamber(rng, m, br)
+	# Chest room: convert one dead-end junction (not the exit) to a chamber.
+	if not m.chest_scatter.is_empty():
+		var chest_cell: Vector2i = m.chest_scatter[0].get("cell", Vector2i(-1, -1))
+		if chest_cell.x >= 0:
+			var half: int = _BOSS_ROOM_HALF - 2  # slightly smaller than boss room
+			var cr := Rect2i(
+				chest_cell.x - half,
+				chest_cell.y - half,
+				half * 2 + 1,
+				half * 2 + 1)
+			_insert_room_chamber(rng, m, cr)
+
+
+## Convert a labyrinth region to a stone room-wall chamber.
+static func _insert_room_chamber(rng: RandomNumberGenerator,
+		m: InteriorMap, rect: Rect2i) -> void:
+	RoomGenerator.carve_into(rng, m, rect)

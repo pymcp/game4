@@ -15,14 +15,24 @@ const _ACTION_LABELS: Dictionary = {
 	&"inventory": "Inventory",
 	&"auto_mine": "Auto-Mine", &"auto_attack": "Auto-Attack",
 	&"tab_prev": "Tab ◀", &"tab_next": "Tab ▶",
+	&"dodge": "Dodge", &"block": "Block",
+	&"hotbar_prev": "Hotbar ◄", &"hotbar_next": "Hotbar ►",
+	&"use_item": "Use Item",
 }
 
 ## Actions whose label gets highlighted when their toggle is active.
 const _TOGGLE_ACTIONS: Array[StringName] = [&"auto_mine", &"auto_attack"]
 
+const _DIM_AFTER_SEC: float = 4.0
+const _DIM_ALPHA: float = 0.15
+
 var player_id: int = 0
 var _label: RichTextLabel = null
 var _player: PlayerController = null
+var _override_hint: String = ""
+var _idle_timer: float = 0.0
+var _is_dimmed: bool = false
+var _dim_tween: Tween = null
 
 
 func _ready() -> void:
@@ -54,6 +64,13 @@ func set_player(pid: int, player: PlayerController = null) -> void:
 	_refresh()
 
 
+## When non-empty, display this text instead of the normal action list.
+## Pass "" to revert to normal display.
+func set_override_hint(text: String) -> void:
+	_override_hint = text
+	_refresh()
+
+
 func _on_context_changed(pid: int, _ctx: InputContext.Context) -> void:
 	if pid == player_id:
 		_refresh()
@@ -63,6 +80,32 @@ func _process(_delta: float) -> void:
 	# Cheap polling so toggle highlights update immediately.
 	if _player != null:
 		_refresh()
+	# Idle-dim logic.
+	_idle_timer += _delta
+	if not _is_dimmed and _idle_timer >= _DIM_AFTER_SEC:
+		_set_dim(true)
+
+
+func _input(event: InputEvent) -> void:
+	# Wake on any input belonging to this player.
+	if not (event is InputEventKey or event is InputEventJoypadButton):
+		return
+	for action in InputContext.get_active_actions(player_id):
+		if event.is_action(action):
+			_idle_timer = 0.0
+			if _is_dimmed:
+				_set_dim(false)
+			return
+
+
+func _set_dim(dim: bool) -> void:
+	_is_dimmed = dim
+	if _dim_tween != null and _dim_tween.is_valid():
+		_dim_tween.kill()
+	_dim_tween = create_tween()
+	var target_alpha: float = _DIM_ALPHA if dim else 1.0
+	var duration: float = 0.5 if dim else 0.15
+	_dim_tween.tween_property(self, "modulate:a", target_alpha, duration)
 
 
 func _is_toggle_active(short_name: StringName) -> bool:
@@ -77,6 +120,9 @@ func _is_toggle_active(short_name: StringName) -> bool:
 
 func _refresh() -> void:
 	if _label == null:
+		return
+	if _override_hint != "":
+		_label.text = _override_hint
 		return
 	var pfx := PlayerActions.prefix(player_id)
 	var lines: Array[String] = ["P%d Controls" % (player_id + 1)]

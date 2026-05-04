@@ -119,6 +119,39 @@ extends Resource
 ## `StringName → Array[Vector2i]` (element [0] is canonical).
 @export var interior_terrain: Dictionary = {}
 
+## Top atlas cell for the two-tile-tall house interior door (interior_sheet.png).
+## Follows the mineable convention: index 0 = top cell; bottom = top + Vector2i(0, 1).
+@export var interior_door: Array[Vector2i] = []
+
+## Wall autotile for stone-style room walls (dungeon_sheet.png cols 17-21, rows 1-4).
+## Same schema as dungeon_wall_autotile: flat Array of {mask, cell, flip_v, flip_h}.
+## Stone = rows 1-4, wood = rows 6-9 (row_offset = 5).
+@export var house_wall_stone_autotile: Array[Dictionary] = []
+
+## Wall autotile for wood-style room walls (dungeon_sheet.png cols 17-21, rows 6-9).
+@export var house_wall_wood_autotile: Array[Dictionary] = []
+
+## Corner tiles for stone-style house walls (dungeon_sheet.png).
+## Exactly 4 entries, indexed by which single diagonal neighbor is floor:
+##   [0] fSE = NW-cap tile   [1] fSW = NE-cap tile
+##   [2] fNE = SW-cap tile   [3] fNW = SE-cap tile
+@export var house_wall_stone_corners: Array[Vector2i] = []
+
+## Corner tiles for wood-style house walls. Same index order as stone corners.
+@export var house_wall_wood_corners: Array[Vector2i] = []
+
+## Floor tile variants for stone-style rooms (dungeon_sheet.png cols 17-21, row 12).
+## Exactly 5 entries (one per column). WorldRoot picks one by seed % 5.
+@export var house_floor_stone: Array[Vector2i] = []
+
+## Floor tile variants for wood-style rooms (dungeon_sheet.png cols 17-21, row 17).
+@export var house_floor_wood: Array[Vector2i] = []
+
+## Named furniture items selectable in the Game Editor → "Interior Furniture".
+## `StringName → Vector2i` mapping furniture type id → atlas cell on interior_sheet.png.
+## Empty by default; user populates via SpritePicker.
+@export var interior_furniture: Dictionary = {}
+
 # ─── Character / weapon sprites ─────────────────────────────────────────
 
 # ─── Sheet overrides ────────────────────────────────────────────────────
@@ -354,11 +387,96 @@ static func default_mappings() -> TileMappings:
 		&"RW2": Vector2i(8, 11),
 	}
 
-	m.interior_terrain = {
-		&"floor": [Vector2i(5, 13)],
-		&"wall":  [Vector2i(5, 1)],
-		&"door":  [Vector2i(20, 9)],
-	}
+	# interior_terrain kept empty — field is deprecated but retained so
+	# existing .tres files still load without errors.
+	m.interior_terrain = {}
+	# Door top cell: bottom is derived as top + Vector2i(0, 1).
+	m.interior_door = [Vector2i(20, 8)]
+
+	# ── House room-wall autotile — dungeon_sheet.png cols 17-21 ─────────────
+	# Stone style: rows 1-4 for walls, row 12 for floor.
+	# Wood style: rows 6-9 for walls, row 17 for floor (row_offset = +5).
+	# Mask bits: N=8, S=4, E=2, W=1 (floor neighbors, cardinal only).
+	# Corner tiles (mask=0) are handled directly by the renderer using
+	# diagonal neighbor checks; only mask 1-15 are stored here.
+	#
+	# Stone wall autotile (base_row = 1):
+	m.house_wall_stone_autotile = [
+		# mask=4: floor to S only → N-wall center
+		{"mask": 4,  "cell": Vector2i(19, 1)},
+		# mask=8: floor to N only → S-wall center
+		{"mask": 8,  "cell": Vector2i(19, 3)},
+		# mask=2: floor to E only → side wall
+		{"mask": 2,  "cell": Vector2i(19, 2)},
+		# mask=1: floor to W only → side wall
+		{"mask": 1,  "cell": Vector2i(19, 2)},
+		# mask=6: floor S+E → N-wall, floor to east
+		{"mask": 6,  "cell": Vector2i(17, 1)},
+		# mask=5: floor S+W → N-wall, floor to west
+		{"mask": 5,  "cell": Vector2i(21, 1)},
+		# mask=10: floor N+E → S-wall, floor to east
+		{"mask": 10, "cell": Vector2i(17, 3)},
+		# mask=9: floor N+W → S-wall, floor to west
+		{"mask": 9,  "cell": Vector2i(21, 3)},
+		# mask=3: floor N+S → side wall (east-facing inner segment)
+		{"mask": 3,  "cell": Vector2i(19, 2)},
+		# mask=12: floor E+W → NS-passthrough
+		{"mask": 12, "cell": Vector2i(19, 4)},
+		# mask=14: floor S+E+W → NS-passthrough with S floor
+		{"mask": 14, "cell": Vector2i(19, 4)},
+		# mask=13: floor N+E+W → NS-passthrough with N floor
+		{"mask": 13, "cell": Vector2i(19, 4)},
+		# mask=7: floor S+E+N → T-junction
+		{"mask": 7,  "cell": Vector2i(19, 4)},
+		# mask=11: floor N+S+W → T-junction
+		{"mask": 11, "cell": Vector2i(19, 4)},
+		# mask=15: floor all → center column
+		{"mask": 15, "cell": Vector2i(19, 4)},
+	]
+	# Wood wall autotile (base_row = 6, same pattern +5 rows):
+	m.house_wall_wood_autotile = [
+		{"mask": 4,  "cell": Vector2i(19, 6)},
+		{"mask": 8,  "cell": Vector2i(19, 8)},
+		{"mask": 2,  "cell": Vector2i(19, 7)},
+		{"mask": 1,  "cell": Vector2i(19, 7)},
+		{"mask": 6,  "cell": Vector2i(17, 6)},
+		{"mask": 5,  "cell": Vector2i(21, 6)},
+		{"mask": 10, "cell": Vector2i(17, 8)},
+		{"mask": 9,  "cell": Vector2i(21, 8)},
+		{"mask": 3,  "cell": Vector2i(19, 7)},
+		{"mask": 12, "cell": Vector2i(19, 9)},
+		{"mask": 14, "cell": Vector2i(19, 9)},
+		{"mask": 13, "cell": Vector2i(19, 9)},
+		{"mask": 7,  "cell": Vector2i(19, 9)},
+		{"mask": 11, "cell": Vector2i(19, 9)},
+		{"mask": 15, "cell": Vector2i(19, 9)},
+	]
+	# Stone corners (base_row=1, solid-plank row=r+2=3, drip row=r+3=4):
+	m.house_wall_stone_corners = [
+		Vector2i(18, 3), # [0] fSE floor → NW-cap tile
+		Vector2i(20, 3), # [1] fSW floor → NE-cap tile
+		Vector2i(18, 4), # [2] fNE floor → SW-cap tile
+		Vector2i(20, 4), # [3] fNW floor → SE-cap tile
+	]
+	# Wood corners:
+	m.house_wall_wood_corners = [
+		Vector2i(19, 5), # [0] fSE floor → NW-cap tile
+		Vector2i(17, 5), # [1] fSW floor → NE-cap tile
+		Vector2i(19, 7), # [2] fNE floor → SW-cap tile
+		Vector2i(17, 7), # [3] fNW floor → SE-cap tile
+	]
+	# Stone floor variants (dungeon_sheet.png cols 17-21, row 12):
+	m.house_floor_stone = [
+		Vector2i(17, 12), Vector2i(18, 12), Vector2i(19, 12),
+		Vector2i(20, 12), Vector2i(21, 12),
+	]
+	# Wood floor variants (dungeon_sheet.png cols 17-21, row 17):
+	m.house_floor_wood = [
+		Vector2i(17, 17), Vector2i(18, 17), Vector2i(19, 17),
+		Vector2i(20, 17), Vector2i(21, 17),
+	]
+	# Interior furniture: empty by default — user configures via SpritePicker.
+	m.interior_furniture = {}
 
 	# No sheet overrides by default — everything uses the historical sheets.
 	m.sheet_overrides = {}
@@ -396,4 +514,18 @@ func build_maze_wall_autotile_dict() -> Dictionary:
 		var flip_v: bool = int(entry.get("flip_v", entry.get("flip", 0))) != 0
 		var flip_h: bool = int(entry.get("flip_h", 0)) != 0
 		out[mask] = [cell, flip_v, flip_h]
+	return out
+
+
+## Build runtime dict from house_wall_stone_autotile or house_wall_wood_autotile.
+## Schema: {mask: Vector2i cell} — room walls never use flip transforms.
+func build_house_wall_autotile_dict(style: StringName) -> Dictionary:
+	var source: Array[Dictionary] = (
+			house_wall_wood_autotile if style == &"wood" else house_wall_stone_autotile)
+	var out: Dictionary = {}
+	for entry in source:
+		var mask: int = int(entry.get("mask", -1))
+		if mask < 0:
+			continue
+		out[mask] = entry.get("cell", Vector2i(-1, -1))
 	return out

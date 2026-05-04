@@ -20,6 +20,10 @@ static func instance() -> Game:
 	return t.get_first_node_in_group(&"game") as Game
 
 
+const _MathDeathScene: PackedScene = preload("res://scenes/ui/MathDeathScreen.tscn")
+const _FloorConfirmMenuScene: PackedScene = preload("res://scenes/ui/FloorConfirmMenu.tscn")
+const _CaravanMenuScene: PackedScene = preload("res://scenes/ui/CaravanMenu.tscn")
+
 @onready var _vp_p1: SubViewport = $Split/P1Container/P1ViewportContainer/P1Viewport
 @onready var _vp_p2: SubViewport = $Split/P2Container/P2ViewportContainer/P2Viewport
 @onready var _container_p1: Control = $Split/P1Container
@@ -38,9 +42,24 @@ var _controls_p1: ControlsHud = null
 var _controls_p2: ControlsHud = null
 var _hearts_p1: HeartDisplay = null
 var _hearts_p2: HeartDisplay = null
+var _status_badges_p1: StatusBadges = null
+var _status_badges_p2: StatusBadges = null
+var _cooldown_p1: CooldownWidget = null
+var _cooldown_p2: CooldownWidget = null
+var _biome_label_p1: Label = null
+var _biome_label_p2: Label = null
+var _clock_label_p1: Label = null
+var _clock_label_p2: Label = null
+var _zone_label_p1: Label = null
+var _zone_label_p2: Label = null
+var _toast_label_p1: Label = null
+var _toast_label_p2: Label = null
+var _toast_tween_p1: Tween = null
+var _toast_tween_p2: Tween = null
 var _player_p1: PlayerController = null
 var _player_p2: PlayerController = null
 var _math_death: MathDeathScreen = null
+var _dying_players: Dictionary = {}  ## Tracks pids currently in death countdown.
 var _map_p1: WorldMapView = null
 var _map_p2: WorldMapView = null
 var _dungeon_map_p1: DungeonMapView = null
@@ -70,7 +89,13 @@ func _ready() -> void:
 	_controls_p2 = _build_controls_hud(_container_p2, 1)
 	_hearts_p1 = _build_heart_display(_container_p1)
 	_hearts_p2 = _build_heart_display(_container_p2)
-	_math_death = load("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
+	_status_badges_p1 = _build_status_badges(_container_p1)
+	_status_badges_p2 = _build_status_badges(_container_p2)
+	_cooldown_p1 = _build_cooldown_widget(_container_p1)
+	_cooldown_p2 = _build_cooldown_widget(_container_p2)
+	_build_top_labels(_container_p1, 0)
+	_build_top_labels(_container_p2, 1)
+	_math_death = _MathDeathScene.instantiate() as MathDeathScreen
 	_math_death.name = "MathDeathScreen"
 	_math_death.answered_correctly.connect(_on_math_answer_correct)
 	add_child(_math_death)
@@ -82,6 +107,9 @@ func _ready() -> void:
 	_confirm_menu_p2 = _build_floor_confirm_menu(_container_p2)
 	_caravan_menu_p1 = _build_caravan_menu(_container_p1)
 	_caravan_menu_p2 = _build_caravan_menu(_container_p2)
+	_toast_label_p1 = _build_location_toast(_container_p1)
+	_toast_label_p2 = _build_location_toast(_container_p2)
+	MapManager.active_interior_changed.connect(_on_active_interior_changed_toast)
 	call_deferred("_wire_hud_and_cameras")
 
 
@@ -190,6 +218,7 @@ func _wire_hud_and_cameras() -> void:
 	if _caravan_menu_p1 != null and p1 != null:
 		_caravan_menu_p1.setup(p1, p1.caravan_data, _world)
 		_caravan_menu_p1.swap_pet_requested.connect(_world.swap_active_pet)
+		_caravan_menu_p1.build_requested.connect(_world.start_house_placement)
 		var caravan_p1: Caravan = _world.get_caravan(0)
 		if caravan_p1 != null:
 			caravan_p1.interacted.connect(
@@ -198,6 +227,7 @@ func _wire_hud_and_cameras() -> void:
 	if _caravan_menu_p2 != null and p2 != null:
 		_caravan_menu_p2.setup(p2, p2.caravan_data, _world)
 		_caravan_menu_p2.swap_pet_requested.connect(_world.swap_active_pet)
+		_caravan_menu_p2.build_requested.connect(_world.start_house_placement)
 		var caravan_p2: Caravan = _world.get_caravan(1)
 		if caravan_p2 != null:
 			caravan_p2.interacted.connect(
@@ -270,16 +300,14 @@ func _build_dungeon_map_view(container: Control) -> DungeonMapView:
 
 
 func _build_floor_confirm_menu(container: Control) -> FloorConfirmMenu:
-	var scene := load("res://scenes/ui/FloorConfirmMenu.tscn") as PackedScene
-	var menu := scene.instantiate() as FloorConfirmMenu
+	var menu := _FloorConfirmMenuScene.instantiate() as FloorConfirmMenu
 	menu.name = "FloorConfirmMenu"
 	container.add_child(menu)
 	return menu
 
 
 func _build_caravan_menu(container: Control) -> CaravanMenu:
-	var scene := load("res://scenes/ui/CaravanMenu.tscn") as PackedScene
-	var menu := scene.instantiate() as CaravanMenu
+	var menu := _CaravanMenuScene.instantiate() as CaravanMenu
 	menu.name = "CaravanMenu"
 	container.add_child(menu)
 	return menu
@@ -295,24 +323,285 @@ func show_floor_confirm_menu(pid: int, title: String, options: Array,
 		menu.show_menu(pid, title, options, callback)
 
 
+## Returns the ControlsHud for [param pid] (0 = P1, 1 = P2).
+## May return null if the HUD has not been built yet. Callers must null-check.
+func get_controls_hud(pid: int) -> ControlsHud:
+	return _controls_p1 if pid == 0 else _controls_p2
+
+
+## Opens the caravan menu for [param pid] if it is set up.
+## Clears any active ControlsHud override hint before opening.
+func open_caravan_menu(pid: int) -> void:
+	var hud: ControlsHud = get_controls_hud(pid)
+	if hud != null:
+		hud.set_override_hint("")
+	var menu: CaravanMenu = _caravan_menu_p1 if pid == 0 else _caravan_menu_p2
+	if menu != null:
+		menu.open()
+
+
 func _build_heart_display(container: Control) -> HeartDisplay:
-	var hd := HeartDisplay.new(12.0)
+	var hd := HeartDisplay.new(47.0)
 	hd.name = "HeartDisplay"
-	hd.position = Vector2(8, 8)
 	hd.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Wide rect whose RIGHT edge is 8px from hotbar. Hearts right-align inside.
+	var bar_w: float = HotbarSlot.SLOT_SIZE * 8 + 4 * 7
+	hd.anchor_left = 0.5
+	hd.anchor_right = 0.5
+	hd.anchor_top = 1.0
+	hd.anchor_bottom = 1.0
+	hd.offset_right = -bar_w * 0.5 - 8.0
+	hd.offset_left = hd.offset_right - 400.0
+	hd.offset_top = -HotbarSlot.SLOT_SIZE - 12.0
+	hd.offset_bottom = -12.0
 	container.add_child(hd)
 	return hd
 
 
+func _build_status_badges(container: Control) -> StatusBadges:
+	var sb := StatusBadges.new()
+	sb.name = "StatusBadges"
+	sb.position = Vector2(8, 8)
+	sb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(sb)
+	return sb
+
+
+func _build_cooldown_widget(container: Control) -> CooldownWidget:
+	var cw := CooldownWidget.new()
+	cw.name = "CooldownWidget"
+	# Anchored beside the hotbar on the right — same bottom row.
+	var bar_w: float = HotbarSlot.SLOT_SIZE * 8 + 4 * 7
+	var widget_w: float = CooldownWidget._WIDGET_W
+	cw.anchor_left = 0.5
+	cw.anchor_right = 0.5
+	cw.anchor_top = 1.0
+	cw.anchor_bottom = 1.0
+	cw.offset_left = bar_w * 0.5 + 8.0
+	cw.offset_right = bar_w * 0.5 + 8.0 + widget_w
+	cw.offset_top = -HotbarSlot.SLOT_SIZE - 12.0
+	cw.offset_bottom = -12.0
+	container.add_child(cw)
+	return cw
+
+
+## Build the centred location toast label for one player's container.
+## The label starts invisible; _show_location_toast animates it.
+func _build_location_toast(container: Control) -> Label:
+	var lbl := Label.new()
+	lbl.name = "LocationToast"
+	lbl.add_theme_font_size_override("font_size", 22)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.95, 0.7))
+	lbl.add_theme_constant_override("outline_size", 3)
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	lbl.anchor_left = 0.5
+	lbl.anchor_right = 0.5
+	lbl.anchor_top = 0.5
+	lbl.anchor_bottom = 0.5
+	lbl.offset_left = -200.0
+	lbl.offset_right = 200.0
+	lbl.offset_top = -60.0
+	lbl.offset_bottom = -20.0
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.modulate.a = 0.0
+	container.add_child(lbl)
+	return lbl
+
+
+## Animate the location toast for [param lbl], killing any running tween first.
+func _show_location_toast(lbl: Label, tween_ref: Array, text: String) -> void:
+	if lbl == null:
+		return
+	lbl.text = text
+	if tween_ref[0] != null and (tween_ref[0] as Tween).is_valid():
+		(tween_ref[0] as Tween).kill()
+	lbl.modulate.a = 0.0
+	var tw: Tween = create_tween()
+	tween_ref[0] = tw
+	tw.tween_property(lbl, "modulate:a", 1.0, 0.4).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(2.0)
+	tw.tween_property(lbl, "modulate:a", 0.0, 0.8).set_ease(Tween.EASE_IN)
+
+
+## Called when MapManager.active_interior_changed fires.
+func _on_active_interior_changed_toast(interior: InteriorMap) -> void:
+	if interior == null:
+		return
+	# Build toast text: prefer display_name, fall back to kind + floor.
+	var name_text: String = interior.display_name
+	if name_text == "":
+		var map_str: String = String(interior.map_id)
+		var at_idx: int = map_str.find("@")
+		var kind_str: String = map_str.substr(0, at_idx) if at_idx >= 0 else "dungeon"
+		name_text = kind_str.capitalize()
+	var floor_suffix: String = " — Floor %d" % interior.floor_num
+	var toast_text: String = name_text + floor_suffix
+	var ref1: Array = [_toast_tween_p1]
+	var ref2: Array = [_toast_tween_p2]
+	_show_location_toast(_toast_label_p1, ref1, toast_text)
+	_toast_tween_p1 = ref1[0]
+	_show_location_toast(_toast_label_p2, ref2, toast_text)
+	_toast_tween_p2 = ref2[0]
+
+
+## Build the top-right info labels (biome, clock) and top-centre zone badge
+## for one player's container. Stores refs in p1 or p2 member vars via [param pid].
+func _build_top_labels(container: Control, pid: int) -> void:
+	const MARGIN: float = 12.0
+	# Zone badge — top-centre.
+	var zone := Label.new()
+	zone.name = "ZoneBadge"
+	zone.add_theme_font_size_override("font_size", 15)
+	zone.add_theme_color_override("font_color", Color(0.95, 0.85, 0.55))
+	zone.add_theme_constant_override("outline_size", 2)
+	zone.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	zone.anchor_left = 0.5
+	zone.anchor_right = 0.5
+	zone.offset_left = -150
+	zone.offset_right = 150
+	zone.offset_top = MARGIN
+	zone.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	zone.visible = false
+	container.add_child(zone)
+	# Biome label — top-right.
+	var biome := Label.new()
+	biome.name = "BiomeLabel"
+	biome.add_theme_font_size_override("font_size", 13)
+	biome.add_theme_color_override("font_color", Color(0.85, 0.9, 0.95))
+	biome.anchor_left = 1.0
+	biome.anchor_right = 1.0
+	biome.offset_left = -160
+	biome.offset_top = MARGIN
+	biome.offset_right = -MARGIN
+	biome.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	biome.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(biome)
+	# Clock label — below biome label.
+	var clock := Label.new()
+	clock.name = "ClockLabel"
+	clock.add_theme_font_size_override("font_size", 13)
+	clock.add_theme_color_override("font_color", Color(0.9, 0.9, 0.7))
+	clock.anchor_left = 1.0
+	clock.anchor_right = 1.0
+	clock.offset_left = -160
+	clock.offset_top = MARGIN + 18
+	clock.offset_right = -MARGIN
+	clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	clock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(clock)
+	if pid == 0:
+		_zone_label_p1 = zone
+		_biome_label_p1 = biome
+		_clock_label_p1 = clock
+	else:
+		_zone_label_p2 = zone
+		_biome_label_p2 = biome
+		_clock_label_p2 = clock
+
+
 func _process(_delta: float) -> void:
+	# Hearts.
 	if _player_p1 != null and _hearts_p1 != null:
 		_hearts_p1.update(_player_p1.health, _player_p1.max_health)
 	if _player_p2 != null and _hearts_p2 != null:
 		_hearts_p2.update(_player_p2.health, _player_p2.max_health)
+	# Status badges.
+	if _player_p1 != null and _status_badges_p1 != null:
+		_status_badges_p1.set_effects(_player_p1.active_effects)
+	if _player_p2 != null and _status_badges_p2 != null:
+		_status_badges_p2.set_effects(_player_p2.active_effects)
+	# Cooldown bars.
+	if _player_p1 != null and _cooldown_p1 != null:
+		_cooldown_p1.update_ratios(
+				_player_p1.get_attack_cooldown_ratio(),
+				_player_p1.get_dodge_cooldown_ratio())
+	if _player_p2 != null and _cooldown_p2 != null:
+		_cooldown_p2.update_ratios(
+				_player_p2.get_attack_cooldown_ratio(),
+				_player_p2.get_dodge_cooldown_ratio())
+	# Active hotbar slot highlight.
+	if _player_p1 != null and _hotbar_p1 != null:
+		_hotbar_p1.set_active_slot(_player_p1.active_slot)
+	if _player_p2 != null and _hotbar_p2 != null:
+		_hotbar_p2.set_active_slot(_player_p2.active_slot)
+	# Top-right labels (biome, clock, zone).
+	_update_top_labels()
+
+
+## Update top-right/top-centre labels each frame.
+func _update_top_labels() -> void:
+	# Clock (shared — same time for both players).
+	var h: int = int(TimeManager.time_of_day)
+	var m: int = int((TimeManager.time_of_day - h) * 60.0)
+	var period: String = String(TimeManager.get_period()).capitalize()
+	var clock_text: String = "%02d:%02d %s" % [h, m, period]
+	if _clock_label_p1 != null:
+		_clock_label_p1.text = clock_text
+	if _clock_label_p2 != null:
+		_clock_label_p2.text = clock_text
+	# Biome (shared — same overworld region).
+	var biome_text: String = ""
+	if MapManager.active_interior == null:
+		var reg: Region = WorldManager.active_region
+		if reg != null:
+			biome_text = "Biome: %s" % String(reg.biome).capitalize()
+	if _biome_label_p1 != null:
+		_biome_label_p1.text = biome_text
+		_biome_label_p1.visible = biome_text != ""
+	if _biome_label_p2 != null:
+		_biome_label_p2.text = biome_text
+		_biome_label_p2.visible = biome_text != ""
+	# Zone badge — derived from active interior.
+	var zone_text: String = ""
+	if MapManager.active_interior != null:
+		var map_id: String = String(MapManager.active_interior.map_id)
+		var floor_n: int = MapManager.active_interior.floor_num
+		if map_id.begins_with("maze"):
+			zone_text = "MAZE F%d" % floor_n
+		elif map_id.begins_with("house"):
+			zone_text = "HOUSE"
+		elif map_id.begins_with("city"):
+			zone_text = "CITY"
+		else:
+			zone_text = "DUNGEON F%d" % floor_n
+	if _zone_label_p1 != null:
+		_zone_label_p1.text = zone_text
+		_zone_label_p1.visible = zone_text != ""
+	if _zone_label_p2 != null:
+		_zone_label_p2.text = zone_text
+		_zone_label_p2.visible = zone_text != ""
 
 
 func _on_player_died(pid: int) -> void:
-	get_tree().paused = true
+	if _dying_players.has(pid):
+		return
+	_dying_players[pid] = true
+	var player: PlayerController = _player_p1 if pid == 0 else _player_p2
+	if player != null:
+		player.die()
+	var container: Control = _container_p1 if pid == 0 else _container_p2
+	var lbl: Label = _ensure_knockout_overlay(container)
+	var overlay: ColorRect = lbl.get_parent() as ColorRect
+	overlay.visible = true
+	# Count down 5 → 1, then show math screen.
+	var elapsed: float = 0.0
+	var total: float = PlayerController._DEATH_WAIT_SEC
+	while elapsed < total:
+		if not is_instance_valid(lbl):
+			return
+		var remaining: int = ceili(total - elapsed)
+		lbl.text = "Knocked out…\n%d" % remaining
+		await get_tree().create_timer(0.2, false, false, true).timeout
+		elapsed += 0.2
+	if is_instance_valid(lbl):
+		overlay.visible = false
+	_dying_players.erase(pid)
+	# Skip math screen if player was already revived.
+	var check_player: PlayerController = _player_p1 if pid == 0 else _player_p2
+	if check_player == null or not check_player.is_dead:
+		return
 	if _math_death != null:
 		_math_death.show_for_player(pid)
 
@@ -320,8 +609,7 @@ func _on_player_died(pid: int) -> void:
 func _on_math_answer_correct(pid: int) -> void:
 	var player: PlayerController = _player_p1 if pid == 0 else _player_p2
 	if player != null:
-		player.health = player.max_health
-	get_tree().paused = false
+		player.respawn(player.max_health)
 
 
 # --- Floor transition overlay ----------------------------------------
@@ -385,3 +673,32 @@ func _ensure_floor_overlay(container: Control) -> Control:
 	overlay.add_child(label)
 	container.add_child(overlay)
 	return overlay
+
+
+## Build or retrieve the per-player "knocked out" countdown overlay.
+## Returns the Label node used for countdown text.
+func _ensure_knockout_overlay(container: Control) -> Label:
+	var existing: Node = container.get_node_or_null("KnockoutOverlay")
+	if existing is ColorRect:
+		return existing.get_node("CountdownLabel") as Label
+	var overlay := ColorRect.new()
+	overlay.name = "KnockoutOverlay"
+	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = 95
+	overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	overlay.visible = false
+	var lbl := Label.new()
+	lbl.name = "CountdownLabel"
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.6, 0.6))
+	lbl.add_theme_font_size_override("font_size", 22)
+	lbl.add_theme_constant_override("outline_size", 3)
+	lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+	lbl.text = "Knocked out…"
+	overlay.add_child(lbl)
+	container.add_child(overlay)
+	return lbl

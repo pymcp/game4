@@ -57,14 +57,14 @@ var _happy_remaining: float = 0.0
 var _bob_t: float = 0.0
 var _facing_left: bool = false
 var _last_owner_x: float = NAN
-var _attack_target: NPC = null
+var _attack_target: Node2D = null
 ## Special ability from PetRegistry.
 var special_ability: StringName = &"none"
 var _ability_cooldown_remaining: float = 0.0
 ## Hostile scan throttle.
 const HOSTILE_SCAN_INTERVAL: float = 0.3
 var _hostile_scan_timer: float = 0.0
-var _cached_hostile_result: Dictionary = {"npc": null, "dist_tiles": INF}
+var _cached_hostile_result: Dictionary = {"hostile": null, "dist_tiles": INF}
 
 
 func _ready() -> void:
@@ -95,26 +95,38 @@ func _ready() -> void:
 
 # ─── Pure helpers ──────────────────────────────────────────────────────
 
-## Return the nearest hostile [NPC] within [param max_tiles] of [param from]
-## by scanning all [&"scattered_npcs"] in [param world]. Returns
-## [code]{npc, dist_tiles}[/code] with [code]npc == null[/code] when none.
+## Return the nearest hostile entity within [param max_tiles] of [param from]
+## by scanning the hostile cache in [param world]. Targets [Monster] entities
+## (always hostile) or any other entity tagged as hostile with [code]health > 0[/code].
+## Returns [code]{hostile, dist_tiles}[/code] with [code]hostile == null[/code] when none.
 static func find_nearest_hostile(world: WorldRoot, from: Vector2,
 		max_tiles: float) -> Dictionary:
-	var best: NPC = null
+	var best: Node2D = null
 	var best_d2: float = INF
 	if world == null:
-		return {"npc": null, "dist_tiles": INF}
+		return {"hostile": null, "dist_tiles": INF}
 	var max_px: float = max_tiles * float(WorldConst.TILE_PX)
 	var max_d2: float = max_px * max_px
 	for n in world.get_hostile_cache():
-		if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
-			var d2: float = from.distance_squared_to((n as NPC).position)
-			if d2 < best_d2 and d2 <= max_d2:
-				best_d2 = d2
-				best = n
+		var node := n as Node2D
+		if node == null:
+			continue
+		# Monster is always hostile when alive.
+		var is_hostile: bool = false
+		if node is Monster:
+			is_hostile = (node as Monster).health > 0
+		elif node.has_method("take_hit") and node.get(&"health") > 0:
+			# Catch any other entity type that participates in combat.
+			is_hostile = node.get(&"hostile") == true
+		if not is_hostile:
+			continue
+		var d2: float = from.distance_squared_to(node.position)
+		if d2 < best_d2 and d2 <= max_d2:
+			best_d2 = d2
+			best = node
 	if best == null:
-		return {"npc": null, "dist_tiles": INF}
-	return {"npc": best, "dist_tiles": sqrt(best_d2) / float(WorldConst.TILE_PX)}
+		return {"hostile": null, "dist_tiles": INF}
+	return {"hostile": best, "dist_tiles": sqrt(best_d2) / float(WorldConst.TILE_PX)}
 
 
 # ─── Frame loop ────────────────────────────────────────────────────────
@@ -137,7 +149,7 @@ func _process(delta: float) -> void:
 						else PetState.ATTACK_DETECT_TILES)
 		_hostile_scan_timer = HOSTILE_SCAN_INTERVAL
 	var enemy: Dictionary = _cached_hostile_result
-	var dist_enemy_tiles: float = enemy["dist_tiles"]
+	var dist_enemy_tiles: float = float(enemy.get("dist_tiles", INF))
 	# PetState.decide_state thresholds attack at ATTACK_DETECT_TILES (4.0).
 	# The dog's bark reaches further (5.0), so lie to the state machine
 	# when a hostile is in bark range — keeps the transition logic in one
@@ -153,7 +165,11 @@ func _process(delta: float) -> void:
 	if state != PetState.State.ATTACK:
 		_attack_target = null
 	else:
-		_attack_target = enemy["npc"] as NPC
+		var hostile_candidate: Variant = enemy.get("hostile")
+		if hostile_candidate != null and is_instance_valid(hostile_candidate):
+			_attack_target = hostile_candidate as Node2D
+		else:
+			_attack_target = null
 
 	match state:
 		PetState.State.STUCK:
@@ -259,11 +275,21 @@ func _do_bark() -> void:
 	var range_d2: float = range_px * range_px
 	if _world != null:
 		for n in _world.get_hostile_cache():
-			if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
-				var eff_range: float = range_px + (n as NPC).hitbox_radius
-				if position.distance_squared_to((n as NPC).position) <= eff_range * eff_range:
-					if (n as NPC).has_method("take_hit"):
-						(n as NPC).call("take_hit", BARK_DAMAGE, self)
+			var node := n as Node2D
+			if node == null:
+				continue
+			var is_hostile: bool = false
+			if node is Monster:
+				is_hostile = (node as Monster).health > 0
+			elif node.get(&"hostile") == true and node.get(&"health") > 0:
+				is_hostile = true
+			if not is_hostile:
+				continue
+			var hb_r: float = HitboxCalc.get_radius(node)
+			var eff_range: float = range_px + hb_r
+			if position.distance_squared_to(node.position) <= eff_range * eff_range:
+				if node.has_method("take_hit"):
+					node.call("take_hit", BARK_DAMAGE, self)
 	_spawn_bark_visual(range_px)
 
 

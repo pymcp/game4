@@ -65,9 +65,45 @@ func advance_objective(quest_id: String, objective_id: String, amount: int = 1) 
 	objective_updated.emit(quest_id, objective_id, objs[objective_id])
 
 
+## Called when a player picks up an item.  Scans all active quests for
+## "collect" objectives matching [param item_id] and advances them.
+func notify_item_collected(item_id: StringName, count: int = 1) -> void:
+	for quest_id in _active:
+		var state: Dictionary = _active[quest_id]
+		if state["complete"]:
+			continue
+		var branch: Dictionary = QuestRegistry.get_branch(quest_id, state["branch"])
+		for obj in branch.get("objectives", []):
+			if obj.get("type", "") != "collect":
+				continue
+			if StringName(obj.get("item", "")) != item_id:
+				continue
+			var target: int = obj.get("count", 1)
+			var current: int = state["objectives"].get(obj["id"], 0)
+			if current < target:
+				var add: int = mini(count, target - current)
+				advance_objective(quest_id, obj["id"], add)
+
+
 ## Mark a talk / reach / interact objective as done (sets progress to 1).
 func mark_objective_done(quest_id: String, objective_id: String) -> void:
 	advance_objective(quest_id, objective_id, 1)
+
+
+## Called when a player reaches a location (e.g. enters a labyrinth).
+## Scans active quests for "reach" objectives matching [param location_id].
+func notify_location_reached(location_id: String) -> void:
+	for quest_id in _active:
+		var state: Dictionary = _active[quest_id]
+		if state["complete"]:
+			continue
+		var branch: Dictionary = QuestRegistry.get_branch(quest_id, state["branch"])
+		for obj in branch.get("objectives", []):
+			if obj.get("type", "") != "reach":
+				continue
+			if obj.get("location", "") != location_id:
+				continue
+			mark_objective_done(quest_id, obj["id"])
 
 
 ## Return the current progress value for an objective, or -1 if not tracked.
@@ -159,8 +195,17 @@ func _apply_rewards(rewards: Array) -> void:
 			"unlock_passage":
 				GameState.set_flag("passage_%s_unlocked" % reward.get("passage_id", "unknown"))
 			"give_item":
-				# Item system not yet implemented — set a flag as placeholder.
-				GameState.set_flag("reward_%s_given" % reward.get("item", "unknown"))
+				var item_id: StringName = StringName(reward.get("item", ""))
+				var item_count: int = int(reward.get("count", 1))
+				if item_id == &"":
+					break
+				var world_node: World = World.instance()
+				if world_node != null:
+					for pid in 2:
+						var p: PlayerController = world_node.get_player(pid)
+						if p != null and p.inventory != null:
+							p.inventory.add(item_id, item_count)
+							break  # give to first valid player only
 			"give_xp":
 				var xp_amount: int = int(reward.get("amount", 0))
 				if xp_amount > 0:

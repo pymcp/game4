@@ -57,6 +57,20 @@ const MAX_SIZE: int = 96
 ## Boss spawn data: {kind: StringName, cell: Vector2i, adds: [{kind, cell}]}.
 ## Empty dict when this floor has no boss room.
 @export var boss_data: Dictionary = {}
+## Maximum depth for this interior chain. 0 = unlimited (default).
+## When floor_num == max_floor, stairs_down are suppressed so the player
+## cannot descend further. Propagated automatically by MapManager.descend_from.
+@export var max_floor: int = 0
+## Visual style for room-wall rendering: &"wood" (default) or &"stone".
+## Drives which dungeon_sheet.png row set the renderer uses for walls/floors.
+@export var style: StringName = &"wood"
+## Furniture placed inside rooms. Each entry: {cell: Vector2i, type: StringName}.
+## WorldRoot reads `TileMappings.interior_furniture[type]` to resolve the atlas cell.
+@export var furniture_scatter: Array = []
+## Rects (in interior tile coordinates) that contain room-style chambers inside
+## a dungeon or labyrinth. WorldRoot uses room-wall tiles for cells inside
+## these rects instead of the cave autotile.
+@export var chamber_rects: Array = []  # Array of Rect2i
 
 
 func _init() -> void:

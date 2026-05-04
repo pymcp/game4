@@ -45,6 +45,35 @@ var _attack_cooldown: float = 0.0
 const ATTACK_COOLDOWN_SEC: float = 0.35  ## seconds between swings
 var auto_mine: bool = false
 var auto_attack: bool = false
+var active_slot: int = 0
+var is_dead: bool = false
+var _invincible_timer: float = 0.0
+const _INVINCIBLE_DURATION: float = 3.0
+
+# ── Dodge roll state ─────────────────────────────────────────────────
+const DODGE_COOLDOWN_SEC: float = 0.8
+const DODGE_DURATION_SEC: float = 0.2
+const DODGE_DISTANCE_PX: float = 40.0   ## 2.5 tiles
+const DODGE_IFRAMES_SEC: float = 0.15
+var _dodge_cooldown: float = 0.0
+var _dodge_timer: float = 0.0           ## > 0 while mid-roll
+var _dodge_dir: Vector2 = Vector2.ZERO
+var is_dodging: bool = false
+
+# ── Block / parry state ──────────────────────────────────────────────
+const PARRY_WINDOW_SEC: float = 0.15
+const BLOCK_DAMAGE_MULT: float = 0.25   ## take 25% damage while blocking
+const BLOCK_SPEED_MULT: float = 0.5
+var is_blocking: bool = false
+var _block_timer: float = 0.0           ## time since block started (for parry window)
+
+# ── Charge attack state ──────────────────────────────────────────────
+const CHARGE_MAX_SEC: float = 1.0       ## time to reach full charge
+const CHARGE_DAMAGE_MULT: float = 2.0   ## bonus multiplier at full charge
+const CHARGE_THRESHOLD_SEC: float = 0.2 ## hold time before it counts as charging
+var _charge_timer: float = 0.0          ## how long attack has been held
+var is_charging: bool = false
+const _DEATH_WAIT_SEC: float = 5.0
 const _AUTO_MINE_RADIUS: int = 1       ## tiles around player to scan
 const _MELEE_REACH_PX: float = 24.0    ## native-px radius for melee auto-attack
 const _RANGED_REACH_PX: float = 80.0   ## native-px max range for ranged auto-attack
@@ -67,7 +96,7 @@ var dungeon_fog: DungeonFogData = DungeonFogData.new()
 var world_map: WorldMapView = null
 var dungeon_map: DungeonMapView = null
 ## Active status effects: Array of {effect_id: StringName, remaining: float, tick_timer: float}
-var active_effects: Array = []
+var active_effects: Array[Dictionary] = []
 var xp: int = 0
 var level: int = 1
 var unlocked_passives: Array[StringName] = []
@@ -337,9 +366,20 @@ func _apply_armor_layer(sprite: Sprite2D, default_region: Rect2,
 
 
 func _physics_process(delta: float) -> void:
+	# Tick invincibility regardless of world state so tests can verify timer behaviour.
+	if _invincible_timer > 0.0:
+		_invincible_timer = max(0.0, _invincible_timer - delta)
 	if _world == null:
 		return
 	tick_effects(delta)
+	# Drive flashing visual while invincible.
+	if _invincible_timer > 0.0:
+		# Flash: visible every other 0.15s window.
+		if _sprite_root != null:
+			_sprite_root.visible = int(_invincible_timer / 0.15) % 2 == 0
+	else:
+		if _sprite_root != null:
+			_sprite_root.visible = true
 	# Freeze this player while they are in a conversation.
 	if in_conversation:
 		_bob_t = 0.0
@@ -361,6 +401,29 @@ func _physics_process(delta: float) -> void:
 		_sprite_root.position = Vector2.ZERO
 		return
 	_attack_cooldown = max(0.0, _attack_cooldown - delta)
+	_dodge_cooldown = max(0.0, _dodge_cooldown - delta)
+	# ── Dodge roll tick ──────────────────────────────────────────────
+	if _dodge_timer > 0.0:
+		_dodge_timer -= delta
+		var speed: float = DODGE_DISTANCE_PX / DODGE_DURATION_SEC
+		_step(_dodge_dir * speed * delta)
+		if _dodge_timer <= 0.0:
+			is_dodging = false
+			# Restore sprite shape after squish.
+			if _sprite_root != null:
+				_sprite_root.scale = Vector2(_facing_x, 1)
+		return  # No other input during dodge.
+	# ── Block state ──────────────────────────────────────────────────
+	var block_action: StringName = PlayerActions.action(player_id, PlayerActions.BLOCK)
+	if Input.is_action_pressed(block_action):
+		if not is_blocking:
+			is_blocking = true
+			_block_timer = 0.0
+		else:
+			_block_timer += delta
+	else:
+		is_blocking = false
+		_block_timer = 0.0
 	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.INTERACT)):
 		_try_interact()
 		# Re-check context: interact may have opened a menu (caravan, shop, etc.).
@@ -370,18 +433,44 @@ func _physics_process(delta: float) -> void:
 		auto_mine = not auto_mine
 	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.AUTO_ATTACK)):
 		auto_attack = not auto_attack
-	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.ATTACK)):
-		if is_mounted and _mount != null and _mount.can_jump:
-			_mount.try_hop(_facing_dir)
-		elif _attack_cooldown <= 0.0:
-			try_attack()
-			_attack_cooldown = ATTACK_COOLDOWN_SEC
-	# Auto-mine: mine nearest mineable within radius when cooldown ready.
-	if auto_mine and _attack_cooldown <= 0.0:
-		_tick_auto_mine()
-	# Auto-attack: attack nearby hostiles or fire ranged in facing dir.
-	if auto_attack and _attack_cooldown <= 0.0:
-		_tick_auto_attack()
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.HOTBAR_PREV)):
+		active_slot = wrapi(active_slot - 1, 0, 8)
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.HOTBAR_NEXT)):
+		active_slot = wrapi(active_slot + 1, 0, 8)
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.USE_ITEM)):
+		_use_active_hotbar_item()
+	# ── Dodge input ──────────────────────────────────────────────────
+	if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.DODGE)):
+		if _dodge_cooldown <= 0.0:
+			_start_dodge()
+			return
+	# ── Attack (blocked while blocking) ──────────────────────────────
+	if not is_blocking:
+		var atk_action: StringName = PlayerActions.action(player_id, PlayerActions.ATTACK)
+		if Input.is_action_just_pressed(atk_action):
+			if is_mounted and _mount != null and _mount.can_jump:
+				_mount.try_hop(_facing_dir)
+			elif _attack_cooldown <= 0.0:
+				_charge_timer = 0.0
+				is_charging = true
+		elif is_charging and Input.is_action_pressed(atk_action):
+			_charge_timer = minf(_charge_timer + delta, CHARGE_MAX_SEC)
+			if _charge_timer >= CHARGE_THRESHOLD_SEC:
+				_show_charge_visual()
+		elif is_charging:
+			# Released — fire the attack with charge multiplier.
+			var mult: float = _get_charge_multiplier()
+			is_charging = false
+			_hide_charge_visual()
+			if _attack_cooldown <= 0.0:
+				try_attack(mult)
+				_attack_cooldown = ATTACK_COOLDOWN_SEC
+		# Auto-mine: mine nearest mineable within radius when cooldown ready.
+		if auto_mine and _attack_cooldown <= 0.0 and not is_charging:
+			_tick_auto_mine()
+		# Auto-attack: attack nearby hostiles or fire ranged in facing dir.
+		if auto_attack and _attack_cooldown <= 0.0 and not is_charging:
+			_tick_auto_attack()
 	var input := Vector2(
 		Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.RIGHT))
 			- Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.LEFT)),
@@ -392,7 +481,10 @@ func _physics_process(delta: float) -> void:
 	if moving:
 		if input.length() > 1.0:
 			input = input.normalized()
-		_step(input * get_move_speed() * delta)
+		var speed: float = get_move_speed()
+		if is_blocking:
+			speed *= BLOCK_SPEED_MULT
+		_step(input * speed * delta)
 		if input.x > 0.05:
 			_facing_x = 1
 		elif input.x < -0.05:
@@ -409,6 +501,104 @@ func _physics_process(delta: float) -> void:
 		if _action_vfx == null or not _action_vfx.is_playing():
 			_bob_t = 0.0
 			_sprite_root.position = Vector2.ZERO
+
+
+# ── Dodge roll ────────────────────────────────────────────────────────
+
+func _start_dodge() -> void:
+	# Direction: use current movement input, fall back to facing direction.
+	var input := Vector2(
+		Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.RIGHT))
+			- Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.LEFT)),
+		Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.DOWN))
+			- Input.get_action_strength(PlayerActions.action(player_id, PlayerActions.UP)),
+	)
+	if input.length_squared() < 0.01:
+		input = Vector2(_facing_dir)
+	_dodge_dir = input.normalized()
+	_dodge_timer = DODGE_DURATION_SEC
+	_dodge_cooldown = DODGE_COOLDOWN_SEC
+	is_dodging = true
+	is_blocking = false
+	_block_timer = 0.0
+	# Cancel charge on dodge.
+	if is_charging:
+		is_charging = false
+		_charge_timer = 0.0
+		_hide_charge_visual()
+	# VFX: squish sprite (narrow + tall) during roll.
+	if _sprite_root != null:
+		_sprite_root.scale = Vector2(_facing_x * 0.7, 1.3)
+
+
+## True if currently in dodge i-frame window (invincible).
+func is_dodge_invincible() -> bool:
+	return is_dodging and _dodge_timer > (DODGE_DURATION_SEC - DODGE_IFRAMES_SEC)
+
+
+## True if in parry window (first PARRY_WINDOW_SEC of blocking).
+func is_parrying() -> bool:
+	return is_blocking and _block_timer <= PARRY_WINDOW_SEC
+
+
+## Returns the damage multiplier based on current charge level.
+## Below threshold → 1.0 (normal). At max → CHARGE_DAMAGE_MULT.
+func _get_charge_multiplier() -> float:
+	if _charge_timer < CHARGE_THRESHOLD_SEC:
+		return 1.0
+	var t: float = (_charge_timer - CHARGE_THRESHOLD_SEC) / (CHARGE_MAX_SEC - CHARGE_THRESHOLD_SEC)
+	return lerpf(1.0, CHARGE_DAMAGE_MULT, clampf(t, 0.0, 1.0))
+
+
+## Returns 0.0 (ready) → 1.0 (full cooldown) for the attack cooldown.
+func get_attack_cooldown_ratio() -> float:
+	return _attack_cooldown / ATTACK_COOLDOWN_SEC
+
+
+## Returns 0.0 (ready) → 1.0 (full cooldown) for the dodge cooldown.
+func get_dodge_cooldown_ratio() -> float:
+	return _dodge_cooldown / DODGE_COOLDOWN_SEC
+
+
+## Consume the consumable in the active hotbar slot, or equip if it is a weapon/shield.
+func _use_active_hotbar_item() -> void:
+	if inventory == null or active_slot >= inventory.size:
+		return
+	var slot: Variant = inventory.slots[active_slot]
+	if slot == null:
+		return
+	var id: StringName = slot["id"]
+	var def: ItemDefinition = ItemRegistry.get_item(id)
+	if def == null:
+		return
+	if def.consumable:
+		if def.heal_amount > 0:
+			health = min(health + def.heal_amount, max_health)
+		inventory.remove(id, 1)
+	elif def.slot == ItemDefinition.Slot.WEAPON or def.slot == ItemDefinition.Slot.OFF_HAND:
+		equipment.equip(def.slot, id)
+
+
+## Returns charge progress 0.0–1.0 (for UI/visual feedback).
+func get_charge_ratio() -> float:
+	if not is_charging or _charge_timer < CHARGE_THRESHOLD_SEC:
+		return 0.0
+	return clampf((_charge_timer - CHARGE_THRESHOLD_SEC) / (CHARGE_MAX_SEC - CHARGE_THRESHOLD_SEC), 0.0, 1.0)
+
+
+func _show_charge_visual() -> void:
+	if _sprite_root == null:
+		return
+	var ratio: float = get_charge_ratio()
+	# Yellow-white glow intensifies with charge.
+	var glow: float = 1.0 + ratio * 1.5
+	_sprite_root.modulate = Color(glow, glow, 1.0 + ratio * 0.5, 1.0)
+
+
+func _hide_charge_visual() -> void:
+	if _sprite_root == null:
+		return
+	_sprite_root.modulate = Color.WHITE
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -556,6 +746,7 @@ func _tick_auto_mine() -> void:
 			if &"scavenger" in unlocked_passives and randf() < 0.25:
 				cnt *= 2
 			inventory.add(d["id"], cnt)
+			QuestTracker.notify_item_collected(StringName(d["id"]), cnt)
 	_attack_cooldown = ATTACK_COOLDOWN_SEC
 
 
@@ -575,12 +766,7 @@ func _auto_attack_melee(weapon_id: StringName, def: ItemDefinition) -> void:
 	for n in _world.entities.get_children():
 		if n == self:
 			continue
-		var is_hostile: bool = false
-		if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
-			is_hostile = true
-		elif n is Monster and (n as Monster).health > 0:
-			is_hostile = true
-		if not is_hostile:
+		if not (n is Monster and (n as Monster).health > 0):
 			continue
 		var eff_reach: float = reach + HitboxCalc.get_radius(n)
 		var eff_reach2: float = eff_reach * eff_reach
@@ -619,12 +805,7 @@ func _auto_attack_ranged(weapon_id: StringName, def: ItemDefinition) -> void:
 	for n in _world.entities.get_children():
 		if n == self:
 			continue
-		var is_hostile: bool = false
-		if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
-			is_hostile = true
-		elif n is Monster and (n as Monster).health > 0:
-			is_hostile = true
-		if not is_hostile:
+		if not (n is Monster and (n as Monster).health > 0):
 			continue
 		var to: Vector2 = (n as Node2D).position - position
 		var eff_reach: float = reach + HitboxCalc.get_radius(n)
@@ -652,15 +833,36 @@ func _auto_attack_ranged(weapon_id: StringName, def: ItemDefinition) -> void:
 ## Formula: effective = max(1, raw_damage - armor_defense).
 ## If element != NONE, applies the corresponding status effect.
 func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
+	if is_dead:
+		return
 	if health <= 0:
+		return
+	if _invincible_timer > 0.0:
 		return
 	# Invincible while in a conversation.
 	if in_conversation:
+		return
+	# Dodge i-frames: fully invincible.
+	if is_dodge_invincible():
+		return
+	# Parry: perfect block in first 0.15s — negate all damage + stagger attacker.
+	if is_parrying():
+		ActionParticles.flash_hit(self)  # visual feedback (parry flash)
+		if _attacker != null and _attacker.has_method("stagger"):
+			_attacker.stagger()
 		return
 	var defense: int = _armor_defense()
 	var effective: int = max(1, damage - defense)
 	if &"iron_skin" in unlocked_passives:
 		effective = max(1, effective - 1)
+	# Block: reduce damage by 75%.
+	if is_blocking:
+		effective = max(1, int(effective * BLOCK_DAMAGE_MULT))
+	# Getting hit interrupts charge.
+	if is_charging:
+		is_charging = false
+		_charge_timer = 0.0
+		_hide_charge_visual()
 	health = max(0, health - effective)
 	ActionParticles.flash_hit(self)
 	if _damage_heart_vfx != null:
@@ -676,6 +878,38 @@ func heal(amount: int) -> void:
 	if amount <= 0 or health <= 0:
 		return
 	health = min(health + amount, max_health)
+
+
+## Called when health reaches 0. Enters dead state and tweens sprite to lying-down.
+## Does NOT emit player_died — that is emitted from take_hit() as before.
+func die() -> void:
+	if is_dead:
+		return
+	is_dead = true
+	health = 0
+	InputContext.set_context(player_id, InputContext.Context.DISABLED)
+	_bob_t = 0.0
+	if _sprite_root != null:
+		_sprite_root.position = Vector2.ZERO
+		# Tween sprite root to 90 degrees (lying on side).
+		var tw := create_tween()
+		tw.tween_property(_sprite_root, "rotation_degrees", 90.0, 0.4).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+
+
+## Restore player from dead state with [param new_health] HP and start invincibility.
+func respawn(new_health: int) -> void:
+	if not is_dead:
+		return
+	is_dead = false
+	health = mini(new_health, max_health)
+	_invincible_timer = _INVINCIBLE_DURATION
+	if _sprite_root != null:
+		_sprite_root.visible = true
+	InputContext.set_context(player_id, InputContext.Context.GAMEPLAY)
+	# Tween sprite root back upright.
+	if _sprite_root != null:
+		var tw := create_tween()
+		tw.tween_property(_sprite_root, "rotation_degrees", 0.0, 0.3).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SPRING)
 
 
 ## Sum defensive power from HEAD + BODY + FEET + OFF_HAND equipment slots,
@@ -724,13 +958,17 @@ func _try_record_kill(entity: Node) -> void:
 	if kind_v == null or StringName(kind_v) == &"":
 		kind_v = entity.get("kind")
 	if kind_v != null and StringName(kind_v) != &"":
-		gain_xp(CreatureSpriteRegistry.get_xp_reward(StringName(kind_v)))
+		var xp_override: Variant = entity.get("xp_reward_override")
+		if xp_override != null and int(xp_override) >= 0:
+			gain_xp(int(xp_override))
+		else:
+			gain_xp(CreatureSpriteRegistry.get_xp_reward(StringName(kind_v)))
 	# Record kill in caravan travel log.
 	if caravan_data != null and caravan_data.travel_logs.size() > player_id:
 		caravan_data.travel_logs[player_id].record_kill()
 
 
-func try_attack() -> Dictionary:
+func try_attack(charge_mult: float = 1.0) -> Dictionary:
 	var res: Dictionary = {}
 
 	# --- Entity hit scan first (melee / punch) ---
@@ -739,6 +977,7 @@ func try_attack() -> Dictionary:
 		var weapon_id: StringName = equipment.get_equipped(ItemDefinition.Slot.WEAPON)
 		var wdef: ItemDefinition = ItemRegistry.get_item(weapon_id) if weapon_id != &"" else null
 		var power: int = max(1, get_effective_stat(&"strength")) if wdef == null else max(1, wdef.power + get_effective_stat(&"strength"))
+		power = int(power * charge_mult)
 		var elem: int = wdef.element if wdef != null else 0
 		hit_entity.call("take_hit", power, self, elem)
 		_try_record_kill(hit_entity)
@@ -751,7 +990,7 @@ func try_attack() -> Dictionary:
 
 	# --- No hostile in range — find nearest mineable in facing cone ---
 	var target: Vector2i = _find_facing_mineable()
-	var damage: int = _compute_mine_damage(target)
+	var damage: int = int(_compute_mine_damage(target) * charge_mult)
 	res = _world.mine_at(target, damage)
 
 	var is_mineable: bool = _world._mineable.has(target) or res.get("hit", false)
@@ -765,6 +1004,7 @@ func try_attack() -> Dictionary:
 			if &"scavenger" in unlocked_passives and randf() < 0.25:
 				cnt *= 2
 			inventory.add(d["id"], cnt)
+			QuestTracker.notify_item_collected(StringName(d["id"]), cnt)
 	return res
 
 
@@ -805,12 +1045,7 @@ func _find_facing_hostile() -> Node2D:
 	for n in _world.entities.get_children():
 		if n == self:
 			continue
-		var is_hostile: bool = false
-		if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
-			is_hostile = true
-		elif n is Monster and (n as Monster).health > 0:
-			is_hostile = true
-		if not is_hostile:
+		if not (n is Monster and (n as Monster).health > 0):
 			continue
 		var to: Vector2 = (n as Node2D).position - position
 		var eff_reach: float = reach + HitboxCalc.get_radius(n)
@@ -919,6 +1154,7 @@ func tick_effects(delta: float) -> void:
 				health = max(0, health - eff.damage_per_tick)
 				if health <= 0:
 					clear_effects()
+					die()
 					player_died.emit(player_id)
 					return
 		i -= 1

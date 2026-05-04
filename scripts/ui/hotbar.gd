@@ -15,9 +15,23 @@ var _inventory: Inventory = null
 var _row: HBoxContainer = null
 
 
-## Pure helper: build a view-model of the first [param n] inventory slots.
-## Returns an Array of {id: StringName, count: int} entries; empty slots are
-## represented as {id: &"", count: 0}.
+## Returns true if [param item_id] is allowed in the hotbar
+## (consumables, weapons, and shields/off-hand items only).
+static func is_hotbar_eligible(item_id: StringName) -> bool:
+	if item_id == &"":
+		return false
+	var def: ItemDefinition = ItemRegistry.get_item(item_id)
+	if def == null:
+		return false
+	if def.consumable:
+		return true
+	return def.slot == ItemDefinition.Slot.WEAPON or def.slot == ItemDefinition.Slot.OFF_HAND
+
+
+## Pure helper: build a view-model of the first [param n] inventory slots,
+## filtered to hotbar-eligible items (consumables + weapons/shields).
+## Returns an Array of {id: StringName, count: int} entries; ineligible and
+## empty slots are represented as {id: &"", count: 0}.
 static func build_view(inv: Inventory, n: int) -> Array:
 	var out: Array = []
 	for i in range(n):
@@ -28,7 +42,11 @@ static func build_view(inv: Inventory, n: int) -> Array:
 		if s == null:
 			out.append({"id": StringName(), "count": 0})
 		else:
-			out.append({"id": s["id"], "count": int(s["count"])})
+			var id: StringName = s["id"]
+			if is_hotbar_eligible(id):
+				out.append({"id": id, "count": int(s["count"])})
+			else:
+				out.append({"id": StringName(), "count": 0})
 	return out
 
 
@@ -100,3 +118,14 @@ func _refresh() -> void:
 		var slot: HotbarSlot = _row.get_child(i) as HotbarSlot
 		if slot != null:
 			slot.set_item(entry["id"], int(entry["count"]))
+
+
+## Highlight the slot at [param idx] as the active (selected) hotbar slot.
+## Pass -1 to clear all highlights.
+func set_active_slot(idx: int) -> void:
+	if _row == null:
+		return
+	for i in range(_row.get_child_count()):
+		var slot: HotbarSlot = _row.get_child(i) as HotbarSlot
+		if slot != null:
+			slot.set_active(i == idx)

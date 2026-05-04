@@ -129,6 +129,28 @@ static func all_ids() -> Array[String]:
 	return out
 
 
+## Return all quest ids whose "giver" field matches [param giver_name].
+static func get_quests_by_giver(giver_name: String) -> Array[String]:
+	_ensure_loaded()
+	var out: Array[String] = []
+	for qid in _quests:
+		if (_quests[qid] as Dictionary).get("giver", "") == giver_name:
+			out.append(qid)
+	return out
+
+
+## Look up the quest and branch that uses [param flag] as its trigger_flag.
+## Returns {"quest_id": String, "branch_id": String} or an empty Dictionary.
+static func get_quest_for_trigger_flag(flag: String) -> Dictionary:
+	_ensure_loaded()
+	for qid in _quests:
+		var branches: Dictionary = (_quests[qid] as Dictionary).get("branches", {})
+		for bid in branches:
+			if (branches[bid] as Dictionary).get("trigger_flag", "") == flag:
+				return {"quest_id": qid, "branch_id": bid}
+	return {}
+
+
 ## Return the branch dict for [param branch_id] within [param quest_id].
 ## If the branch uses "includes", the merged objective list is returned in
 ## an "objectives" key built from the referenced branches.

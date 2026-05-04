@@ -33,7 +33,7 @@ const _DEFAULT_SHEETS: Dictionary = {
 	&"maze_wall_autotile": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"maze_floor_decor":   "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_doorframe": "res://assets/tiles/roguelike/dungeon_sheet.png",
-	&"interior_terrain": "res://assets/tiles/roguelike/interior_sheet.png",
+	&"interior_door": "res://assets/tiles/roguelike/interior_sheet.png",
 }
 
 ## Convenience aliases kept for any code that still references the old consts.
@@ -44,6 +44,10 @@ const INTERIOR_PNG: String  = "res://assets/tiles/roguelike/interior_sheet.png"
 const RUNES_BLACK_PNG: String = "res://assets/tiles/runes/runes_black_tile.png"
 const RUNES_GREY_PNG: String  = "res://assets/tiles/runes/runes_grey_tile.png"
 const RUNES_BLUE_PNG: String  = "res://assets/tiles/runes/runes_blue_tile.png"
+const MEDIEVAL_RTS_PNG: String = "res://assets/tiles/rts/medieval_tilesheet.png"
+## 64×64 tiles, 32px leading gutter. Tile address (col, row) 1-based → pixel = 32 + (n-1)*96.
+## House: col=6, row=7 (1-based) → x=512, y=608.
+const HOUSE_OVERWORLD_RECT: Rect2i = Rect2i(512, 608, 64, 64)
 
 ## Number of tiles in each named overlay set.
 ## 20-tile sets (dirt/stone/snow) include path-only tiles (straights, dead-ends,
@@ -79,7 +83,7 @@ static func _sheet_for_view(view: StringName) -> String:
 		&"dungeon":
 			return get_sheet_path(&"dungeon_terrain")
 		&"interior":
-			return get_sheet_path(&"interior_terrain")
+			return get_sheet_path(&"interior_door")
 	return OVERWORLD_PNG
 
 # ─── Custom-data layer names (added to every built TileSet) ─────────────
@@ -443,14 +447,90 @@ static var DUNGEON_DOORFRAME_RW:  Vector2i:
 static var DUNGEON_DOORFRAME_RW2: Vector2i:
 	get: return DUNGEON_DOORFRAME.get(&"RW2", Vector2i(8, 11))
 
-# Interior sheet: wood floor, wood wall.
-# Same `Array[Vector2i]` schema as `OVERWORLD_TERRAIN_CELLS`.
-const _DEFAULT_INTERIOR_TERRAIN: Dictionary = {
-	&"floor": [Vector2i(5, 13)],
-	&"wall":  [Vector2i(5, 1)],
-	&"door":  [Vector2i(20, 9)],
+# Interior door: top atlas cell on interior_sheet.png.
+# Bottom cell is derived as top + Vector2i(0, 1) at paint time.
+const _DEFAULT_INTERIOR_DOOR_CELL: Vector2i = Vector2i(20, 8)
+static var INTERIOR_DOOR_CELL: Vector2i = _DEFAULT_INTERIOR_DOOR_CELL
+
+# ── Room-wall tiles (dungeon_sheet.png, source_id=1 inside interior TileSet) ──
+# Stone walls: cols 17-21, rows 1-4.  Wood walls: same cols, rows 6-9.
+# Mask bits: N=8, S=4, E=2, W=1 (floor cardinal neighbors).
+# Corner tiles (mask=0) are looked up via diagonal checks in WorldRoot.
+# Dict schema: {mask → Vector2i atlas_cell}.
+const _DEFAULT_HOUSE_WALL_STONE_AUTOTILE: Dictionary = {
+	4:  Vector2i(19, 3),  # S only → N-wall center (solid stone)
+	8:  Vector2i(19, 4),  # N only → S-wall center (ledge/drip)
+	2:  Vector2i(19, 2),  # E only → side wall
+	1:  Vector2i(19, 2),  # W only → side wall
+	6:  Vector2i(19, 3),  # S+E → N-wall left end-cap  [x set by _nwall_col]
+	5:  Vector2i(19, 3),  # S+W → N-wall right end-cap [x set by _nwall_col]
+	10: Vector2i(19, 4),  # N+E → S-wall left end-cap  [x set by _nwall_col]
+	9:  Vector2i(19, 4),  # N+W → S-wall right end-cap [x set by _nwall_col]
+	3:  Vector2i(19, 3),  # N+S → solid passthrough
+	12: Vector2i(19, 3),  # E+W → solid passthrough
+	14: Vector2i(19, 3),  # S+E+W
+	13: Vector2i(19, 3),  # N+E+W
+	7:  Vector2i(19, 3),  # S+E+N
+	11: Vector2i(19, 3),  # N+S+W
+	15: Vector2i(19, 3),  # all neighbors
 }
-static var INTERIOR_TERRAIN_CELLS: Dictionary = _DEFAULT_INTERIOR_TERRAIN
+static var HOUSE_WALL_STONE_AUTOTILE: Dictionary = _DEFAULT_HOUSE_WALL_STONE_AUTOTILE
+
+const _DEFAULT_HOUSE_WALL_WOOD_AUTOTILE: Dictionary = {
+	4:  Vector2i(19, 8),  # S only → N-wall center (solid plank)
+	8:  Vector2i(19, 9),  # N only → S-wall center (ledge/drip)
+	2:  Vector2i(19, 7),  # E only → side wall
+	1:  Vector2i(19, 7),  # W only → side wall
+	6:  Vector2i(19, 8),  # S+E → N-wall left end-cap  [x set by _nwall_col]
+	5:  Vector2i(19, 8),  # S+W → N-wall right end-cap [x set by _nwall_col]
+	10: Vector2i(19, 9),  # N+E → S-wall left end-cap  [x set by _nwall_col]
+	9:  Vector2i(19, 9),  # N+W → S-wall right end-cap [x set by _nwall_col]
+	3:  Vector2i(19, 8),  # N+S → solid passthrough
+	12: Vector2i(19, 8),  # E+W → solid passthrough
+	14: Vector2i(19, 8),  # S+E+W
+	13: Vector2i(19, 8),  # N+E+W
+	7:  Vector2i(19, 8),  # S+E+N
+	11: Vector2i(19, 8),  # N+S+W
+	15: Vector2i(19, 8),  # all neighbors
+}
+static var HOUSE_WALL_WOOD_AUTOTILE: Dictionary = _DEFAULT_HOUSE_WALL_WOOD_AUTOTILE
+
+# Stone floor variants (cols 17-21, row 12); wood floor (cols 17-21, row 17).
+const _DEFAULT_HOUSE_FLOOR_STONE: Array = [
+	Vector2i(17, 12), Vector2i(18, 12), Vector2i(19, 12),
+	Vector2i(20, 12), Vector2i(21, 12),
+]
+static var HOUSE_FLOOR_STONE: Array = _DEFAULT_HOUSE_FLOOR_STONE
+
+const _DEFAULT_HOUSE_FLOOR_WOOD: Array = [
+	Vector2i(17, 17), Vector2i(18, 17), Vector2i(19, 17),
+	Vector2i(20, 17), Vector2i(21, 17),
+]
+static var HOUSE_FLOOR_WOOD: Array = _DEFAULT_HOUSE_FLOOR_WOOD
+
+## Named furniture items for interior_sheet.png (source_id=0).
+## StringName → Vector2i.  Empty until user configures in SpritePicker.
+const _DEFAULT_INTERIOR_FURNITURE: Dictionary = {}
+static var INTERIOR_FURNITURE: Dictionary = _DEFAULT_INTERIOR_FURNITURE
+
+# Corner lookup: diagonal index (fSE=0, fSW=1, fNE=2, fNW=3) → atlas_cell.
+# Stone base_row=1: solid row=r+2=3, drip row=r+3=4.
+# Wood  base_row=6: solid row=r+2=8, drip row=r+3=9.
+const _DEFAULT_HOUSE_WALL_STONE_CORNERS: Array = [
+	Vector2i(18, 3), Vector2i(20, 3), Vector2i(18, 4), Vector2i(20, 4),
+]
+static var HOUSE_WALL_STONE_CORNERS: Array = _DEFAULT_HOUSE_WALL_STONE_CORNERS
+
+const _DEFAULT_HOUSE_WALL_WOOD_CORNERS: Array = [
+	Vector2i(17, 5), Vector2i(19, 5), Vector2i(17, 7), Vector2i(19, 7),
+]
+static var HOUSE_WALL_WOOD_CORNERS: Array = _DEFAULT_HOUSE_WALL_WOOD_CORNERS
+
+## Returns [fSE, fSW, fNE, fNW] corner atlas cells for the given style.
+## Reads from TileMappings (loaded via _ensure_loaded).
+static func house_corner_cells(style: StringName) -> Array:
+	_ensure_loaded()
+	return HOUSE_WALL_WOOD_CORNERS if style == &"wood" else HOUSE_WALL_STONE_CORNERS
 
 # ─── Walkability rules (used by generators + collision) ────────────────
 const WALKABLE: Dictionary = {
@@ -533,9 +613,31 @@ static func _ensure_loaded() -> void:
 		MAZE_FLOOR_BORDER_3X3 = m.maze_floor_border_3x3
 	if not m.dungeon_doorframe.is_empty():
 		DUNGEON_DOORFRAME = m.dungeon_doorframe
-	# Interior
-	if not m.interior_terrain.is_empty():
-		INTERIOR_TERRAIN_CELLS = m.interior_terrain
+	# Interior door (mineable convention: top cell stored, bottom derived)
+	if not m.interior_door.is_empty():
+		INTERIOR_DOOR_CELL = m.interior_door[0]
+	elif not m.interior_terrain.is_empty():
+		# Migration fallback: old interior_terrain stored the BOTTOM cell.
+		var old_door: Variant = m.interior_terrain.get(&"door", null)
+		if old_door is Array and not (old_door as Array).is_empty():
+			INTERIOR_DOOR_CELL = (old_door as Array)[0] + Vector2i(0, -1)
+	# House room-wall autotiles
+	var stone_at: Dictionary = m.build_house_wall_autotile_dict(&"stone")
+	if not stone_at.is_empty():
+		HOUSE_WALL_STONE_AUTOTILE = stone_at
+	var wood_at: Dictionary = m.build_house_wall_autotile_dict(&"wood")
+	if not wood_at.is_empty():
+		HOUSE_WALL_WOOD_AUTOTILE = wood_at
+	if m.house_wall_stone_corners.size() == 4:
+		HOUSE_WALL_STONE_CORNERS = m.house_wall_stone_corners
+	if m.house_wall_wood_corners.size() == 4:
+		HOUSE_WALL_WOOD_CORNERS = m.house_wall_wood_corners
+	if m.house_floor_stone.size() == 5:
+		HOUSE_FLOOR_STONE = m.house_floor_stone
+	if m.house_floor_wood.size() == 5:
+		HOUSE_FLOOR_WOOD = m.house_floor_wood
+	if not m.interior_furniture.is_empty():
+		INTERIOR_FURNITURE = m.interior_furniture
 	# Sheet overrides
 	_sheet_overrides = m.sheet_overrides.duplicate()
 
@@ -586,9 +688,47 @@ static func interior() -> TileSet:
 	_ensure_loaded()
 	if _interior_ts == null:
 		var sheet := _sheet_for_view(&"interior")
-		_interior_ts = _build(sheet, INTERIOR_TERRAIN_CELLS, false,
+		# Pass a minimal terrain dict so door cells get walkable=true tagging.
+		var door_bottom: Vector2i = INTERIOR_DOOR_CELL + Vector2i(0, 1)
+		var terrain_for_build: Dictionary = {
+			&"door": [INTERIOR_DOOR_CELL, door_bottom],
+		}
+		_interior_ts = _build(sheet, terrain_for_build, false,
 				SheetSpecReader.read(sheet))
+		# Add dungeon_sheet.png as source_id=1 for room walls and floors.
+		# Painters that use room-wall rendering write to source_id=1.
+		_add_dungeon_source_to(_interior_ts)
 	return _interior_ts
+
+
+## Add a bare dungeon_sheet.png atlas source at source_id=1 to an existing
+## TileSet. Used by interior() to support room-wall tile rendering.
+static func _add_dungeon_source_to(ts: TileSet) -> void:
+	var tex: Texture2D = load(DUNGEON_PNG) as Texture2D
+	if tex == null:
+		push_error("TilesetCatalog: missing dungeon_sheet.png for interior room walls")
+		return
+	var spec: SheetSpec = SheetSpecReader.read(DUNGEON_PNG)
+	var src := TileSetAtlasSource.new()
+	src.texture = tex
+	src.texture_region_size = Vector2i(spec.tile_px, spec.tile_px)
+	src.margins = Vector2i(0, 0)
+	src.separation = Vector2i(spec.margin_px, spec.margin_px)
+	ts.add_source(src, 1)
+	var cols: int = (tex.get_width() + spec.margin_px) / spec.stride
+	var rows: int = (tex.get_height() + spec.margin_px) / spec.stride
+	# Wall rows (stone 1-4, wood 6-9) must be walkable=false so wall sprites
+	# painted on the Decoration layer block movement. Row 5 holds the NW/NE
+	# corner tiles for wood walls and must also be blocked. All other rows
+	# default to walkable=true so house floor tiles are traversable.
+	const _WALL_ROWS: Array[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+	for y in rows:
+		var walkable: bool = not (y in _WALL_ROWS)
+		for x in cols:
+			src.create_tile(Vector2i(x, y))
+			var td: TileData = src.get_tile_data(Vector2i(x, y), 0)
+			if td != null:
+				td.set_custom_data(CUSTOM_WALKABLE, walkable)
 
 
 ## Returns the rune overlay TileSet (uses 3 atlases — one per color).
@@ -699,6 +839,8 @@ static func _build(png_path: String, terrain_cells: Dictionary,
 		for cell in obstacle_cells:
 			if cell_to_terrain.has(cell):
 				continue  # Don't override explicitly-tagged terrain tiles (e.g. door).
+			if not src.has_tile(cell):
+				continue  # Mineable sprites reference the overworld sheet; skip for other TileSets.
 			var data: TileData = src.get_tile_data(cell, 0)
 			if data != null:
 				data.set_custom_data(CUSTOM_WALKABLE, false)

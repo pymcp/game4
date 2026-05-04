@@ -88,8 +88,8 @@ func test_registry_requirement_summary() -> void:
 	QuestRegistry.reload()
 	var summary: Dictionary = QuestRegistry.get_requirement_summary("herbalist_remedy")
 	assert_true(summary["total"] > 0, "should have requirements")
-	assert_eq(summary["implemented"], 1, "fennel_root is implemented")
-	assert_eq(summary["not_implemented"], summary["total"] - 1)
+	assert_eq(summary["implemented"], 16, "16 requirements now implemented")
+	assert_eq(summary["not_implemented"], summary["total"] - 16)
 
 
 func test_registry_requirements_cover_all_categories() -> void:
@@ -98,12 +98,14 @@ func test_registry_requirements_cover_all_categories() -> void:
 	var categories: Dictionary = {}
 	for entry in missing:
 		categories[entry["category"]] = true
-	assert_true(categories.has("npcs"), "should have NPC requirements")
-	assert_true(categories.has("items"), "should have item requirements")
+	# Only locations and entities remain NOT_IMPLEMENTED
 	assert_true(categories.has("locations"), "should have location requirements")
 	assert_true(categories.has("entities"), "should have entity requirements")
-	assert_true(categories.has("terrain_features"), "should have terrain requirements")
-	assert_true(categories.has("dialogue_updates"), "should have dialogue update requirements")
+	# These are now all IMPLEMENTED:
+	assert_false(categories.has("npcs"), "npcs should be implemented")
+	assert_false(categories.has("items"), "items should be implemented")
+	assert_false(categories.has("terrain_features"), "terrain should be implemented")
+	assert_false(categories.has("dialogue_updates"), "dialogue should be implemented")
 
 
 # ─── QuestTracker: lifecycle ──────────────────────────────────────
@@ -262,3 +264,15 @@ func test_tracker_inactive_quest_queries() -> void:
 	assert_false(QuestTracker.is_quest_complete("herbalist_remedy"))
 	assert_eq(QuestTracker.get_active_branch("herbalist_remedy"), "")
 	assert_false(QuestTracker.is_quest_ready_to_complete("herbalist_remedy"))
+
+
+func test_registry_get_quests_by_giver_mara() -> void:
+	QuestRegistry.reload()
+	var ids: Array[String] = QuestRegistry.get_quests_by_giver("Mara")
+	assert_true(ids.has("herbalist_remedy"), "Mara should give herbalist_remedy")
+
+
+func test_registry_get_quests_by_giver_unknown_returns_empty() -> void:
+	QuestRegistry.reload()
+	var ids: Array[String] = QuestRegistry.get_quests_by_giver("Nobody")
+	assert_true(ids.is_empty(), "Unknown giver returns empty array")

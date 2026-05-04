@@ -94,6 +94,8 @@ func _process(delta: float) -> void:
 			continue
 		var leftover: int = p.inventory.add(item_id, count)
 		if leftover < count:
+			var picked_up: int = count - leftover
+			QuestTracker.notify_item_collected(item_id, picked_up)
 			_consumed = true
 			if p.caravan_data != null and p.caravan_data.travel_logs.size() > p.player_id:
 				p.caravan_data.travel_logs[p.player_id].record_loot(count - leftover)

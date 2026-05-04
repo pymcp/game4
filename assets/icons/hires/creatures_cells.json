@@ -19,6 +19,16 @@
 			1
 		]
 	},
+	"corrupted_golem": {
+		"cell": [
+			0,
+			5
+		],
+		"size": [
+			2,
+			2
+		]
+	},
 	"dragon": {
 		"cell": [
 			2,

@@ -182,10 +182,14 @@ func _enter_view(pid: int, view_kind: StringName, region: Region,
 	# Place the player, avoiding cells already occupied by other players.
 	var spawn_cell: Vector2i = _pending_spawn[pid]
 	_pending_spawn[pid] = _NO_OVERRIDE
-	if spawn_cell == _NO_OVERRIDE:
+	var has_override: bool = (spawn_cell != _NO_OVERRIDE)
+	if not has_override:
 		spawn_cell = inst.default_spawn_cell(view_kind, resolved_region,
 				interior)
-	spawn_cell = inst.find_safe_spawn_cell(spawn_cell, 16, true)
+	# When an explicit override was provided (e.g. exiting dungeon to its
+	# entrance), allow landing on the door cell — prime_door_cache prevents
+	# re-triggering. Otherwise avoid doors for natural spawns.
+	spawn_cell = inst.find_safe_spawn_cell(spawn_cell, 16, not has_override)
 	# If another player already occupies this cell, nudge one tile right.
 	for other_pid in range(_players.size()):
 		if other_pid == pid:
@@ -442,6 +446,15 @@ func debug_spawn_interactables() -> void:
 			inst.debug_spawn_interactables_for(_players[pid])
 
 
+## Debug: teleport both players into the moonstone mine (Mara's quest cave).
+## Triggered by F4 (see pause_manager.gd).
+func debug_teleport_to_mara_cave() -> void:
+	for pid in range(2):
+		var inst: WorldRoot = get_player_world(pid)
+		if inst != null:
+			inst.debug_teleport_to_mara_cave_for(_players[pid])
+
+
 func debug_toggle_tile_labels() -> void:
 	for inst in _instances.values():
 		if inst.has_method("debug_toggle_tile_labels"):
@@ -482,3 +495,74 @@ func debug_give_all_items() -> void:
 		for item_id in all_ids:
 			player.inventory.add(item_id, 1)
 		print("[F9] gave %d items to P%d" % [all_ids.size(), pid + 1])
+
+
+## Begin house placement for [param pid]. Creates a HousePlacer in the
+## player's current WorldRoot and shows a hint in ControlsHud.
+func start_house_placement(pid: int, structure_id: StringName) -> void:
+	var inst: WorldRoot = get_player_world(pid)
+	if inst == null:
+		return
+	# Remove any existing placer for this player.
+	var existing: Node = inst.get_node_or_null("HousePlacer_P%d" % pid)
+	if existing != null:
+		existing.queue_free()
+	var placer := HousePlacer.new()
+	placer.name = "HousePlacer_P%d" % pid
+	placer.pid = pid
+	placer.structure_id = structure_id
+	placer.world_root = inst
+	placer.confirmed.connect(_on_house_confirmed)
+	placer.cancelled.connect(_on_house_cancelled)
+	inst.add_child(placer)
+	# Freeze player movement during placement.
+	InputContext.set_context(pid, InputContext.Context.INVENTORY)
+	# Show placement hint.
+	var game: Game = Game.instance()
+	if game != null:
+		var hud: ControlsHud = game.get_controls_hud(pid)
+		if hud != null:
+			hud.set_override_hint("Move: position  Interact: confirm  Back/Inv: cancel")
+
+
+func _on_house_confirmed(pid: int, cell: Vector2i) -> void:
+	# Resolve WorldRoot first — atomic: no deduction if placement can't happen.
+	var inst: WorldRoot = get_player_world(pid)
+	if inst == null:
+		return
+	# Find the placer node (for structure_id) before freeing it.
+	var placer: HousePlacer = inst.get_node_or_null("HousePlacer_P%d" % pid) as HousePlacer
+	var sid: StringName = placer.structure_id if placer != null else &"house_basic"
+	# Deduct materials.
+	var cd: CaravanData = get_caravan_data(pid)
+	if cd != null:
+		var builder_def: PartyMemberDef = PartyMemberRegistry.get_member(&"builder")
+		if builder_def != null:
+			for build_entry: Dictionary in builder_def.builds:
+				if StringName(build_entry.get("id", "")) == sid:
+					var cost: Dictionary = build_entry.get("cost", {})
+					for item_id in cost:
+						cd.inventory.remove(StringName(item_id), int(cost[item_id]))
+	# Add entrance and update visuals.
+	inst.add_house_entrance(cell)
+	# Free placer.
+	if placer != null:
+		placer.queue_free()
+	# Restore context before reopening menu.
+	InputContext.set_context(pid, InputContext.Context.GAMEPLAY)
+	# Reopen menu (also clears hint).
+	var game: Game = Game.instance()
+	if game != null:
+		game.open_caravan_menu(pid)
+
+
+func _on_house_cancelled(pid: int) -> void:
+	var inst: WorldRoot = get_player_world(pid)
+	var placer: Node = inst.get_node_or_null("HousePlacer_P%d" % pid) if inst != null else null
+	if placer != null:
+		placer.queue_free()
+	# Restore player movement.
+	InputContext.set_context(pid, InputContext.Context.GAMEPLAY)
+	var game: Game = Game.instance()
+	if game != null:
+		game.open_caravan_menu(pid)

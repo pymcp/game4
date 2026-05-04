@@ -85,7 +85,9 @@ func update(curr: int, max_value: int) -> void:
 	_prev_fills.resize(new_count)
 	for i in range(new_count):
 		_prev_fills[i] = heart_fill(_curr, _max, i)
-	# Resize control to fit hearts.
+	# Update minimum size. When inside a parent rect (game.gd), the rect
+	# controls actual size. The explicit size= is kept for standalone usage
+	# and tests. The _draw right-alignment uses the live `size` property.
 	var scale_f: float = _heart_px / 7.0
 	var w: float = float(new_count) * _heart_px + float(maxi(new_count - 1, 0)) * _heart_px * SPACING_FRAC
 	var h: float = 6.0 * scale_f
@@ -102,8 +104,11 @@ func _draw() -> void:
 		return
 	var scale_f: float = _heart_px / 7.0
 	var stride: float = _heart_px + _heart_px * SPACING_FRAC
+	# Right-align: offset so last heart ends at the right edge of the control.
+	var needed_w: float = float(count) * _heart_px + float(maxi(count - 1, 0)) * _heart_px * SPACING_FRAC
+	var x_base: float = size.x - needed_w
 	for i in range(count):
-		var ox: float = float(i) * stride
+		var ox: float = x_base + float(i) * stride
 		var fill: float = heart_fill(_curr, _max, i)
 		_draw_heart(ox, scale_f, fill)
 

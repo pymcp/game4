@@ -56,6 +56,7 @@ var _region: Region = null
 var _interior: InteriorMap = null
 var _boat: Boat = null
 var _doors: Dictionary = {}  ## Vector2i -> Dictionary{kind, ...}
+var _last_view_kind: StringName = &"overworld"
 ## Per-player door-tile cache so each player triggers a door at most
 ## once per cell-step (PlayerController -> Vector2i).
 var _last_door_cell_per_player: Dictionary = {}
@@ -105,10 +106,10 @@ func _ready() -> void:
 	add_to_group(&"world_instances")
 	# Invalidate entity cache when enemies/players enter or leave this instance.
 	entities.child_entered_tree.connect(func(node: Node) -> void:
-		if node is PlayerController or node is NPC or node is Monster:
+		if node is PlayerController or node is Monster:
 			mark_entity_cache_dirty())
 	entities.child_exiting_tree.connect(func(node: Node) -> void:
-		if node is PlayerController or node is NPC or node is Monster:
+		if node is PlayerController or node is Monster:
 			mark_entity_cache_dirty())
 
 
@@ -125,7 +126,11 @@ func _rebuild_entity_cache() -> void:
 	for child in entities.get_children():
 		if child is PlayerController:
 			_player_cache.append(child as PlayerController)
-		elif child is NPC or child is Monster:
+		elif child is Monster:
+			_hostile_cache.append(child as Node2D)
+		elif child is Villager:
+			# Villagers can be attacked by monsters so they belong in the hostile cache
+			# for LOD and pet targeting purposes.
 			_hostile_cache.append(child as Node2D)
 	_entity_cache_dirty = false
 
@@ -197,6 +202,41 @@ func is_walkable(cell: Vector2i) -> bool:
 	return bool(gv)
 
 
+## Returns true if a door entry exists at [param cell].
+func has_door(cell: Vector2i) -> bool:
+	return _doors.has(cell)
+
+
+## Rebuild the door index for the current view without a full apply_view.
+## Call after mutating dungeon_entrances at runtime (e.g. player-built house).
+func rebuild_door_index() -> void:
+	_build_door_index(_last_view_kind)
+
+
+## Append a player-built house entrance to this region and update all
+## live state (doors + entrance markers) immediately.
+## Only wires doors and paints markers when currently in the overworld view.
+## `style` overrides the wall material; pass &"" to auto-detect from biome.
+func add_house_entrance(cell: Vector2i, style: StringName = &"") -> void:
+	if _region == null:
+		return
+	var resolved_style: StringName = style if style != &"" else _house_style_for_biome(_region.biome)
+	_region.dungeon_entrances.append({"kind": &"house", "cell": cell, "style": resolved_style})
+	if _last_view_kind == &"overworld":
+		_build_door_index(&"overworld")
+		_paint_overworld_entrance_markers(_region)
+
+
+## Resolve the house wall style from a biome name.
+## Grass/forest biomes → wood; all others → stone.
+static func _house_style_for_biome(biome: StringName) -> StringName:
+	match biome:
+		&"grass", &"forest":
+			return &"wood"
+		_:
+			return &"stone"
+
+
 func get_map_size() -> Vector2i:
 	if _interior != null:
 		return Vector2i(_interior.width, _interior.height)
@@ -229,6 +269,7 @@ func get_player(pid: int) -> PlayerController:
 ## call it freely on instance creation. Does NOT spawn or place
 ## players — the [World] coordinator owns player ownership.
 func apply_view(view_kind: StringName, region: Region, interior: InteriorMap) -> void:
+	_last_view_kind = view_kind
 	_clear_layers()
 	if view_kind == &"overworld":
 		_interior = null
@@ -282,7 +323,7 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 			sheet_field = &"city_terrain"
 		&"house":
 			ts = TilesetCatalog.interior()
-			sheet_field = &"interior_terrain"
+			sheet_field = &"interior_door"
 		&"dungeon":
 			ts = TilesetCatalog.dungeon()
 			sheet_field = &"dungeon_terrain"
@@ -304,8 +345,8 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 	# tile coords with mismatched atlas data.
 	patch.tile_set = null
 	patch.scale = Vector2.ONE
-	canopy.tile_set = null
-	canopy.scale = Vector2.ONE
+	canopy.tile_set = ts
+	canopy.scale = sv
 	overlay.tile_set = TilesetCatalog.runes()
 	overlay.scale = Vector2.ONE
 
@@ -454,6 +495,10 @@ func _paint_interior(interior: InteriorMap, view_kind: StringName) -> void:
 		if view_kind == &"maze" and not interior.boss_room_cells.is_empty():
 			_paint_boss_room_overlay(interior)
 		return
+	if view_kind == &"house":
+		_paint_room_walls(interior)
+		_paint_room_furniture(interior)
+		return
 	for y in interior.height:
 		for x in interior.width:
 			var cell := Vector2i(x, y)
@@ -489,7 +534,122 @@ static func _view_kind_from_interior(interior: InteriorMap) -> StringName:
 	return MapManager._kind_from_id(interior.map_id)
 
 
-# --- Cave (dungeon) painting --------------------------------------
+# --- Room-wall painting (house interiors) --------------------------
+
+## Paint a house interior using the directional dungeon_sheet.png wall tiles
+## (source_id=1 in the interior TileSet) and themed floor variants.
+## Walls use a 2-pass autotile: cardinal floor-neighbor mask selects the row,
+## diagonal checks resolve corner tiles (mask=0).
+func _paint_room_walls(interior: InteriorMap) -> void:
+	var style: StringName = interior.style if interior.style != &"" else &"wood"
+	var wall_lut: Dictionary = (TilesetCatalog.HOUSE_WALL_WOOD_AUTOTILE
+			if style == &"wood" else TilesetCatalog.HOUSE_WALL_STONE_AUTOTILE)
+	var floor_pool: Array = (TilesetCatalog.HOUSE_FLOOR_WOOD
+			if style == &"wood" else TilesetCatalog.HOUSE_FLOOR_STONE)
+	var corner_cells: Array = TilesetCatalog.house_corner_cells(style)
+	# Pick one floor variant for this house, seeded for determinism.
+	var floor_idx: int = (interior.seed >> 3) % maxi(floor_pool.size(), 1)
+	var floor_cell: Vector2i = floor_pool[floor_idx] if not floor_pool.is_empty() else Vector2i(19, 12)
+	for y in interior.height:
+		for x in interior.width:
+			var cell := Vector2i(x, y)
+			var code: int = interior.at(cell)
+			if code == TerrainCodes.INTERIOR_DOOR:
+				# Floor under the door (same house floor as regular floor cells).
+				ground.set_cell(cell, 1, floor_cell, 0)
+				# Door bottom on Decoration (player walks in front of it).
+				var door_top: Vector2i = TilesetCatalog.INTERIOR_DOOR_CELL
+				decoration.set_cell(cell, 0, door_top + Vector2i(0, 1), 0)
+				# Door top on Canopy (player walks behind it, like tree foliage).
+				if cell.y > 0:
+					canopy.set_cell(cell + Vector2i(0, -1), 0, door_top, 0)
+				continue
+			if _is_room_floor(interior, cell):
+				ground.set_cell(cell, 1, floor_cell, 0)
+				continue
+			if code != TerrainCodes.INTERIOR_WALL:
+				continue
+			# Wall cell: compute floor-neighbor mask + diagonals.
+			var fN: bool = _is_room_floor(interior, cell + Vector2i(0, -1))
+			var fS: bool = _is_room_floor(interior, cell + Vector2i(0, 1))
+			var fE: bool = _is_room_floor(interior, cell + Vector2i(1, 0))
+			var fW: bool = _is_room_floor(interior, cell + Vector2i(-1, 0))
+			var fNW: bool = _is_room_floor(interior, cell + Vector2i(-1, -1))
+			var fNE: bool = _is_room_floor(interior, cell + Vector2i(1, -1))
+			var fSW: bool = _is_room_floor(interior, cell + Vector2i(-1, 1))
+			var fSE: bool = _is_room_floor(interior, cell + Vector2i(1, 1))
+			var mask: int = (8 if fN else 0) | (4 if fS else 0) | (2 if fE else 0) | (1 if fW else 0)
+			var atlas: Vector2i
+			if mask == 0:
+				# Corner or isolated: resolve via single diagonal.
+				var diag_count: int = (1 if fSE else 0) + (1 if fSW else 0) + (1 if fNE else 0) + (1 if fNW else 0)
+				if diag_count == 1:
+					if fSE: atlas = corner_cells[0]   # NW corner
+					elif fSW: atlas = corner_cells[1] # NE corner
+					elif fNE: atlas = corner_cells[2] # SW corner
+					else: atlas = corner_cells[3]     # SE corner
+				elif diag_count == 0:
+					continue  # Deadzone: no floor neighbors at all → leave unpainted (black).
+				else:
+					# Multi-diagonal → solid center (row 3/8).
+					atlas = Vector2i(19, 3 if style != &"wood" else 8)
+			else:
+				var entry: Variant = wall_lut.get(mask, null)
+				if entry == null:
+					continue
+				atlas = entry as Vector2i
+				# Refine column for N-wall (row with fS) and S-wall (row with fN):
+				if mask == 4 or mask == 5 or mask == 6:
+					atlas.x = _nwall_col(fW, fE)
+				elif mask == 8 or mask == 9 or mask == 10:
+					atlas.x = _nwall_col(fW, fE)
+			# Place floor underneath wall, except for drip/perspective tiles whose
+			# transparent tips would bleed the interior floor colour outside the room.
+			var drip_row: int = 9 if style == &"wood" else 4
+			if atlas.y != drip_row:
+				ground.set_cell(cell, 1, floor_cell, 0)
+			decoration.set_cell(cell, 1, atlas, 0)
+
+
+## Returns the column (17-21) for a N-wall or S-wall cell based on
+## whether the cell has floor immediately to its west and east.
+static func _nwall_col(fW: bool, fE: bool) -> int:
+	if fW: return 17   # floor to west → left end-cap
+	if fE: return 19   # floor to east → right end-cap
+	return 18          # wall on both sides → center
+
+
+## Returns true if `cell` counts as "floor" for room-wall neighbor checks.
+static func _is_room_floor(interior: InteriorMap, cell: Vector2i) -> bool:
+	var code: int = interior.at(cell)
+	return (code == TerrainCodes.INTERIOR_FLOOR
+			or code == TerrainCodes.INTERIOR_DOOR
+			or code == TerrainCodes.INTERIOR_STAIRS_UP
+			or code == TerrainCodes.INTERIOR_STAIRS_DOWN)
+
+
+## Paint furniture_scatter entries onto the Decoration layer using
+## TilesetCatalog.INTERIOR_FURNITURE cells from interior_sheet.png (source_id=0).
+func _paint_room_furniture(interior: InteriorMap) -> void:
+	if interior.furniture_scatter.is_empty():
+		return
+	for entry in interior.furniture_scatter:
+		var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
+		if cell.x < 0:
+			continue
+		var ftype: StringName = entry.get("type", &"")
+		var atlas: Variant = TilesetCatalog.INTERIOR_FURNITURE.get(ftype, null)
+		if atlas is Vector2i and (atlas as Vector2i).x >= 0:
+			decoration.set_cell(cell, 0, atlas as Vector2i, 0)
+
+
+## Returns true if `cell` falls within any chamber_rect in `interior`.
+static func _is_in_chamber(cell: Vector2i, interior: InteriorMap) -> bool:
+	for r in interior.chamber_rects:
+		var rect: Rect2i = r
+		if rect.has_point(cell):
+			return true
+	return false
 
 func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"dungeon") -> void:
 	var ts: TileSet = TilesetCatalog.maze() if view_kind == &"maze" else TilesetCatalog.dungeon()
@@ -502,9 +662,13 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 	var wall_autotile: Dictionary = (TilesetCatalog.MAZE_WALL_AUTOTILE
 			if view_kind == &"maze" else TilesetCatalog.DUNGEON_WALL_AUTOTILE)
 	var decor_count: int = floor_decor.size()
+	var has_chambers: bool = not interior.chamber_rects.is_empty()
 	for y in interior.height:
 		for x in interior.width:
 			var cell := Vector2i(x, y)
+			# Chamber cells: skip cave autotile; handled by _paint_room_walls pass below.
+			if has_chambers and _is_in_chamber(cell, interior):
+				continue
 			var code: int = interior.at(cell)
 			var is_floor_like: bool = (
 					code == TerrainCodes.INTERIOR_FLOOR
@@ -542,6 +706,11 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 			if flip_h:
 				alt |= TileSetAtlasSource.TRANSFORM_FLIP_H
 			decoration.set_cell(cell, 0, atlas, alt)
+	# Paint chamber cells with stone room-wall tiles over the dungeon TileSet.
+	# Chamber walls/floors use dungeon_sheet.png directly (same source as the
+	# dungeon TileSet), so we write to source_id=0 (the only source in dungeon_ts).
+	if has_chambers:
+		_paint_dungeon_chambers(interior)
 	# Floor border pass — overwrites Ground with edge/corner tiles where
 	# floor meets wall. No-op when border_cells are all the plain floor cell.
 	var floor_border: Array = (TilesetCatalog.MAZE_FLOOR_BORDER_3X3
@@ -549,6 +718,57 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 	_paint_dungeon_floor_border(interior, floor_border)
 	_paint_dungeon_corridor_frames(interior)
 	_paint_dungeon_stair_markers(interior)
+
+
+## Paint chamber_rects inside a dungeon/labyrinth with stone room-wall tiles.
+## The dungeon TileSet uses a single source (id=0) from dungeon_sheet.png, so
+## room-wall cells (also on dungeon_sheet.png) are written to source_id=0.
+func _paint_dungeon_chambers(interior: InteriorMap) -> void:
+	var floor_pool: Array = TilesetCatalog.HOUSE_FLOOR_STONE
+	var floor_idx: int = (interior.seed >> 3) % maxi(floor_pool.size(), 1)
+	var floor_cell: Vector2i = floor_pool[floor_idx] if not floor_pool.is_empty() else Vector2i(19, 12)
+	var wall_lut: Dictionary = TilesetCatalog.HOUSE_WALL_STONE_AUTOTILE
+	var corner_cells: Array = TilesetCatalog.house_corner_cells(&"stone")
+	for r in interior.chamber_rects:
+		var rect: Rect2i = r
+		for y in range(rect.position.y, rect.position.y + rect.size.y):
+			for x in range(rect.position.x, rect.position.x + rect.size.x):
+				var cell := Vector2i(x, y)
+				var code: int = interior.at(cell)
+				if _is_room_floor(interior, cell):
+					ground.set_cell(cell, 0, floor_cell, 0)
+					decoration.erase_cell(cell)  # remove any cave decor
+					continue
+				if code != TerrainCodes.INTERIOR_WALL:
+					continue
+				var fN: bool = _is_room_floor(interior, cell + Vector2i(0, -1))
+				var fS: bool = _is_room_floor(interior, cell + Vector2i(0, 1))
+				var fE: bool = _is_room_floor(interior, cell + Vector2i(1, 0))
+				var fW: bool = _is_room_floor(interior, cell + Vector2i(-1, 0))
+				var fNW: bool = _is_room_floor(interior, cell + Vector2i(-1, -1))
+				var fNE: bool = _is_room_floor(interior, cell + Vector2i(1, -1))
+				var fSW: bool = _is_room_floor(interior, cell + Vector2i(-1, 1))
+				var fSE: bool = _is_room_floor(interior, cell + Vector2i(1, 1))
+				var mask: int = (8 if fN else 0) | (4 if fS else 0) | (2 if fE else 0) | (1 if fW else 0)
+				var atlas: Vector2i
+				if mask == 0:
+					var diag_count: int = (1 if fSE else 0) + (1 if fSW else 0) + (1 if fNE else 0) + (1 if fNW else 0)
+					if diag_count == 1:
+						if fSE: atlas = corner_cells[0]
+						elif fSW: atlas = corner_cells[1]
+						elif fNE: atlas = corner_cells[2]
+						else: atlas = corner_cells[3]
+					else:
+						atlas = Vector2i(19, 4)
+				else:
+					var entry: Variant = wall_lut.get(mask, null)
+					if entry == null:
+						continue
+					atlas = entry as Vector2i
+					if mask == 4 or mask == 5 or mask == 6 or mask == 8 or mask == 9 or mask == 10:
+						atlas.x = _nwall_col(fW, fE)
+				ground.set_cell(cell, 0, floor_cell, 0)
+				decoration.set_cell(cell, 0, atlas, 0)
 
 
 ## Paint a distinct floor decor pattern over boss room cells.
@@ -768,15 +988,28 @@ func _paint_overworld_entrance_markers(region: Region) -> void:
 	var root: Node2D = _ensure_entrance_marker_root()
 	for c in root.get_children():
 		c.queue_free()
-	var tex: Texture2D = load(TilesetCatalog.DUNGEON_PNG) as Texture2D
-	if tex == null:
-		return
+	var dungeon_tex: Texture2D = load(TilesetCatalog.DUNGEON_PNG) as Texture2D
+	var house_tex: Texture2D = load(TilesetCatalog.MEDIEVAL_RTS_PNG) as Texture2D
 	var tile_px: int = WorldConst.TILE_PX
 	var margin: int = WorldConst.TILESHEET_MARGIN
 	var cells: Array = TilesetCatalog.DUNGEON_OVERWORLD_ENTRANCE_CELLS
 	for entry in region.dungeon_entrances:
 		var base: Vector2i = entry["cell"]
 		var ek: StringName = entry.get("kind", &"dungeon")
+		if ek == &"house":
+			if house_tex == null:
+				continue
+			var spr := Sprite2D.new()
+			spr.texture = house_tex
+			spr.region_enabled = true
+			spr.region_rect = Rect2(TilesetCatalog.HOUSE_OVERWORLD_RECT)
+			spr.scale = Vector2(float(tile_px) / 64.0, float(tile_px) / 64.0)
+			spr.centered = false
+			spr.position = Vector2(float(base.x * tile_px), float(base.y * tile_px))
+			root.add_child(spr)
+			continue
+		if dungeon_tex == null:
+			continue
 		var tint: Color
 		var cells_to_use: Array
 		if ek == &"house":
@@ -791,7 +1024,7 @@ func _paint_overworld_entrance_markers(region: Region) -> void:
 		for i in cells_to_use.size():
 			var atlas: Vector2i = cells_to_use[i]
 			var spr := Sprite2D.new()
-			spr.texture = tex
+			spr.texture = dungeon_tex
 			spr.region_enabled = true
 			spr.region_rect = Rect2(
 				atlas.x * (tile_px + margin),
@@ -1123,9 +1356,13 @@ func _build_door_index(view_kind: StringName) -> void:
 			var c: Vector2i = entry["cell"]
 			var ek: StringName = entry.get("kind", &"dungeon")
 			if ek == &"house":
-				_doors[c] = {"kind": &"house_enter", "cell": c}
+				_doors[c] = {"kind": &"house_enter", "cell": c,
+						"style": entry.get("style", &"wood")}
 			elif ek == &"maze":
-				_doors[c] = {"kind": &"maze_enter", "cell": c}
+				var door_data: Dictionary = {"kind": &"maze_enter", "cell": c}
+				if entry.get("quest_mine", false):
+					door_data["quest_mine"] = true
+				_doors[c] = door_data
 			else:
 				_doors[c] = {"kind": &"dungeon_enter", "cell": c}
 		for rune in _region.runes:
@@ -1134,7 +1371,12 @@ func _build_door_index(view_kind: StringName) -> void:
 	elif _interior != null:
 		if view_kind == &"dungeon" or view_kind == &"maze":
 			_doors[_interior.entry_cell] = {"kind": &"stairs_up"}
-			_doors[_interior.exit_cell] = {"kind": &"stairs_down"}
+			var at_max: bool = (_interior.max_floor > 0
+					and _interior.floor_num >= _interior.max_floor)
+			if not at_max:
+				_doors[_interior.exit_cell] = {"kind": &"stairs_down"}
+			else:
+				_doors[_interior.exit_cell] = {"kind": &"stairs_exit"}
 		else:
 			_doors[_interior.exit_cell] = {"kind": &"interior_exit"}
 
@@ -1150,12 +1392,16 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 			Sfx.play(&"dungeon_enter")
 			var hrid: Vector2i = _region.region_id
 			var hmid: StringName = MapManager.make_id(hrid, cell, 1, &"house")
+			var hstyle: StringName = door.get("style", &"wood")
 			var house: InteriorMap = MapManager.get_or_generate(
 					hmid, hrid, cell, 1,
-					MapManager.DEFAULT_FLOOR_SIZE, &"house")
+					MapManager.DEFAULT_FLOOR_SIZE, &"house", hstyle)
 			World.instance().transition_player(player.player_id, &"house", _region, house)
 		&"maze_enter":
-			_handle_enter_interior(player, cell, &"maze")
+			var _quest_mine: bool = door.get("quest_mine", false)
+			if _quest_mine:
+				QuestTracker.notify_location_reached("moonstone_mine")
+			_handle_enter_interior(player, cell, &"maze", _quest_mine)
 		&"interior_exit":
 			if _interior != null:
 				Sfx.play(&"dungeon_exit")
@@ -1260,21 +1506,50 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 					Sfx.play(&"dungeon_enter")
 					World.instance().transition_player(pid3, deeper_kind, origin_r3, deeper, entry_cell),
 					"Floor %d" % deeper.floor_num)
+		&"stairs_exit":
+			# Final floor of a capped interior — step triggers exit to surface.
+			if _interior == null:
+				return
+			var pid_ex: int = player.player_id
+			var exit_origin_ex: Vector2i = _interior.origin_cell
+			var exit_rid_ex: Vector2i = _interior.origin_region_id
+			var game_ex: Game = Game.instance()
+			if game_ex != null:
+				game_ex.show_floor_confirm_menu(pid_ex,
+						"Exit the dungeon?",
+						["Exit to Surface", "Stay on Floor %d" % _interior.floor_num],
+						func(idx: int) -> void:
+							if idx == 0:
+								_play_cave_transition(pid_ex,
+										func() -> void:
+											Sfx.play(&"dungeon_exit")
+											var r_ex: Region = WorldManager.get_or_generate(exit_rid_ex)
+											World.instance().transition_player(
+													pid_ex, &"overworld", r_ex, null, exit_origin_ex)))
+			else:
+				_play_cave_transition(pid_ex, func() -> void:
+					Sfx.play(&"dungeon_exit")
+					var r_ex: Region = WorldManager.get_or_generate(exit_rid_ex)
+					World.instance().transition_player(pid_ex, &"overworld", r_ex, null, exit_origin_ex))
 
 
 ## Common handler for dungeon/maze overworld entrances. Checks if the
 ## player has been here before and offers a resume prompt if so.
 func _handle_enter_interior(player: PlayerController, cell: Vector2i,
-		kind: StringName) -> void:
+		kind: StringName, quest_mine: bool = false) -> void:
 	var rid: Vector2i = _region.region_id
 	# Deterministic size for mazes derived from the entrance seed.
 	var lsize: int = MapManager.DEFAULT_FLOOR_SIZE
 	if kind == &"maze":
 		var rng := RandomNumberGenerator.new()
 		rng.seed = MapManager.make_id(rid, cell, 1, kind).hash()
-		lsize = rng.randi_range(64, 96)
+		lsize = rng.randi_range(MapManager.LABYRINTH_SIZE_MIN, MapManager.LABYRINTH_SIZE_MAX)
 	var mid: StringName = MapManager.make_id(rid, cell, 1, kind)
 	var floor1: InteriorMap = MapManager.get_or_generate(mid, rid, cell, 1, lsize, kind)
+	if quest_mine and floor1.max_floor == 0:
+		floor1.max_floor = 2
+	if quest_mine and floor1.display_name == "":
+		floor1.display_name = "Moonstone Mine"
 	var pid_e: int = player.player_id
 	var deepest: InteriorMap = MapManager.get_deepest_cached_interior(rid, cell, kind)
 	if deepest != null and deepest.floor_num > 1:
@@ -1378,6 +1653,11 @@ const _TreasureChestScene: PackedScene = preload("res://scenes/entities/Treasure
 
 func _spawn_scattered_npcs() -> void:
 	_maybe_inject_mara()
+	_maybe_inject_quest_interactables()
+	# Increment the visit counter for overworld regions so the respawn logic
+	# can tell "killed this visit" from "killed a previous visit".
+	if _interior == null and _region != null:
+		_region.region_visit_count += 1
 	var entries: Array = []
 	if _interior != null:
 		entries = _interior.npcs_scatter
@@ -1386,6 +1666,11 @@ func _spawn_scattered_npcs() -> void:
 	for entry in entries:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
+		# Skip monsters killed during the current visit (respawn on next entry).
+		if _interior == null and _region != null:
+			var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
+			if _region.killed_cells.get(cell, -1) == _region.region_visit_count:
+				continue
 		var kind: StringName = entry.get("kind", &"")
 		match kind:
 			&"villager":
@@ -1400,12 +1685,24 @@ func _spawn_scattered_npcs() -> void:
 	# Boss room — spawn boss + adds if this is a maze boss floor.
 	if _interior != null and not _interior.boss_data.is_empty():
 		var bd: Dictionary = _interior.boss_data
+		var boss_kind: StringName = bd.get("kind", &"slime_king")
+		var boss_cell: Vector2i = bd.get("cell", Vector2i.ZERO)
 		var boss_entry: Dictionary = {
-			"monster_kind": bd.get("kind", &"slime_king"),
-			"cell": bd.get("cell", Vector2i.ZERO),
-			"kind": bd.get("kind", &"slime_king"),
+			"monster_kind": boss_kind,
+			"cell": boss_cell,
+			"kind": boss_kind,
 		}
 		_spawn_monster(boss_entry)
+		# Hook boss death for quest mine_leak interactable.
+		if boss_kind == &"corrupted_golem":
+			var boss_pos: Vector2 = (Vector2(boss_cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+			# Find the boss Monster we just spawned.
+			for child in entities.get_children():
+				if child is Monster and child.monster_kind == &"corrupted_golem":
+					child.died.connect(
+						func(_pos: Vector2, _drops: Array) -> void:
+							_spawn_mine_leak(boss_pos))
+					break
 		for add in bd.get("adds", []):
 			var add_entry: Dictionary = {
 				"monster_kind": StringName(add.get("kind", &"slime")),
@@ -1413,6 +1710,18 @@ func _spawn_scattered_npcs() -> void:
 				"kind": StringName(add.get("kind", &"slime")),
 			}
 			_spawn_monster(add_entry)
+
+
+func _spawn_mine_leak(boss_pos: Vector2) -> void:
+	# Spawn a TreasureChest containing the quest reward (contaminated ore).
+	# Opening it advances the seal_leak objective and gives the ore as a pickup.
+	var chest: TreasureChest = _TreasureChestScene.instantiate() as TreasureChest
+	chest.floor_num = _interior.floor_num if _interior != null else 1
+	chest.fixed_loot = [{"id": &"contaminated_ore", "count": 1}]
+	chest.quest_id = &"herbalist_remedy"
+	chest.quest_objective_id = &"seal_leak"
+	chest.position = boss_pos + Vector2(0, -24)
+	entities.add_child(chest)
 
 
 func _maybe_inject_mara() -> void:
@@ -1439,6 +1748,62 @@ func _maybe_inject_mara() -> void:
 		"cell": cell,
 		"seed": 0xA4A7A,  # Deterministic seed for "Mara" appearance.
 		"dialogue": "res://resources/dialogue/healer_mara.tres",
+		"quest_giver_name": "Mara",
+	})
+
+
+const _QuestInteractableScene: PackedScene = preload("res://scenes/entities/QuestInteractable.tscn")
+
+
+func _maybe_inject_quest_interactables() -> void:
+	# Only on overworld starting region.
+	if _interior != null or _region == null:
+		return
+	var rid: Vector2i = _region.region_id
+	if abs(rid.x) > 1 or abs(rid.y) > 1:
+		return
+	if _region.spawn_points.is_empty():
+		return
+	var centre: Vector2i = _region.spawn_points[0]
+	# Spring — clean water source for herbalist quest.
+	_inject_spring(centre)
+	# Moonstone mine — labyrinth entrance east of spawn.
+	_inject_moonstone_mine(centre)
+
+
+func _inject_spring(centre: Vector2i) -> void:
+	# Check if already placed.
+	for child in entities.get_children():
+		if child is QuestInteractable and child.objective_id == "get_water":
+			return
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(-5, 4), 4, true)
+	var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
+	qi.quest_id = "herbalist_remedy"
+	qi.objective_id = "get_water"
+	qi.interact_speaker = ""
+	qi.interact_text = "You fill a vial with clear spring water."
+	qi.give_item_id = &"clean_spring_water"
+	qi.give_item_count = 1
+	qi.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+	# Visual: use a water-coloured placeholder sprite.
+	var spr: Sprite2D = qi.get_node("Sprite2D") as Sprite2D
+	if spr != null:
+		var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0.3, 0.6, 0.9, 0.8))
+		spr.texture = ImageTexture.create_from_image(img)
+	entities.add_child(qi)
+
+
+func _inject_moonstone_mine(centre: Vector2i) -> void:
+	# Check if already placed.
+	for entry in _region.dungeon_entrances:
+		if entry.get("quest_mine", false):
+			return
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(12, 0), 6, true)
+	_region.dungeon_entrances.append({
+		"kind": &"maze",
+		"cell": cell,
+		"quest_mine": true,
 	})
 
 
@@ -1457,6 +1822,9 @@ func _spawn_villager(entry: Dictionary) -> void:
 	if sid != "":
 		v.shop_id = StringName(sid)
 	v.is_cowardly = entry.get("is_cowardly", false)
+	var giver_name: String = entry.get("quest_giver_name", "")
+	if giver_name != "":
+		v.quest_giver_name = giver_name
 	v._lod_index = _spawn_index % 4
 	_spawn_index += 1
 	v.add_to_group(&"scattered_npcs")
@@ -1466,14 +1834,20 @@ func _spawn_villager(entry: Dictionary) -> void:
 func _spawn_monster(entry: Dictionary) -> void:
 	var cell: Vector2i = entry.get("cell", Vector2i.ZERO)
 	var kind: StringName = entry.get("monster_kind", &"slime")
+	var mtier: int = int(entry.get("tier", 0))
 	var m: Monster = _MonsterScene.instantiate() as Monster
 	m.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
 	m.monster_kind = kind
+	m.tier = mtier
 	# Configure from loot table.
 	if LootTableRegistry.has_table(kind):
-		m.max_health = LootTableRegistry.get_health(kind)
+		var base_hp: int = LootTableRegistry.get_health(kind)
+		m.max_health = int(ceil(base_hp * MonsterTier.HP_MULT[mtier]))
 		m.health = m.max_health
 		m.resistances = LootTableRegistry.get_resistances(kind)
+	# Apply tier XP multiplier.
+	var base_xp: int = CreatureSpriteRegistry.get_xp_reward(kind)
+	m.xp_reward_override = int(ceil(base_xp * MonsterTier.XP_MULT[mtier]))
 	m.died.connect(_on_monster_died)
 	m._lod_index = _spawn_index % 4
 	_spawn_index += 1
@@ -1492,6 +1866,12 @@ func spawn_loot_at(world_pos: Vector2, item_id: StringName, count: int = 1) -> v
 
 
 func _on_monster_died(world_position: Vector2, drops: Array) -> void:
+	# Record the kill so the monster stays dead for the rest of this visit.
+	if _interior == null and _region != null:
+		var kill_cell := Vector2i(
+				int(floor(world_position.x / float(WorldConst.TILE_PX))),
+				int(floor(world_position.y / float(WorldConst.TILE_PX))))
+		_region.killed_cells[kill_cell] = _region.region_visit_count
 	for d in drops:
 		var pickup := LootPickup.new()
 		pickup.item_id = d["id"] if d is Dictionary else d
@@ -1606,6 +1986,11 @@ func show_dialogue_tree(player: PlayerController, tree: DialogueTree, npc: Node2
 
 
 func _on_choice_selected(choice: DialogueChoice, passed: bool) -> void:
+	# Auto-start quest if the choice's set_flag matches a quest trigger_flag.
+	if choice.set_flag != "":
+		var match: Dictionary = QuestRegistry.get_quest_for_trigger_flag(choice.set_flag)
+		if not match.is_empty():
+			QuestTracker.start_quest(match["quest_id"], match["branch_id"])
 	var next: Resource = choice.next_node if passed else choice.failure_node
 	if next == null:
 		next = choice.next_node  # fallback on missing failure branch
@@ -1743,6 +2128,70 @@ func debug_spawn_mount_for(player: PlayerController) -> void:
 		mount.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
 		entities.add_child(mount)
 		print("[F8] mount \"%s\" @ %s" % [mount.mount_kind, str(cell)])
+
+
+## Debug: teleport player directly into the moonstone mine boss floor (floor 2).
+## Creates a labyrinth entrance near the player if needed and enters floor 2
+## with the corrupted_golem boss. Triggered by F4 (see pause_manager.gd).
+func debug_teleport_to_mara_cave_for(player: PlayerController) -> void:
+	if player == null or not is_instance_valid(player):
+		push_warning("[F4] no player")
+		return
+	if _interior != null:
+		print("[F4] skipped — already inside an interior")
+		return
+	if _region == null:
+		push_warning("[F4] no region loaded")
+		return
+	# Find or inject a labyrinth entrance.
+	var mine_cell: Vector2i = Vector2i(-9999, -9999)
+	for entry in _region.dungeon_entrances:
+		if entry.get("quest_mine", false):
+			mine_cell = entry.get("cell", Vector2i(-9999, -9999))
+			break
+	if mine_cell == Vector2i(-9999, -9999):
+		var centre: Vector2i = Vector2i(
+			int(floor(player.position.x / float(WorldConst.TILE_PX))),
+			int(floor(player.position.y / float(WorldConst.TILE_PX))))
+		_inject_moonstone_mine(centre)
+		for entry in _region.dungeon_entrances:
+			if entry.get("quest_mine", false):
+				mine_cell = entry.get("cell", Vector2i(-9999, -9999))
+				break
+	if mine_cell == Vector2i(-9999, -9999):
+		push_warning("[F4] could not locate or inject moonstone mine entrance")
+		return
+	# Build floor 1 (needed as parent linkage).
+	var rid: Vector2i = _region.region_id
+	var rng := RandomNumberGenerator.new()
+	rng.seed = MapManager.make_id(rid, mine_cell, 1, &"maze").hash()
+	var lsize: int = rng.randi_range(MapManager.LABYRINTH_SIZE_MIN, MapManager.LABYRINTH_SIZE_MAX)
+	var mid1: StringName = MapManager.make_id(rid, mine_cell, 1, &"maze")
+	var floor1: InteriorMap = MapManager.get_or_generate(mid1, rid, mine_cell, 1, lsize, &"maze")
+	floor1.max_floor = 2
+	floor1.display_name = "Moonstone Mine"
+	# Generate floor 2 with forced corrupted_golem boss.
+	var mid2: StringName = MapManager.make_id(rid, mine_cell, 2, &"maze")
+	# Clear cached floor 2 if it was previously generated without the boss.
+	if MapManager.interiors.has(mid2):
+		MapManager.interiors.erase(mid2)
+	var rng2 := RandomNumberGenerator.new()
+	rng2.seed = mid2.hash()
+	var lsize2: int = rng2.randi_range(MapManager.LABYRINTH_SIZE_MIN, MapManager.LABYRINTH_SIZE_MAX)
+	var floor2: InteriorMap = MapManager.get_or_generate(
+			mid2, rid, mine_cell, 2, lsize2, &"maze", &"wood", &"corrupted_golem")
+	floor2.max_floor = 2
+	floor2.display_name = "Moonstone Mine"
+	floor2.parent_map_id = mid1
+	floor2.parent_entrance_cell = floor1.exit_cell
+	QuestTracker.notify_location_reached("moonstone_mine")
+	var pid_f: int = player.player_id
+	var region_ref: Region = _region
+	_play_cave_transition(pid_f, func() -> void:
+		Sfx.play(&"dungeon_enter")
+		World.instance().transition_player(pid_f, &"maze", region_ref, floor2),
+		"Floor 2 (Boss)")
+	print("[F4] teleporting P%d to moonstone mine boss floor 2 @ %s" % [pid_f + 1, str(mine_cell)])
 
 
 func debug_spawn_interactables_for(player: PlayerController) -> void:

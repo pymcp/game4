@@ -18,6 +18,8 @@ signal active_interior_changed(map: InteriorMap)
 signal exited_to_overworld(region_id: Vector2i, cell: Vector2i)
 
 const DEFAULT_FLOOR_SIZE: int = 32
+const LABYRINTH_SIZE_MIN: int = 64
+const LABYRINTH_SIZE_MAX: int = 96
 
 var interiors: Dictionary = {}   # StringName -> InteriorMap
 var active_interior: InteriorMap = null
@@ -42,17 +44,19 @@ static func make_id(region_id: Vector2i, cell: Vector2i, floor_num: int = 1,
 ## stamped so [exit_to_overworld] can teleport the players back.
 ## `kind` selects the generator: &"dungeon" (default) uses
 ## [DungeonGenerator]; &"house" uses [HouseGenerator] and ignores `size`.
+## `style` is forwarded to [HouseGenerator] (&"wood" or &"stone").
 func get_or_generate(map_id: StringName, region_id: Vector2i,
 		cell: Vector2i, floor_num: int = 1, size: int = DEFAULT_FLOOR_SIZE,
-		kind: StringName = &"dungeon") -> InteriorMap:
+		kind: StringName = &"dungeon", style: StringName = &"wood",
+		force_boss_kind: StringName = &"") -> InteriorMap:
 	if interiors.has(map_id):
 		return interiors[map_id]
 	var seed_val: int = _seed_for(region_id, cell, floor_num)
 	var m: InteriorMap
 	if kind == &"house":
-		m = HouseGenerator.generate(seed_val)
+		m = HouseGenerator.generate(seed_val, style)
 	elif kind == &"maze":
-		m = MazeGenerator.generate(seed_val, size, size, floor_num)
+		m = MazeGenerator.generate(seed_val, size, size, floor_num, force_boss_kind)
 	else:
 		m = DungeonGenerator.generate(seed_val, size, size)
 	m.map_id = map_id
@@ -73,16 +77,26 @@ func get_or_generate(map_id: StringName, region_id: Vector2i,
 ## descent yields a deterministic but distinct layout. The first time the
 ## descent happens we record the parent linkage so STAIRS_UP on the deeper
 ## floor knows where to drop the player on the floor above.
-func descend_from(current: InteriorMap, size: int = DEFAULT_FLOOR_SIZE) -> InteriorMap:
+func descend_from(current: InteriorMap, size: int = -1) -> InteriorMap:
 	var next_floor: int = current.floor_num + 1
 	var rid: Vector2i = current.origin_region_id
 	var origin: Vector2i = current.origin_cell
 	var kind: StringName = _kind_from_id(current.map_id)
 	var new_id: StringName = make_id(rid, origin, next_floor, kind)
-	var m: InteriorMap = get_or_generate(new_id, rid, origin, next_floor, size, kind)
+	var resolved_size: int = size
+	if resolved_size == -1:
+		if kind == &"maze":
+			var rng := RandomNumberGenerator.new()
+			rng.seed = new_id.hash()
+			resolved_size = rng.randi_range(LABYRINTH_SIZE_MIN, LABYRINTH_SIZE_MAX)
+		else:
+			resolved_size = DEFAULT_FLOOR_SIZE
+	var m: InteriorMap = get_or_generate(new_id, rid, origin, next_floor, resolved_size, kind)
 	if m.parent_map_id == &"":
 		m.parent_map_id = current.map_id
 		m.parent_entrance_cell = current.exit_cell
+	if m.max_floor == 0 and current.max_floor > 0:
+		m.max_floor = current.max_floor
 	if m.display_name == "":
 		m.display_name = current.display_name
 	return m
@@ -158,7 +172,7 @@ static func _kind_from_id(map_id: StringName) -> StringName:
 		return StringName(s.substr(0, at))
 	return &"dungeon"
 
-static func _seed_for(region_id: Vector2i, cell: Vector2i, floor_num: int) -> int:
+func _seed_for(region_id: Vector2i, cell: Vector2i, floor_num: int) -> int:
 	# Mix the world seed in so the same entrance differs across worlds.
 	var ws: int = WorldManager.world_seed if WorldManager else 0
 	return (ws * 2654435761) ^ (region_id.x * 19349663) \

@@ -65,36 +65,37 @@
   },
   "requires": {
     "npcs": [
-      {"id": "Mara", "role": "quest giver and turn-in", "location_hint": "near village well", "status": "NOT_IMPLEMENTED"}
+      {"id": "Mara", "role": "quest giver and turn-in", "location_hint": "near spawn", "status": "IMPLEMENTED"}
     ],
     "items": [
       {"id": "fennel_root",        "source": "gatherable plant",                    "status": "IMPLEMENTED"},
-      {"id": "blue_nightcap",      "source": "gatherable mushroom",                 "status": "NOT_IMPLEMENTED"},
-      {"id": "clean_spring_water", "source": "interact with spring (not village well)", "status": "NOT_IMPLEMENTED"},
-      {"id": "contaminated_ore",   "source": "mine loot or interaction",            "status": "NOT_IMPLEMENTED"},
-      {"id": "tonic",              "source": "reward crafted by Mara",              "status": "NOT_IMPLEMENTED"},
-      {"id": "antidote_recipe",    "source": "reward from Mara (CHA >= 5 path)",    "status": "NOT_IMPLEMENTED"}
+      {"id": "blue_nightcap",      "source": "gatherable mushroom",                 "status": "IMPLEMENTED"},
+      {"id": "clean_spring_water", "source": "interact with spring near spawn",      "status": "IMPLEMENTED"},
+      {"id": "contaminated_ore",   "source": "mine leak interactable after boss",    "status": "IMPLEMENTED"},
+      {"id": "tonic",              "source": "reward crafted by Mara",              "status": "IMPLEMENTED"},
+      {"id": "antidote_recipe",    "source": "reward from Mara (CHA >= 5 path)",    "status": "IMPLEMENTED"}
     ],
     "locations": [
-      {"id": "moonstone_mine", "type": "dungeon",           "description": "abandoned mine east past birch grove", "status": "NOT_IMPLEMENTED"},
+      {"id": "moonstone_mine", "type": "dungeon",           "description": "labyrinth entrance east of spawn",  "status": "IMPLEMENTED"},
       {"id": "birch_grove",    "type": "terrain_landmark",  "description": "landmark between village and mine",    "status": "NOT_IMPLEMENTED"},
       {"id": "village_well",   "type": "interaction_point",  "description": "contaminated well in starting area",   "status": "NOT_IMPLEMENTED"},
-      {"id": "spring",         "type": "interaction_point",  "description": "clean water source away from village",  "status": "NOT_IMPLEMENTED"}
+      {"id": "spring",         "type": "interaction_point",  "description": "clean water source near spawn",        "status": "IMPLEMENTED"}
     ],
     "entities": [
-      {"id": "sick_wolf",    "type": "hostile_mob", "description": "wolves near mine that don't flee", "status": "NOT_IMPLEMENTED"},
-      {"id": "feral_animal", "type": "hostile_mob", "description": "generic sick animals near mine",   "status": "NOT_IMPLEMENTED"}
+      {"id": "corrupted_golem", "type": "boss_mob",    "description": "boss in moonstone mine",              "status": "IMPLEMENTED"},
+      {"id": "sick_wolf",       "type": "hostile_mob", "description": "wolves near mine that don't flee",    "status": "NOT_IMPLEMENTED"},
+      {"id": "feral_animal",    "type": "hostile_mob", "description": "generic sick animals near mine",      "status": "NOT_IMPLEMENTED"}
     ],
     "terrain_features": [
-      {"id": "mine_leak", "type": "interactable", "description": "source of contamination inside mine", "status": "NOT_IMPLEMENTED"}
+      {"id": "mine_leak", "type": "interactable", "description": "spawns after boss kill in mine", "status": "IMPLEMENTED"}
     ],
     "dialogue_updates": [
-      {"id": "mara_return_herbs",  "description": "Mara return-visit dialogue when player has herbs",          "status": "NOT_IMPLEMENTED"},
-      {"id": "mara_return_mine",   "description": "Mara return-visit dialogue when player sealed the mine",    "status": "NOT_IMPLEMENTED"},
-      {"id": "mara_return_both",   "description": "Mara return-visit dialogue when player did both",           "status": "NOT_IMPLEMENTED"},
-      {"id": "mara_completion",    "description": "Mara completion/reward dialogue for each branch",           "status": "NOT_IMPLEMENTED"},
-      {"id": "mara_flag_fix",      "description": "Both/Push dialogue paths need to set trigger flags",        "status": "NOT_IMPLEMENTED"}
+      {"id": "mara_return_herbs",  "description": "Mara return-visit dialogue when player has herbs",          "status": "IMPLEMENTED"},
+      {"id": "mara_return_mine",   "description": "Mara return-visit dialogue when player sealed the mine",    "status": "IMPLEMENTED"},
+      {"id": "mara_return_both",   "description": "Mara return-visit dialogue when player did both",           "status": "IMPLEMENTED"},
+      {"id": "mara_completion",    "description": "Mara completion/reward dialogue for each branch",           "status": "IMPLEMENTED"},
+      {"id": "mara_flag_fix",      "description": "Both/Push dialogue paths set trigger flags",               "status": "IMPLEMENTED"}
     ],
-    "notes": "This quest has 3 mutually exclusive objective branches and 2 reward variants. The 'both' branch is gated by STR >= 4. The 'deal_push' reward variant is gated by CHA >= 5. Mara's seed script needs fixes for missing flags on the Both and Push paths."
+    "notes": "Quest is fully playable across all 3 branches. Birch grove and village well are cosmetic landmarks not yet placed. Sick wolves and feral animals are flavour enemies not yet implemented."
   }
 }

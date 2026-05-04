@@ -5,7 +5,7 @@ func before_each() -> void:
 
 func test_get_all_returns_five_members() -> void:
 	var all := PartyMemberRegistry.get_all()
-	assert_eq(all.size(), 5, "Should have 5 party members")
+	assert_eq(all.size(), 6, "Should have 6 party members")
 
 func test_get_warrior_returns_def() -> void:
 	var d := PartyMemberRegistry.get_member(&"warrior")
@@ -25,13 +25,13 @@ func test_warrior_has_no_crafter_domain() -> void:
 
 func test_all_ids_returns_five() -> void:
 	var ids := PartyMemberRegistry.all_ids()
-	assert_eq(ids.size(), 5)
+	assert_eq(ids.size(), 6)
 
 func test_reset_clears_cache() -> void:
 	var _pre := PartyMemberRegistry.get_all()
 	PartyMemberRegistry.reset()
 	var post := PartyMemberRegistry.get_all()
-	assert_eq(post.size(), 5, "Should reload from disk after reset")
+	assert_eq(post.size(), 6, "Should reload from disk after reset")
 
 func test_story_teller_exists_and_cannot_follow() -> void:
 	var d := PartyMemberRegistry.get_member(&"story_teller")
