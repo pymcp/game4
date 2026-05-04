@@ -428,8 +428,8 @@ func _show_location_toast(lbl: Label, tween_ref: Array, text: String) -> void:
 func _on_active_interior_changed_toast(interior: InteriorMap) -> void:
 	if interior == null:
 		return
-	# Build toast text: prefer location_name, fall back to kind + floor.
-	var name_text: String = interior.location_name
+	# Build toast text: prefer display_name, fall back to kind + floor.
+	var name_text: String = interior.display_name
 	if name_text == "":
 		var map_str: String = String(interior.map_id)
 		var at_idx: int = map_str.find("@")
@@ -558,8 +558,8 @@ func _update_top_labels() -> void:
 	if MapManager.active_interior != null:
 		var map_id: String = String(MapManager.active_interior.map_id)
 		var floor_n: int = MapManager.active_interior.floor_num
-		if map_id.begins_with("labyrinth"):
-			zone_text = "LABYRINTH F%d" % floor_n
+		if map_id.begins_with("maze"):
+			zone_text = "MAZE F%d" % floor_n
 		elif map_id.begins_with("house"):
 			zone_text = "HOUSE"
 		elif map_id.begins_with("city"):

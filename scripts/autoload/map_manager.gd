@@ -55,18 +55,16 @@ func get_or_generate(map_id: StringName, region_id: Vector2i,
 	var m: InteriorMap
 	if kind == &"house":
 		m = HouseGenerator.generate(seed_val, style)
-	elif kind == &"labyrinth":
-		m = LabyrinthGenerator.generate(seed_val, size, size, floor_num, force_boss_kind)
+	elif kind == &"maze":
+		m = MazeGenerator.generate(seed_val, size, size, floor_num, force_boss_kind)
 	else:
 		m = DungeonGenerator.generate(seed_val, size, size)
 	m.map_id = map_id
 	m.origin_region_id = region_id
 	m.origin_cell = cell
 	m.floor_num = floor_num
-	# Assign a deterministic name for dungeons/labyrinths on floor 1.
-	# Callers may override location_name after this call for named locations.
-	if (kind == &"dungeon" or kind == &"labyrinth") and floor_num == 1:
-		m.location_name = InteriorMap.pick_name(seed_val)
+	if floor_num == 1 and kind != &"house":
+		m.display_name = generate_interior_name(_seed_for(region_id, cell, 1), kind)
 	interiors[map_id] = m
 	interior_generated.emit(map_id)
 	return m
@@ -87,7 +85,7 @@ func descend_from(current: InteriorMap, size: int = -1) -> InteriorMap:
 	var new_id: StringName = make_id(rid, origin, next_floor, kind)
 	var resolved_size: int = size
 	if resolved_size == -1:
-		if kind == &"labyrinth":
+		if kind == &"maze":
 			var rng := RandomNumberGenerator.new()
 			rng.seed = new_id.hash()
 			resolved_size = rng.randi_range(LABYRINTH_SIZE_MIN, LABYRINTH_SIZE_MAX)
@@ -99,8 +97,8 @@ func descend_from(current: InteriorMap, size: int = -1) -> InteriorMap:
 		m.parent_entrance_cell = current.exit_cell
 	if m.max_floor == 0 and current.max_floor > 0:
 		m.max_floor = current.max_floor
-	if m.location_name == "" and current.location_name != "":
-		m.location_name = current.location_name
+	if m.display_name == "":
+		m.display_name = current.display_name
 	return m
 
 
@@ -149,7 +147,7 @@ func reset() -> void:
 ## Returns the [InteriorMap] with the highest [code]floor_num[/code] cached
 ## for the given entrance, or [code]null[/code] if only floor 1 (or nothing)
 ## has been visited. Used by [WorldRoot] to offer a "Resume at Floor N" option
-## when the player re-enters a dungeon or labyrinth from the overworld.
+## when the player re-enters a dungeon or maze from the overworld.
 func get_deepest_cached_interior(region_id: Vector2i, cell: Vector2i,
 		kind: StringName = &"dungeon") -> InteriorMap:
 	var prefix: String = "%s@%d:%d:%d:%d:" % [
@@ -166,7 +164,7 @@ func get_deepest_cached_interior(region_id: Vector2i, cell: Vector2i,
 
 # ─── Internals ────────────────────────────────────────────────────────
 
-## Extract the kind prefix from a map_id (e.g. "labyrinth@1:2:3:4:1" → &"labyrinth").
+## Extract the kind prefix from a map_id (e.g. "maze@1:2:3:4:1" → &"maze").
 static func _kind_from_id(map_id: StringName) -> StringName:
 	var s: String = String(map_id)
 	var at: int = s.find("@")
@@ -174,9 +172,36 @@ static func _kind_from_id(map_id: StringName) -> StringName:
 		return StringName(s.substr(0, at))
 	return &"dungeon"
 
-static func _seed_for(region_id: Vector2i, cell: Vector2i, floor_num: int) -> int:
+func _seed_for(region_id: Vector2i, cell: Vector2i, floor_num: int) -> int:
 	# Mix the world seed in so the same entrance differs across worlds.
 	var ws: int = WorldManager.world_seed if WorldManager else 0
 	return (ws * 2654435761) ^ (region_id.x * 19349663) \
 		^ (region_id.y * 83492791) ^ (cell.x * 374761393) \
 		^ (cell.y * 668265263) ^ (floor_num * 1274126177)
+
+
+static var _names_data: Dictionary = {}
+
+static func _ensure_names_loaded() -> void:
+	if not _names_data.is_empty():
+		return
+	var f := FileAccess.open("res://resources/names.json", FileAccess.READ)
+	if f == null:
+		return
+	_names_data = JSON.parse_string(f.get_as_text())
+	f.close()
+
+
+static func generate_interior_name(seed_val: int, kind: StringName) -> String:
+	_ensure_names_loaded()
+	var prefix_key: String = "maze_prefix" if kind == &"maze" else "dungeon_prefix"
+	var noun_key: String = "maze_noun" if kind == &"maze" else "dungeon_noun"
+	var prefixes: Array = _names_data.get(prefix_key, [])
+	var nouns: Array = _names_data.get(noun_key, [])
+	if prefixes.is_empty() or nouns.is_empty():
+		return String(kind).capitalize()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_val ^ 0x4e414d45  # "NAME" in hex
+	var p: String = prefixes[rng.randi() % prefixes.size()]
+	var n: String = nouns[rng.randi() % nouns.size()]
+	return "%s %s" % [p, n]

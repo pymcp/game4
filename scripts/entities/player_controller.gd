@@ -91,7 +91,7 @@ var stats: Dictionary = {
 	&"speed": 0, &"defense": 0, &"dexterity": 0,
 }
 var fog_of_war: FogOfWarData = FogOfWarData.new()
-## Per-floor fog-of-war for dungeons and labyrinths (keyed by map_id).
+## Per-floor fog-of-war for dungeons and mazes (keyed by map_id).
 var dungeon_fog: DungeonFogData = DungeonFogData.new()
 var world_map: WorldMapView = null
 var dungeon_map: DungeonMapView = null

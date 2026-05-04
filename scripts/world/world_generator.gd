@@ -73,7 +73,7 @@ static func generate_region(world_seed: int, plan: RegionPlan, plans: Dictionary
 	_pick_spawn_points(region)
 	_place_pier(region)
 	_place_dungeon_entrances(region)
-	_place_labyrinth_entrances(region)
+	_place_maze_entrances(region)
 	_place_runes(region)
 	if plan.region_id == Vector2i(0, 0) and not plan.is_ocean:
 		_generate_starting_region_features(region)
@@ -462,13 +462,13 @@ static func _place_dungeon_entrances(region: Region) -> void:
 		})
 
 
-## Place 0 or 1 labyrinth entrance per non-ocean region (~35% of regions).
-static func _place_labyrinth_entrances(region: Region) -> void:
+## Place 0 or 1 maze entrance per non-ocean region (~35% of regions).
+static func _place_maze_entrances(region: Region) -> void:
 	if region.is_ocean:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = region.seed ^ 0xa7b3c1
-	# ~35% of regions get a labyrinth entrance.
+	# ~35% of regions get a maze entrance.
 	if rng.randf() > 0.35:
 		return
 	# Build occupied set.
@@ -506,7 +506,7 @@ static func _place_labyrinth_entrances(region: Region) -> void:
 		candidates[j] = tmp
 	var cell: Vector2i = candidates[0]
 	region.dungeon_entrances.append({
-		"kind": &"labyrinth",
+		"kind": &"maze",
 		"cell": cell,
 	})
 
@@ -560,7 +560,7 @@ static func _place_runes(region: Region) -> void:
 
 
 ## Carve a dirt patch around spawn and a 1-tile-wide random-walk path to the
-## nearest dungeon/labyrinth entrance. Only called for region (0, 0).
+## nearest dungeon/maze entrance. Only called for region (0, 0).
 static func _generate_starting_region_features(region: Region) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = region.seed ^ 0x5781c0

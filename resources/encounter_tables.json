@@ -1,5 +1,5 @@
 {
-	"labyrinth": {
+	"maze": {
 		"boss_interval": 2,
 		"enemy_tables": [
 			{

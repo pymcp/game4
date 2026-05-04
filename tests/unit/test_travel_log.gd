@@ -19,7 +19,7 @@ func test_start_run_moves_current_to_last() -> void:
 	_log.start_run(&"dungeon", "0_0")
 	_log.record_kill()
 	_log.record_kill()
-	_log.start_run(&"labyrinth", "1_2")
+	_log.start_run(&"maze", "1_2")
 	assert_eq(_log.last_run.get("enemies_killed", 0), 2,
 			"last_run should snapshot the previous run kills")
 	assert_eq(_log.current_run.get("enemies_killed", 0), 0,
