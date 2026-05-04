@@ -15,6 +15,7 @@
 		"npc_kinds": [
 			"slime"
 		],
+		"overlay_set": "stone",
 		"primary_terrain": 2,
 		"secondary_chance": 0.08,
 		"secondary_terrain": 4
@@ -37,6 +38,7 @@
 		"npc_kinds": [
 			"slime"
 		],
+		"overlay_set": "dirt",
 		"primary_terrain": 3,
 		"secondary_chance": 0.08,
 		"secondary_terrain": 4
@@ -60,6 +62,7 @@
 		"npc_kinds": [
 			"slime"
 		],
+		"overlay_set": "grass",
 		"primary_terrain": 5,
 		"secondary_chance": 0.08,
 		"secondary_terrain": 4
@@ -80,6 +83,7 @@
 		"npc_kinds": [
 			"slime"
 		],
+		"overlay_set": "snow",
 		"primary_terrain": 6,
 		"secondary_chance": 0.08,
 		"secondary_terrain": 5
@@ -101,6 +105,7 @@
 		"npc_kinds": [
 			"slime"
 		],
+		"overlay_set": "mud",
 		"primary_terrain": 7,
 		"secondary_chance": 0.08,
 		"secondary_terrain": 1

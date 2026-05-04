@@ -12,7 +12,7 @@ const DEFAULT_VISIBLE_SLOTS: int = 10
 
 var _inventory: Inventory = null
 
-@onready var _row: HBoxContainer = $Row
+var _row: HBoxContainer = null
 
 
 ## Pure helper: build a view-model of the first [param n] inventory slots.
@@ -33,6 +33,7 @@ static func build_view(inv: Inventory, n: int) -> Array:
 
 
 func _ready() -> void:
+	_row = get_node_or_null("Row") as HBoxContainer
 	focus_mode = Control.FOCUS_NONE
 	_ensure_slot_nodes()
 	_refresh()
@@ -99,3 +100,14 @@ func _refresh() -> void:
 		var slot: HotbarSlot = _row.get_child(i) as HotbarSlot
 		if slot != null:
 			slot.set_item(entry["id"], int(entry["count"]))
+
+
+## Highlight the slot at [param idx] as the active (selected) hotbar slot.
+## Pass -1 to clear all highlights.
+func set_active_slot(idx: int) -> void:
+	if _row == null:
+		return
+	for i in range(_row.get_child_count()):
+		var slot: HotbarSlot = _row.get_child(i) as HotbarSlot
+		if slot != null:
+			slot.set_active(i == idx)

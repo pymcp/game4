@@ -11,103 +11,48 @@ signal answered_correctly(player_id: int)
 
 var _player_id: int = -1
 var _answer: int = 0
+var _death_counts: Dictionary = {}
 
-var _panel: PanelContainer = null
-var _problem_label: Label = null
-var _input_field: LineEdit = null
-var _feedback_label: Label = null
-var _submit_button: Button = null
+@onready var _panel: PanelContainer = $Center/Panel
+@onready var _problem_label: Label = $Center/Panel/VBox/ProblemLabel
+@onready var _input_field: LineEdit = $Center/Panel/VBox/AnswerRow/AnswerInput
+@onready var _feedback_label: Label = $Center/Panel/VBox/FeedbackLabel
+@onready var _submit_button: Button = $Center/Panel/VBox/AnswerRow/SubmitButton
 
 
 func _ready() -> void:
-	layer = 50
-	process_mode = Node.PROCESS_MODE_ALWAYS
-	_build()
-	hide_screen()
-
-
-func _build() -> void:
-	# Full-screen dim backdrop.
-	var bg := ColorRect.new()
-	bg.name = "Backdrop"
-	bg.color = Color(0, 0, 0, 0.75)
-	bg.anchor_right = 1.0
-	bg.anchor_bottom = 1.0
-	bg.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(bg)
-
-	# Centred panel.
-	var center := CenterContainer.new()
-	center.anchor_right = 1.0
-	center.anchor_bottom = 1.0
-	add_child(center)
-
-	_panel = PanelContainer.new()
-	_panel.custom_minimum_size = Vector2(320, 200)
+	# Apply the dramatic death-screen panel style (dark purple, generous padding).
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.12, 0.10, 0.18, 0.95)
 	sb.set_corner_radius_all(8)
 	sb.set_content_margin_all(24)
 	_panel.add_theme_stylebox_override("panel", sb)
-	center.add_child(_panel)
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	_panel.add_child(vbox)
-
-	# "You died!" header.
-	var header := Label.new()
-	header.text = "You Died!"
-	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header.add_theme_font_size_override("font_size", 28)
-	header.add_theme_color_override("font_color", Color(0.9, 0.25, 0.2))
-	vbox.add_child(header)
-
-	# "Solve to revive:" subtitle.
-	var subtitle := Label.new()
-	subtitle.text = "Solve to revive:"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 16)
-	subtitle.add_theme_color_override("font_color", Color(0.8, 0.8, 0.7))
-	vbox.add_child(subtitle)
-
-	# Problem label.
-	_problem_label = Label.new()
-	_problem_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_problem_label.add_theme_font_size_override("font_size", 32)
-	_problem_label.add_theme_color_override("font_color", Color(1, 1, 1))
-	vbox.add_child(_problem_label)
-
-	# Answer input row.
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 8)
-	vbox.add_child(row)
-
-	_input_field = LineEdit.new()
-	_input_field.placeholder_text = "?"
-	_input_field.custom_minimum_size = Vector2(100, 0)
-	_input_field.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_input_field.add_theme_font_size_override("font_size", 24)
 	_input_field.text_submitted.connect(_on_text_submitted)
-	row.add_child(_input_field)
-
-	_submit_button = Button.new()
-	_submit_button.text = "OK"
-	_submit_button.add_theme_font_size_override("font_size", 20)
 	_submit_button.pressed.connect(_on_submit_pressed)
-	row.add_child(_submit_button)
+	hide_screen()
 
-	# Feedback label (wrong answer hint).
-	_feedback_label = Label.new()
-	_feedback_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_feedback_label.add_theme_font_size_override("font_size", 14)
-	_feedback_label.add_theme_color_override("font_color", Color(1, 0.4, 0.3))
-	vbox.add_child(_feedback_label)
+
+## Returns the difficulty tier dict for [param death_count].
+## Keys: max_operand (int), use_div (bool), use_mul (bool).
+func _get_tier(death_count: int) -> Dictionary:
+	var dc: int = maxi(death_count, 1)
+	# Intro ramp: deaths 1–3 all use max=4.
+	if dc <= 3:
+		return {"max_operand": 4, "use_div": dc >= 2, "use_mul": dc >= 3}
+	# Repeating 2-death cycle starting at death 4.
+	# cycle_num counts how many +5 bumps have happened (0-indexed from death 4).
+	var cycle_idx: int = dc - 4
+	var cycle_num: int = cycle_idx / 2
+	var cycle_step: int = cycle_idx % 2
+	var max_op: int = mini(9 + cycle_num * 5, 99)
+	# cycle_step 0 = add/sub only; cycle_step 1 = all four ops.
+	return {"max_operand": max_op, "use_div": cycle_step == 1, "use_mul": cycle_step == 1}
 
 
 ## Generate a new problem and show the screen for [param pid].
 func show_for_player(pid: int) -> void:
+	_death_counts[pid] = _death_counts.get(pid, 0) + 1
 	_player_id = pid
 	_generate_problem()
 	_feedback_label.text = ""
@@ -124,20 +69,39 @@ func hide_screen() -> void:
 
 
 func _generate_problem() -> void:
-	var a: int = randi_range(1, 99)
-	var b: int = randi_range(1, 99)
-	if randi() % 2 == 0:
-		# Addition.
-		_answer = a + b
-		_problem_label.text = "%d + %d = ?" % [a, b]
-	else:
-		# Subtraction — ensure non-negative result.
-		if a < b:
-			var tmp: int = a
-			a = b
-			b = tmp
-		_answer = a - b
-		_problem_label.text = "%d - %d = ?" % [a, b]
+	var tier: Dictionary = _get_tier(_death_counts.get(_player_id, 1))
+	var max_op: int = tier.max_operand
+
+	# Build the allowed operator pool.
+	var ops: Array[String] = ["+", "-"]
+	if tier.use_div:
+		ops.append("÷")
+	if tier.use_mul:
+		ops.append("×")
+
+	var op: String = ops[randi() % ops.size()]
+	var a: int = randi_range(1, max_op)
+	var b: int = randi_range(1, max_op)
+
+	match op:
+		"+":
+			_answer = a + b
+			_problem_label.text = "%d + %d = ?" % [a, b]
+		"-":
+			# Ensure non-negative result.
+			if a < b:
+				var tmp: int = a
+				a = b
+				b = tmp
+			_answer = a - b
+			_problem_label.text = "%d - %d = ?" % [a, b]
+		"÷":
+			# Generate a×b ÷ b so answer is always a clean integer.
+			_answer = a
+			_problem_label.text = "%d ÷ %d = ?" % [a * b, b]
+		"×":
+			_answer = a * b
+			_problem_label.text = "%d × %d = ?" % [a, b]
 
 
 func _on_text_submitted(_text: String) -> void:
@@ -174,3 +138,8 @@ func get_answer() -> int:
 ## Expose for testing.
 func get_player_id() -> int:
 	return _player_id
+
+
+## Expose for testing.
+func get_death_count(pid: int) -> int:
+	return _death_counts.get(pid, 0)

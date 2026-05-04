@@ -71,6 +71,10 @@ static func generate(seed_val: int, width: int = 32, height: int = 32) -> Interi
 	m.entry_cell = entry
 	m.exit_cell = exit_cell
 
+	# Insert stone room-wall chambers for special rooms (armory near entry,
+	# treasury near exit, one random library room in the middle).
+	_insert_special_chambers(rng, m, rooms, exit_room_idx)
+
 	# Light NPC scatter — slimes default; per-floor tuning is Phase 8b/9.
 	_scatter_npcs(rng, m, rooms)
 	# Phase 10a: scatter loot in the same rooms (post-entry).
@@ -261,3 +265,35 @@ static func _weighted_pick(rng: RandomNumberGenerator, table: Array) -> Dictiona
 		if roll <= acc:
 			return entry
 	return table[0]
+
+
+# ─── Special chambers ─────────────────────────────────────────────────────
+
+## Carve up to 3 stone room-wall chambers: armory (near entry),
+## treasury (near exit), random library (if ≥ 4 rooms available).
+static func _insert_special_chambers(rng: RandomNumberGenerator, m: InteriorMap,
+		rooms: Array, exit_room_idx: int) -> void:
+	if rooms.size() < 2:
+		return
+	# Armory: room closest to entry (index 1 — skip index 0 which IS entry).
+	_insert_room_chamber(rng, m, rooms[1])
+	# Treasury: exit room.
+	if exit_room_idx != 1:
+		_insert_room_chamber(rng, m, rooms[exit_room_idx])
+	# Library: a random room in the middle (neither entry nor exit), if available.
+	if rooms.size() >= 4:
+		var mid_indices: Array[int] = []
+		for i in rooms.size():
+			if i != 0 and i != 1 and i != exit_room_idx:
+				mid_indices.append(i)
+		if not mid_indices.is_empty():
+			var pick_idx: int = mid_indices[rng.randi_range(0, mid_indices.size() - 1)]
+			_insert_room_chamber(rng, m, rooms[pick_idx])
+
+
+## Convert a BSP room rect into a stone room-wall chamber by delegating
+## to [RoomGenerator.carve_into]. The room's existing floor/wall tiles are
+## overwritten within the rect, and the rect is recorded in `m.chamber_rects`.
+static func _insert_room_chamber(rng: RandomNumberGenerator,
+		m: InteriorMap, room_rect: Rect2i) -> void:
+	RoomGenerator.carve_into(rng, m, room_rect)

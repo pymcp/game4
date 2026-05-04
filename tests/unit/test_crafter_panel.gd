@@ -6,7 +6,7 @@ func before_each() -> void:
 
 
 func test_format_recipe_label_static() -> void:
-	# Reuse CraftingPanel.format_recipe_label — it's already tested.
+	# Uses CrafterPanel.format_recipe_label — local static method.
 	# Just confirm CrafterPanel has the static ordered_by_domain helper.
 	var recipes := CrafterPanel.ordered_by_domain(&"blacksmith")
 	assert_true(recipes is Array)

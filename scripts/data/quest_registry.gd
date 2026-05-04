@@ -129,6 +129,16 @@ static func all_ids() -> Array[String]:
 	return out
 
 
+## Return all quest ids whose "giver" field matches [param giver_name].
+static func get_quests_by_giver(giver_name: String) -> Array[String]:
+	_ensure_loaded()
+	var out: Array[String] = []
+	for qid in _quests:
+		if (_quests[qid] as Dictionary).get("giver", "") == giver_name:
+			out.append(qid)
+	return out
+
+
 ## Return the branch dict for [param branch_id] within [param quest_id].
 ## If the branch uses "includes", the merged objective list is returned in
 ## an "objectives" key built from the referenced branches.

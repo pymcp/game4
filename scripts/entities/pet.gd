@@ -20,8 +20,10 @@ class_name Pet
 
 const PET_SPECIES_CAT: StringName = &"cat"
 const PET_SPECIES_DOG: StringName = &"dog"
-const _CAT_TEX: Texture2D = preload("res://assets/characters/pets/cat.png")
-const _DOG_TEX: Texture2D = preload("res://assets/characters/pets/dog.png")
+const PET_SPECIES_HEDGEHOG: StringName = &"hedgehog"
+const PET_SPECIES_DUCK: StringName = &"duck"
+const PET_SPECIES_CHAMELEON: StringName = &"chameleon"
+const PET_SPECIES_ROLY_POLY: StringName = &"roly_poly"
 
 const _MOVE_SPEED_PX_PER_S: float = 70.0  ## native pixels (pre-zoom)
 const _ATTACK_COOLDOWN_SEC: float = 0.8
@@ -52,10 +54,13 @@ var _sprite: Sprite2D = null
 var _heart: Sprite2D = null
 var _attack_cooldown: float = 0.0
 var _happy_remaining: float = 0.0
-var _move_time: float = 0.0
+var _bob_t: float = 0.0
 var _facing_left: bool = false
 var _last_owner_x: float = NAN
 var _attack_target: NPC = null
+## Special ability from PetRegistry.
+var special_ability: StringName = &"none"
+var _ability_cooldown_remaining: float = 0.0
 ## Hostile scan throttle.
 const HOSTILE_SCAN_INTERVAL: float = 0.3
 var _hostile_scan_timer: float = 0.0
@@ -64,11 +69,18 @@ var _cached_hostile_result: Dictionary = {"npc": null, "dist_tiles": INF}
 
 func _ready() -> void:
 	_world = WorldRoot.find_from(self)
-	_sprite = Sprite2D.new()
-	_sprite.texture = _DOG_TEX if species == PET_SPECIES_DOG else _CAT_TEX
-	_sprite.centered = true
+	# TODO (FUTURE): charmed creatures can also become pets — pass the creature's
+	# kind to Pet.make_charmed(kind). Its sprite data already lives in
+	# creature_sprites.json; only game data (ability/display name) needs a
+	# pets.json fallback entry.
+	_sprite = CreatureSpriteRegistry.build_sprite(species)
+	if _sprite == null:
+		_sprite = Sprite2D.new()  # fallback: invisible until real art is added
+		_sprite.centered = true
 	add_child(_sprite)
 	hitbox_radius = HitboxCalc.radius_from_sprite(_sprite)
+	special_ability = PetRegistry.get_ability(species)
+	_ability_cooldown_remaining = PetRegistry.get_ability_cooldown(species)
 	# Heart popup (drawn above the sprite when HAPPY).
 	_heart = Sprite2D.new()
 	_heart.texture = _make_heart_texture()
@@ -110,7 +122,6 @@ static func find_nearest_hostile(world: WorldRoot, from: Vector2,
 func _process(delta: float) -> void:
 	if owner_player == null or not is_instance_valid(owner_player):
 		return
-	_move_time += delta
 	_attack_cooldown = max(0.0, _attack_cooldown - delta)
 	_happy_remaining = max(0.0, _happy_remaining - delta)
 
@@ -149,16 +160,22 @@ func _process(delta: float) -> void:
 			_teleport_to_owner()
 			state = PetState.State.IDLE  # resume normal logic next frame
 		PetState.State.FOLLOW:
+			_bob_t += delta
 			_step_toward(owner_pos, delta)
+			_sprite.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMPLITUDE_PX
 		PetState.State.ATTACK:
+			_bob_t += delta
 			_do_attack(delta)
+			_sprite.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMPLITUDE_PX
 		PetState.State.HAPPY:
+			_bob_t = 0.0
 			# Small hop driven by _happy_remaining.
 			var t: float = 1.0 - (_happy_remaining / PetState.HAPPY_DURATION_SEC)
 			_sprite.position.y = -sin(t * PI) * _HOP_HEIGHT_PX
 			_heart.visible = true
 		PetState.State.IDLE, _:
-			_sprite.position.y = sin(_move_time * _BOB_HZ * TAU) * _BOB_AMPLITUDE_PX
+			_bob_t = 0.0
+			_sprite.position.y = 0.0
 
 	if state != PetState.State.HAPPY:
 		_heart.visible = false
@@ -172,6 +189,8 @@ func _process(delta: float) -> void:
 
 	if prev != state and state == PetState.State.HAPPY:
 		_heart.visible = true
+	if special_ability != &"none":
+		_tick_special(delta)
 
 
 # ─── Movement ──────────────────────────────────────────────────────────
@@ -267,6 +286,47 @@ func interact(by: Node) -> void:
 		return
 	_happy_remaining = PetState.HAPPY_DURATION_SEC
 	state = PetState.State.HAPPY
+
+
+# ─── Special abilities ─────────────────────────────────────────────────
+
+## Called each frame when this pet has a non-none special ability.
+func _tick_special(delta: float) -> void:
+	if _ability_cooldown_remaining > 0.0:
+		_ability_cooldown_remaining -= delta
+		return
+	# Only fire in IDLE or FOLLOW — not during ATTACK or HAPPY.
+	if state != PetState.State.IDLE and state != PetState.State.FOLLOW:
+		return
+	match special_ability:
+		&"sniff_loot":
+			_do_hedgehog_sniff()
+		_:
+			pass  # stub for future abilities
+
+
+## Crafting materials the hedgehog can sniff out.
+const _HEDGEHOG_LOOT_POOL: Array[StringName] = [
+	&"wood", &"stone", &"fiber", &"iron_ore", &"copper_ore"
+]
+
+## Hedgehog ability: sniff out a random crafting material and drop it nearby.
+func _do_hedgehog_sniff() -> void:
+	if _world == null or owner_player == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var item_id: StringName = _HEDGEHOG_LOOT_POOL[rng.randi() % _HEDGEHOG_LOOT_POOL.size()]
+	var owner_cell: Vector2i = Vector2i(
+		int(floor(owner_player.position.x / float(WorldConst.TILE_PX))),
+		int(floor(owner_player.position.y / float(WorldConst.TILE_PX))))
+	var spawn_cell: Vector2i = _world.find_safe_spawn_cell(owner_cell, 2, true)
+	var spawn_pos: Vector2 = (Vector2(spawn_cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+	_world.spawn_loot_at(spawn_pos, item_id, 1)
+	# Show happy animation as the "found it!" reaction.
+	state = PetState.State.HAPPY
+	_happy_remaining = PetState.HAPPY_DURATION_SEC
+	_ability_cooldown_remaining = PetRegistry.get_ability_cooldown(species)
 
 
 # Damage (forwarded from any future enemy that targets the pet). For v1

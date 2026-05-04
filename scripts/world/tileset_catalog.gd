@@ -20,7 +20,7 @@ extends RefCounted
 const _DEFAULT_SHEETS: Dictionary = {
 	&"overworld_terrain": "res://assets/tiles/roguelike/overworld_sheet.png",
 	&"overworld_decoration": "res://assets/tiles/roguelike/overworld_sheet.png",
-	&"overworld_terrain_patches_3x3": "res://assets/tiles/roguelike/overworld_sheet.png",
+	&"overworld_overlay_sets": "res://assets/tiles/roguelike/overworld_sheet.png",
 	&"overworld_water_border_grass_3x3": "res://assets/tiles/roguelike/overworld_sheet.png",
 	&"overworld_water_outer_corners": "res://assets/tiles/roguelike/overworld_sheet.png",
 	&"city_terrain": "res://assets/tiles/roguelike/city_sheet.png",
@@ -33,7 +33,7 @@ const _DEFAULT_SHEETS: Dictionary = {
 	&"labyrinth_wall_autotile": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"labyrinth_floor_decor":   "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_doorframe": "res://assets/tiles/roguelike/dungeon_sheet.png",
-	&"interior_terrain": "res://assets/tiles/roguelike/interior_sheet.png",
+	&"interior_door": "res://assets/tiles/roguelike/interior_sheet.png",
 }
 
 ## Convenience aliases kept for any code that still references the old consts.
@@ -44,6 +44,19 @@ const INTERIOR_PNG: String  = "res://assets/tiles/roguelike/interior_sheet.png"
 const RUNES_BLACK_PNG: String = "res://assets/tiles/runes/runes_black_tile.png"
 const RUNES_GREY_PNG: String  = "res://assets/tiles/runes/runes_grey_tile.png"
 const RUNES_BLUE_PNG: String  = "res://assets/tiles/runes/runes_blue_tile.png"
+const MEDIEVAL_RTS_PNG: String = "res://assets/tiles/rts/medieval_tilesheet.png"
+## 64×64 tiles, 32px leading gutter. Tile address (col, row) 1-based → pixel = 32 + (n-1)*96.
+## House: col=6, row=7 (1-based) → x=512, y=608.
+const HOUSE_OVERWORLD_RECT: Rect2i = Rect2i(512, 608, 64, 64)
+
+## Number of tiles in each named overlay set.
+## 20-tile sets (dirt/stone/snow) include path-only tiles (straights, dead-ends,
+## isolated dot). 13-tile sets (grass/mud/purple) have only the 3×3 blob + 4 inner
+## corners. Used by WorldGenerator to decide whether secondary terrain needs erosion.
+const OVERLAY_SET_SIZES: Dictionary = {
+	&"dirt": 29, &"stone": 29, &"snow": 29,
+	&"grass": 13, &"mud": 13, &"purple": 13,
+}
 
 ## Cached sheet overrides from TileMappings. Populated by _ensure_loaded().
 static var _sheet_overrides: Dictionary = {}
@@ -70,7 +83,7 @@ static func _sheet_for_view(view: StringName) -> String:
 		&"dungeon":
 			return get_sheet_path(&"dungeon_terrain")
 		&"interior":
-			return get_sheet_path(&"interior_terrain")
+			return get_sheet_path(&"interior_door")
 	return OVERWORLD_PNG
 
 # ─── Custom-data layer names (added to every built TileSet) ─────────────
@@ -133,39 +146,92 @@ const GROUND_VARIANT_CHANCE_BY_TERRAIN: Dictionary = {
 	&"water": 0.5,
 }
 
-# 3×3 corner/edge patch sets for terrains that have a "rounded outlined
-# patch" stamp in the Roguelike sheet. Painted on the Patch TileMapLayer
-# (above Ground, below Decoration) to add blended edges where a secondary
-# terrain (e.g. dirt blob) sits on a primary (e.g. grass / sand). The
-# corners + edges of these tiles have transparent OUTER pixels so the
-# underlying Ground tile shows through and the patch reads as a soft
-# rounded shape rather than a hard square.
+# Transparent overlay sets for secondary terrain blending. Painted on the
+# Patch TileMapLayer (above Ground) with the primary terrain tile underneath.
+# Kenney's transparent pixels let the background bleed through for seamless edges.
 #
-# Cell order is row-major NW, N, NE, W, C, E, SW, S, SE — see
-# `_patch_index_for_neighbors` in world_root.gd for the mapping.
-const _DEFAULT_OVERWORLD_PATCH_3X3: Dictionary = {
+# Two set sizes:
+#   20-tile (dirt/stone/snow): 9 blob + 4 inner corners + 7 path-only tiles.
+#     Path-only: idx 13=N+S straight, 14=E+W straight,
+#                15=dead-end N, 16=dead-end S, 17=dead-end W, 18=dead-end E,
+#                19=isolated dot.
+#   13-tile (grass/mud/purple): 9 blob + 4 inner corners. No path tiles;
+#     indices 13-19 clamp to center (idx 4) at runtime.
+#
+# Index ordering (0-12 shared by all sets):
+#   0=NW outer, 1=N edge, 2=NE outer,
+#   3=W edge,   4=center, 5=E edge,
+#   6=SW outer, 7=S edge, 8=SE outer,
+#   9=inner NW, 10=inner NE, 11=inner SW, 12=inner SE
+const _DEFAULT_OVERWORLD_OVERLAY_SETS: Dictionary = {
+	# ── 20-tile sets ──────────────────────────────────────────────────
 	&"dirt": [
-		Vector2i(0, 25), Vector2i(1, 25), Vector2i(2, 25),
-		Vector2i(0, 26), Vector2i(1, 26), Vector2i(2, 26),
-		Vector2i(0, 27), Vector2i(1, 27), Vector2i(2, 27),
+		# blob 3×3 (indices 0–8)
+		Vector2i(8, 10), Vector2i(9, 10), Vector2i(10, 10),
+		Vector2i(8, 11), Vector2i(9, 11), Vector2i(10, 11),
+		Vector2i(8, 12), Vector2i(9, 12), Vector2i(10, 12),
+		# inner corners (indices 9–12)
+		Vector2i(7, 11), Vector2i(6, 11), Vector2i(7, 10), Vector2i(6, 10),
+		# path-only (indices 13–19)
+		Vector2i(10, 8),  # 13: N+S straight
+		Vector2i(10, 9),  # 14: E+W straight
+		Vector2i(6, 12),  # 15: dead-end N
+		Vector2i(7, 12),  # 16: dead-end S
+		Vector2i(6, 13),  # 17: dead-end W
+		Vector2i(7, 13),  # 18: dead-end E
+		Vector2i(9, 13),  # 19: isolated
 	],
 	&"stone": [
-		Vector2i(3, 25), Vector2i(4, 25), Vector2i(5, 25),
-		Vector2i(3, 26), Vector2i(4, 26), Vector2i(5, 26),
-		Vector2i(3, 27), Vector2i(4, 27), Vector2i(5, 27),
+		# blob 3×3 (indices 0–8)  — same layout, +6 rows from dirt
+		Vector2i(8, 16), Vector2i(9, 16), Vector2i(10, 16),
+		Vector2i(8, 17), Vector2i(9, 17), Vector2i(10, 17),
+		Vector2i(8, 18), Vector2i(9, 18), Vector2i(10, 18),
+		# inner corners (indices 9–12)
+		Vector2i(7, 17), Vector2i(6, 17), Vector2i(7, 16), Vector2i(6, 16),
+		# path-only (indices 13–19)
+		Vector2i(10, 14), Vector2i(10, 15),
+		Vector2i(6, 18), Vector2i(7, 18), Vector2i(6, 19), Vector2i(7, 19),
+		Vector2i(9, 19),
 	],
-	&"sand": [
-		Vector2i(6, 25), Vector2i(7, 25), Vector2i(8, 25),
-		Vector2i(6, 26), Vector2i(7, 26), Vector2i(8, 26),
-		Vector2i(6, 27), Vector2i(7, 27), Vector2i(8, 27),
+	&"snow": [
+		# blob 3×3 (indices 0–8)  — same layout, +12 rows from dirt
+		Vector2i(8, 22), Vector2i(9, 22), Vector2i(10, 22),
+		Vector2i(8, 23), Vector2i(9, 23), Vector2i(10, 23),
+		Vector2i(8, 24), Vector2i(9, 24), Vector2i(10, 24),
+		# inner corners (indices 9–12)
+		Vector2i(7, 23), Vector2i(6, 23), Vector2i(7, 22), Vector2i(6, 22),
+		# path-only (indices 13–19)
+		Vector2i(10, 20), Vector2i(10, 21),
+		Vector2i(6, 24), Vector2i(7, 24), Vector2i(6, 25), Vector2i(7, 25),
+		Vector2i(9, 25),
 	],
-	&"clay": [
-		Vector2i(12, 25), Vector2i(13, 25), Vector2i(14, 25),
-		Vector2i(12, 26), Vector2i(13, 26), Vector2i(14, 26),
-		Vector2i(12, 27), Vector2i(13, 27), Vector2i(14, 27),
+	# ── 13-tile sets ──────────────────────────────────────────────────
+	&"grass": [
+		# blob 3×3 (indices 0–8): cols 3-5, rows 16-18
+		Vector2i(3, 16), Vector2i(4, 16), Vector2i(5, 16),
+		Vector2i(3, 17), Vector2i(4, 17), Vector2i(5, 17),
+		Vector2i(3, 18), Vector2i(4, 18), Vector2i(5, 18),
+		# inner corners (indices 9–12): cols 1-2
+		Vector2i(2, 17), Vector2i(1, 17), Vector2i(2, 16), Vector2i(1, 16),
+	],
+	&"mud": [
+		# blob 3×3 (indices 0–8): cols 3-5, rows 19-21
+		Vector2i(3, 19), Vector2i(4, 19), Vector2i(5, 19),
+		Vector2i(3, 20), Vector2i(4, 20), Vector2i(5, 20),
+		Vector2i(3, 21), Vector2i(4, 21), Vector2i(5, 21),
+		# inner corners (indices 9–12)
+		Vector2i(2, 20), Vector2i(1, 20), Vector2i(2, 19), Vector2i(1, 19),
+	],
+	&"purple": [
+		# blob 3×3 (indices 0–8): cols 3-5, rows 22-24
+		Vector2i(3, 22), Vector2i(4, 22), Vector2i(5, 22),
+		Vector2i(3, 23), Vector2i(4, 23), Vector2i(5, 23),
+		Vector2i(3, 24), Vector2i(4, 24), Vector2i(5, 24),
+		# inner corners (indices 9–12)
+		Vector2i(2, 23), Vector2i(1, 23), Vector2i(2, 22), Vector2i(1, 22),
 	],
 }
-static var OVERWORLD_TERRAIN_PATCH_3X3: Dictionary = _DEFAULT_OVERWORLD_PATCH_3X3
+static var OVERWORLD_OVERLAY_SETS: Dictionary = _DEFAULT_OVERWORLD_OVERLAY_SETS
 
 # 3×3 corner/edge tiles that paint a curved water-on-grass boundary.
 # Unlike `OVERWORLD_TERRAIN_PATCH_3X3`, these tiles are FULLY OPAQUE: the
@@ -381,14 +447,90 @@ static var DUNGEON_DOORFRAME_RW:  Vector2i:
 static var DUNGEON_DOORFRAME_RW2: Vector2i:
 	get: return DUNGEON_DOORFRAME.get(&"RW2", Vector2i(8, 11))
 
-# Interior sheet: wood floor, wood wall.
-# Same `Array[Vector2i]` schema as `OVERWORLD_TERRAIN_CELLS`.
-const _DEFAULT_INTERIOR_TERRAIN: Dictionary = {
-	&"floor": [Vector2i(5, 13)],
-	&"wall":  [Vector2i(5, 1)],
-	&"door":  [Vector2i(20, 9)],
+# Interior door: top atlas cell on interior_sheet.png.
+# Bottom cell is derived as top + Vector2i(0, 1) at paint time.
+const _DEFAULT_INTERIOR_DOOR_CELL: Vector2i = Vector2i(20, 8)
+static var INTERIOR_DOOR_CELL: Vector2i = _DEFAULT_INTERIOR_DOOR_CELL
+
+# ── Room-wall tiles (dungeon_sheet.png, source_id=1 inside interior TileSet) ──
+# Stone walls: cols 17-21, rows 1-4.  Wood walls: same cols, rows 6-9.
+# Mask bits: N=8, S=4, E=2, W=1 (floor cardinal neighbors).
+# Corner tiles (mask=0) are looked up via diagonal checks in WorldRoot.
+# Dict schema: {mask → Vector2i atlas_cell}.
+const _DEFAULT_HOUSE_WALL_STONE_AUTOTILE: Dictionary = {
+	4:  Vector2i(19, 3),  # S only → N-wall center (solid stone)
+	8:  Vector2i(19, 4),  # N only → S-wall center (ledge/drip)
+	2:  Vector2i(19, 2),  # E only → side wall
+	1:  Vector2i(19, 2),  # W only → side wall
+	6:  Vector2i(19, 3),  # S+E → N-wall left end-cap  [x set by _nwall_col]
+	5:  Vector2i(19, 3),  # S+W → N-wall right end-cap [x set by _nwall_col]
+	10: Vector2i(19, 4),  # N+E → S-wall left end-cap  [x set by _nwall_col]
+	9:  Vector2i(19, 4),  # N+W → S-wall right end-cap [x set by _nwall_col]
+	3:  Vector2i(19, 3),  # N+S → solid passthrough
+	12: Vector2i(19, 3),  # E+W → solid passthrough
+	14: Vector2i(19, 3),  # S+E+W
+	13: Vector2i(19, 3),  # N+E+W
+	7:  Vector2i(19, 3),  # S+E+N
+	11: Vector2i(19, 3),  # N+S+W
+	15: Vector2i(19, 3),  # all neighbors
 }
-static var INTERIOR_TERRAIN_CELLS: Dictionary = _DEFAULT_INTERIOR_TERRAIN
+static var HOUSE_WALL_STONE_AUTOTILE: Dictionary = _DEFAULT_HOUSE_WALL_STONE_AUTOTILE
+
+const _DEFAULT_HOUSE_WALL_WOOD_AUTOTILE: Dictionary = {
+	4:  Vector2i(19, 8),  # S only → N-wall center (solid plank)
+	8:  Vector2i(19, 9),  # N only → S-wall center (ledge/drip)
+	2:  Vector2i(19, 7),  # E only → side wall
+	1:  Vector2i(19, 7),  # W only → side wall
+	6:  Vector2i(19, 8),  # S+E → N-wall left end-cap  [x set by _nwall_col]
+	5:  Vector2i(19, 8),  # S+W → N-wall right end-cap [x set by _nwall_col]
+	10: Vector2i(19, 9),  # N+E → S-wall left end-cap  [x set by _nwall_col]
+	9:  Vector2i(19, 9),  # N+W → S-wall right end-cap [x set by _nwall_col]
+	3:  Vector2i(19, 8),  # N+S → solid passthrough
+	12: Vector2i(19, 8),  # E+W → solid passthrough
+	14: Vector2i(19, 8),  # S+E+W
+	13: Vector2i(19, 8),  # N+E+W
+	7:  Vector2i(19, 8),  # S+E+N
+	11: Vector2i(19, 8),  # N+S+W
+	15: Vector2i(19, 8),  # all neighbors
+}
+static var HOUSE_WALL_WOOD_AUTOTILE: Dictionary = _DEFAULT_HOUSE_WALL_WOOD_AUTOTILE
+
+# Stone floor variants (cols 17-21, row 12); wood floor (cols 17-21, row 17).
+const _DEFAULT_HOUSE_FLOOR_STONE: Array = [
+	Vector2i(17, 12), Vector2i(18, 12), Vector2i(19, 12),
+	Vector2i(20, 12), Vector2i(21, 12),
+]
+static var HOUSE_FLOOR_STONE: Array = _DEFAULT_HOUSE_FLOOR_STONE
+
+const _DEFAULT_HOUSE_FLOOR_WOOD: Array = [
+	Vector2i(17, 17), Vector2i(18, 17), Vector2i(19, 17),
+	Vector2i(20, 17), Vector2i(21, 17),
+]
+static var HOUSE_FLOOR_WOOD: Array = _DEFAULT_HOUSE_FLOOR_WOOD
+
+## Named furniture items for interior_sheet.png (source_id=0).
+## StringName → Vector2i.  Empty until user configures in SpritePicker.
+const _DEFAULT_INTERIOR_FURNITURE: Dictionary = {}
+static var INTERIOR_FURNITURE: Dictionary = _DEFAULT_INTERIOR_FURNITURE
+
+# Corner lookup: diagonal index (fSE=0, fSW=1, fNE=2, fNW=3) → atlas_cell.
+# Stone base_row=1: solid row=r+2=3, drip row=r+3=4.
+# Wood  base_row=6: solid row=r+2=8, drip row=r+3=9.
+const _DEFAULT_HOUSE_WALL_STONE_CORNERS: Array = [
+	Vector2i(18, 3), Vector2i(20, 3), Vector2i(18, 4), Vector2i(20, 4),
+]
+static var HOUSE_WALL_STONE_CORNERS: Array = _DEFAULT_HOUSE_WALL_STONE_CORNERS
+
+const _DEFAULT_HOUSE_WALL_WOOD_CORNERS: Array = [
+	Vector2i(17, 5), Vector2i(19, 5), Vector2i(17, 7), Vector2i(19, 7),
+]
+static var HOUSE_WALL_WOOD_CORNERS: Array = _DEFAULT_HOUSE_WALL_WOOD_CORNERS
+
+## Returns [fSE, fSW, fNE, fNW] corner atlas cells for the given style.
+## Reads from TileMappings (loaded via _ensure_loaded).
+static func house_corner_cells(style: StringName) -> Array:
+	_ensure_loaded()
+	return HOUSE_WALL_WOOD_CORNERS if style == &"wood" else HOUSE_WALL_STONE_CORNERS
 
 # ─── Walkability rules (used by generators + collision) ────────────────
 const WALKABLE: Dictionary = {
@@ -433,8 +575,8 @@ static func _ensure_loaded() -> void:
 		var arr: Array = mineable_cells[rid]
 		if not arr.is_empty():
 			OVERWORLD_DECORATION_CELLS[rid] = arr
-	if not m.overworld_terrain_patches_3x3.is_empty():
-		OVERWORLD_TERRAIN_PATCH_3X3 = m.overworld_terrain_patches_3x3
+	if not m.overworld_overlay_sets.is_empty():
+		OVERWORLD_OVERLAY_SETS = m.overworld_overlay_sets
 	if not m.overworld_water_border_grass_3x3.is_empty():
 		OVERWORLD_WATER_BORDER_GRASS_3X3 = m.overworld_water_border_grass_3x3
 	if not m.overworld_water_outer_corners.is_empty():
@@ -471,9 +613,31 @@ static func _ensure_loaded() -> void:
 		LABYRINTH_FLOOR_BORDER_3X3 = m.labyrinth_floor_border_3x3
 	if not m.dungeon_doorframe.is_empty():
 		DUNGEON_DOORFRAME = m.dungeon_doorframe
-	# Interior
-	if not m.interior_terrain.is_empty():
-		INTERIOR_TERRAIN_CELLS = m.interior_terrain
+	# Interior door (mineable convention: top cell stored, bottom derived)
+	if not m.interior_door.is_empty():
+		INTERIOR_DOOR_CELL = m.interior_door[0]
+	elif not m.interior_terrain.is_empty():
+		# Migration fallback: old interior_terrain stored the BOTTOM cell.
+		var old_door: Variant = m.interior_terrain.get(&"door", null)
+		if old_door is Array and not (old_door as Array).is_empty():
+			INTERIOR_DOOR_CELL = (old_door as Array)[0] + Vector2i(0, -1)
+	# House room-wall autotiles
+	var stone_at: Dictionary = m.build_house_wall_autotile_dict(&"stone")
+	if not stone_at.is_empty():
+		HOUSE_WALL_STONE_AUTOTILE = stone_at
+	var wood_at: Dictionary = m.build_house_wall_autotile_dict(&"wood")
+	if not wood_at.is_empty():
+		HOUSE_WALL_WOOD_AUTOTILE = wood_at
+	if m.house_wall_stone_corners.size() == 4:
+		HOUSE_WALL_STONE_CORNERS = m.house_wall_stone_corners
+	if m.house_wall_wood_corners.size() == 4:
+		HOUSE_WALL_WOOD_CORNERS = m.house_wall_wood_corners
+	if m.house_floor_stone.size() == 5:
+		HOUSE_FLOOR_STONE = m.house_floor_stone
+	if m.house_floor_wood.size() == 5:
+		HOUSE_FLOOR_WOOD = m.house_floor_wood
+	if not m.interior_furniture.is_empty():
+		INTERIOR_FURNITURE = m.interior_furniture
 	# Sheet overrides
 	_sheet_overrides = m.sheet_overrides.duplicate()
 
@@ -493,8 +657,6 @@ static func overworld() -> TileSet:
 		_overworld_ts = _build(sheet, OVERWORLD_TERRAIN_CELLS, false,
 				SheetSpecReader.read(sheet))
 	return _overworld_ts
-
-
 static func city() -> TileSet:
 	_ensure_loaded()
 	if _city_ts == null:
@@ -526,9 +688,47 @@ static func interior() -> TileSet:
 	_ensure_loaded()
 	if _interior_ts == null:
 		var sheet := _sheet_for_view(&"interior")
-		_interior_ts = _build(sheet, INTERIOR_TERRAIN_CELLS, false,
+		# Pass a minimal terrain dict so door cells get walkable=true tagging.
+		var door_bottom: Vector2i = INTERIOR_DOOR_CELL + Vector2i(0, 1)
+		var terrain_for_build: Dictionary = {
+			&"door": [INTERIOR_DOOR_CELL, door_bottom],
+		}
+		_interior_ts = _build(sheet, terrain_for_build, false,
 				SheetSpecReader.read(sheet))
+		# Add dungeon_sheet.png as source_id=1 for room walls and floors.
+		# Painters that use room-wall rendering write to source_id=1.
+		_add_dungeon_source_to(_interior_ts)
 	return _interior_ts
+
+
+## Add a bare dungeon_sheet.png atlas source at source_id=1 to an existing
+## TileSet. Used by interior() to support room-wall tile rendering.
+static func _add_dungeon_source_to(ts: TileSet) -> void:
+	var tex: Texture2D = load(DUNGEON_PNG) as Texture2D
+	if tex == null:
+		push_error("TilesetCatalog: missing dungeon_sheet.png for interior room walls")
+		return
+	var spec: SheetSpec = SheetSpecReader.read(DUNGEON_PNG)
+	var src := TileSetAtlasSource.new()
+	src.texture = tex
+	src.texture_region_size = Vector2i(spec.tile_px, spec.tile_px)
+	src.margins = Vector2i(0, 0)
+	src.separation = Vector2i(spec.margin_px, spec.margin_px)
+	ts.add_source(src, 1)
+	var cols: int = (tex.get_width() + spec.margin_px) / spec.stride
+	var rows: int = (tex.get_height() + spec.margin_px) / spec.stride
+	# Wall rows (stone 1-4, wood 6-9) must be walkable=false so wall sprites
+	# painted on the Decoration layer block movement. Row 5 holds the NW/NE
+	# corner tiles for wood walls and must also be blocked. All other rows
+	# default to walkable=true so house floor tiles are traversable.
+	const _WALL_ROWS: Array[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+	for y in rows:
+		var walkable: bool = not (y in _WALL_ROWS)
+		for x in cols:
+			src.create_tile(Vector2i(x, y))
+			var td: TileData = src.get_tile_data(Vector2i(x, y), 0)
+			if td != null:
+				td.set_custom_data(CUSTOM_WALKABLE, walkable)
 
 
 ## Returns the rune overlay TileSet (uses 3 atlases — one per color).
@@ -589,15 +789,8 @@ static func _build(png_path: String, terrain_cells: Dictionary,
 		elif v is Array:
 			for cell in v:
 				cell_to_terrain[cell] = terrain_name
-	# 3×3 patch corner/edge cells likewise inherit their parent terrain so
-	# painting them on the Patch layer doesn't accidentally alter
-	# walkability or terrain queries on cells where they overlay primary
-	# Ground tiles.
-	for terrain_name in OVERWORLD_TERRAIN_PATCH_3X3.keys():
-		if not terrain_cells.has(terrain_name):
-			continue
-		for cell in OVERWORLD_TERRAIN_PATCH_3X3[terrain_name]:
-			cell_to_terrain[cell] = terrain_name
+	# Overlay set cells share the same source sheet as terrain so custom-data
+	# is already registered. No separate tagging needed here.
 	# Water-grass border tiles: the centre + edge cells are mostly water,
 	# corners are mostly grass — but we register them all as `water` so
 	# walkability matches a normal water tile (boats only). The slight
@@ -646,6 +839,8 @@ static func _build(png_path: String, terrain_cells: Dictionary,
 		for cell in obstacle_cells:
 			if cell_to_terrain.has(cell):
 				continue  # Don't override explicitly-tagged terrain tiles (e.g. door).
+			if not src.has_tile(cell):
+				continue  # Mineable sprites reference the overworld sheet; skip for other TileSets.
 			var data: TileData = src.get_tile_data(cell, 0)
 			if data != null:
 				data.set_custom_data(CUSTOM_WALKABLE, false)
@@ -677,6 +872,8 @@ static func _get_mineable_sprites(rid: StringName) -> Array[Vector2i]:
 		if s is Array and s.size() >= 2:
 			out.append(Vector2i(int(s[0]), int(s[1])))
 	return out
+
+
 
 
 static func _build_runes() -> TileSet:
@@ -713,7 +910,6 @@ static func cell_for(view_kind: StringName, terrain: StringName) -> Vector2i:
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
 		&"labyrinth": d = LABYRINTH_TERRAIN_CELLS
-		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
 	if v is Vector2i:
@@ -738,7 +934,6 @@ static func cell_for_variant(view_kind: StringName, terrain: StringName, hash32:
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
 		&"labyrinth": d = LABYRINTH_TERRAIN_CELLS
-		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
 	if v is Array and (v as Array).size() > 1:

@@ -32,3 +32,8 @@ extends Resource
 @export var npc_density: float = 0.002
 ## NPC kinds (StringNames) eligible to spawn on this biome.
 @export var npc_kinds: Array = [&"slime"]
+## Which overlay set to paint for secondary terrain blobs on this biome.
+## Must match a key in TilesetCatalog.OVERWORLD_OVERLAY_SETS.
+## Empty string disables the overlay pass (e.g. for water-secondary biomes
+## that use the dedicated water-border system instead).
+@export var overlay_set: StringName = &""

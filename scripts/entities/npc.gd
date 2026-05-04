@@ -20,11 +20,12 @@ class_name NPC
 
 signal died(world_position: Vector2, drops: Array)
 
-enum State { IDLE, WANDER, CHASE, ATTACK, DEAD }
+enum State { IDLE, WANDER, CHASE, ATTACK, STAGGERED, DEAD }
 
 const IDLE_DURATION_SEC: float = 1.5
 const WANDER_DURATION_SEC: float = 2.5
 const ATTACK_COOLDOWN_SEC: float = 1.0
+const STAGGER_DURATION_SEC: float = 0.6
 const SIGHT_RADIUS_TILES: float = 6.0
 const ATTACK_RADIUS_TILES: float = 1.25
 const LEASH_RADIUS_TILES: float = 10.0
@@ -47,7 +48,7 @@ static func _cell_center(cell: Vector2i) -> Vector2:
 @export var sight_radius_tiles: float = SIGHT_RADIUS_TILES
 @export var attack_range_tiles: float = ATTACK_RADIUS_TILES
 @export var leash_radius_tiles: float = LEASH_RADIUS_TILES
-@export var drops: Array = []  # Array of {id: StringName, count: int}
+@export var drops: Array[Dictionary] = []  # Array of {id: StringName, count: int}
 @export var resistances: Dictionary = {}  # Element enum → float multiplier
 
 ## When `true`, this NPC counts as an enemy for pets and other ally AI
@@ -56,6 +57,8 @@ static func _cell_center(cell: Vector2i) -> Vector2:
 ## a "team" tag read by other actors.
 @export var hostile: bool = false
 
+var tier: int = 0  ## MonsterTier.Tier — set before _ready() for stat/visual scaling.
+var xp_reward_override: int = -1  ## If >= 0, used instead of registry value.
 var state: State = State.IDLE
 var target: Node2D = null
 var home_cell: Vector2i = Vector2i.ZERO
@@ -64,9 +67,11 @@ var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
 var _world: WorldRoot = null
 var _state_timer: float = 0.0
 var _attack_cooldown: float = 0.0
+var _telegraph_timer: float = 0.0
+var _telegraph_duration: float = 0.5
 var _wander_target_cell: Vector2i = Vector2i.ZERO
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
-var _path: Array = []
+var _path: Array[Vector2i] = []
 var _path_target_cell: Vector2i = Vector2i(0x7fffffff, 0x7fffffff)
 var _path_repath_timer: float = 0.0
 var _bob_t: float = 0.0
@@ -176,14 +181,32 @@ func _ready() -> void:
 	elif _npc_sprite is Sprite2D:
 		hitbox_radius = HitboxCalc.radius_from_sprite(_npc_sprite as Sprite2D)
 	# Overhead heart display — visible only when damaged.
+	# Position above the sprite's visual top edge (accounts for hires multi-tile sprites).
+	var heart_y: float = -14.0
+	if _npc_sprite != null:
+		if _npc_sprite.centered:
+			var tex_h: float = float(_npc_sprite.texture.get_height()) if _npc_sprite.texture != null else 16.0
+			heart_y = -(tex_h * 0.5 * abs(_npc_sprite.scale.y)) - 2.0
+		else:
+			heart_y = _npc_sprite.offset.y * abs(_npc_sprite.scale.y) - 2.0
 	_heart_display = HeartDisplay.new(6.0)
-	_heart_display.position = Vector2(-10, -14)
+	_heart_display.position = Vector2(-10, heart_y)
 	_heart_display.visible = false
 	add_child(_heart_display)
+	# Apply tier stat/visual multipliers.
+	if tier > 0:
+		attack_damage = int(ceil(attack_damage * MonsterTier.DMG_MULT[tier]))
+		max_health = int(ceil(max_health * MonsterTier.HP_MULT[tier]))
+		health = max_health
+		if _npc_sprite is Sprite2D:
+			var spr: Sprite2D = _npc_sprite as Sprite2D
+			spr.scale *= MonsterTier.SCALE_MULT[tier]
+			spr.modulate = MonsterTier.apply_color(spr.modulate, tier)
 	# Attack VFX — lunges the sprite toward the target.
 	_action_vfx = ActionVFX.new()
 	add_child(_action_vfx)
 	_action_vfx.setup(self, null, _world, _npc_sprite as Node2D)
+	_telegraph_duration = CreatureSpriteRegistry.get_telegraph_duration(kind)
 
 
 func _physics_process(delta: float) -> void:
@@ -220,6 +243,9 @@ func _physics_process(delta: float) -> void:
 			_tick_chase(delta)
 		State.ATTACK:
 			_tick_attack(delta)
+		State.STAGGERED:
+			if _state_timer > STAGGER_DURATION_SEC:
+				_enter_state(State.CHASE)
 		_:
 			pass
 	# Bob sprite while moving.
@@ -262,8 +288,8 @@ func _tick_chase(delta: float) -> void:
 	if _world != null and (_path.is_empty() or _path_repath_timer <= 0.0
 			or goal_cell != _path_target_cell):
 		var start_cell: Vector2i = _pos_to_cell(position)
-		_path = Pathfinder.find_path(start_cell, goal_cell,
-			func(c: Vector2i) -> bool: return _world.is_walkable(c))
+		_path = Array(Pathfinder.find_path(start_cell, goal_cell,
+			func(c: Vector2i) -> bool: return _world.is_walkable(c)), TYPE_VECTOR2I, &"", null)
 		_path_target_cell = goal_cell
 		_path_repath_timer = PATH_REPATH_SEC + _lod_index * 0.125
 	# Determine the immediate destination cell.
@@ -284,7 +310,23 @@ func _tick_attack(_delta: float) -> void:
 		return
 	if _attack_cooldown > 0.0:
 		return
+	# Telegraph phase: show windup before dealing damage.
+	if _telegraph_timer > 0.0:
+		_telegraph_timer -= _delta
+		if _telegraph_timer <= 0.0:
+			_finish_attack()
+		return
+	# Start a new telegraph.
+	_telegraph_timer = _telegraph_duration
+	_show_telegraph()
+
+
+## Called when the telegraph timer expires — deliver the actual hit.
+func _finish_attack() -> void:
+	_hide_telegraph()
 	_attack_cooldown = ATTACK_COOLDOWN_SEC
+	if not is_instance_valid(target):
+		return
 	var attack_element: int = CreatureSpriteRegistry.get_element(kind)
 	if target.has_method("take_hit"):
 		target.call("take_hit", attack_damage, self, attack_element)
@@ -297,6 +339,18 @@ func _tick_attack(_delta: float) -> void:
 				int(floor(target.position.x / float(WorldConst.TILE_PX))),
 				int(floor(target.position.y / float(WorldConst.TILE_PX))))
 		_action_vfx.play_creature_attack(target_cell, to_norm, attack_style, attack_element)
+
+
+## Show a red tint on the sprite to telegraph an incoming attack.
+func _show_telegraph() -> void:
+	if _npc_sprite != null:
+		_npc_sprite.modulate = Color(1.5, 0.5, 0.5, 1.0)
+
+
+## Clear the telegraph visual.
+func _hide_telegraph() -> void:
+	if _npc_sprite != null:
+		_npc_sprite.modulate = Color.WHITE
 
 
 # ---------- Damage / death ----------
@@ -320,6 +374,14 @@ func take_hit(damage: int, attacker: Node = null, element: int = 0) -> void:
 		_die()
 	else:
 		pass  # Hit but not dead
+
+
+## Called by player parry — enters STAGGERED state (frozen for STAGGER_DURATION_SEC).
+func stagger() -> void:
+	if state == State.DEAD:
+		return
+	_enter_state(State.STAGGERED)
+	ActionParticles.flash_hit(self)
 
 
 func _apply_resistance(damage: int, element: int) -> int:

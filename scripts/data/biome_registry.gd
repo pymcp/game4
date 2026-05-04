@@ -113,4 +113,5 @@ static func _build_cache() -> void:
 			for k in nk:
 				typed_nk.append(StringName(k))
 			b.npc_kinds = typed_nk
+		b.overlay_set = StringName(entry.get("overlay_set", ""))
 		_cache[id] = b

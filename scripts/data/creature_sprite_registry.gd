@@ -188,6 +188,15 @@ static func get_attack_speed(kind: StringName) -> float:
 	return float(get_entry(kind).get("attack_speed", 1.0))
 
 
+## Telegraph duration in seconds before an attack lands.
+## Defaults to attack_speed * 0.5 (half the cooldown), min 0.2s.
+static func get_telegraph_duration(kind: StringName) -> float:
+	var entry: Dictionary = get_entry(kind)
+	if entry.has("telegraph_duration"):
+		return float(entry["telegraph_duration"])
+	return maxf(0.2, get_attack_speed(kind) * 0.5)
+
+
 ## Attack range in tiles. Defaults to 1.25.
 static func get_attack_range_tiles(kind: StringName) -> float:
 	return float(get_entry(kind).get("attack_range_tiles", 1.25))
@@ -213,6 +222,21 @@ static func get_element(kind: StringName) -> int:
 		"lightning": return ItemDefinition.Element.LIGHTNING
 		"poison": return ItemDefinition.Element.POISON
 		_: return ItemDefinition.Element.NONE
+
+
+## XP reward granted when this creature is killed. Defaults to 10.
+static func get_xp_reward(kind: StringName) -> int:
+	return int(get_entry(kind).get("xp_reward", 10))
+
+
+## Human-readable name for this creature. Falls back to capitalizing the kind.
+static func get_display_name(kind: StringName) -> String:
+	if LootTableRegistry.has_table(kind):
+		var table: Dictionary = LootTableRegistry.get_table(kind)
+		var dn: Variant = table.get("display_name", "")
+		if dn is String and dn != "":
+			return dn
+	return String(kind).capitalize()
 
 
 ## All creature kinds that are mounts.

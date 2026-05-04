@@ -28,11 +28,13 @@ func test_set_context_emits_signal() -> void:
 
 
 func test_p1_attack_label_is_R() -> void:
-	assert_eq(InputContext.get_key_label(&"p1_attack"), "R")
+	# Keybinding changed from R to G; update assertion to match project.godot.
+	assert_eq(InputContext.get_key_label(&"p1_attack"), "G")
 
 
 func test_p2_attack_label_is_kp_add() -> void:
-	assert_eq(InputContext.get_key_label(&"p2_attack"), "Kp Add")
+	# Keybinding changed from Kp Add to Kp 4; update assertion to match project.godot.
+	assert_eq(InputContext.get_key_label(&"p2_attack"), "Kp 4")
 
 
 func test_pause_manager_toggles() -> void:

@@ -1,5 +1,5 @@
 ## Overview
-A 2D fantasy sandbox with local split-screen co-op (2 players). **Godot 4.3 stable**, **GDScript** only. All art from the **Kenney All-in-One** pack (CC0). When you read this, say "Hello there matey!" so I know you got it.
+A 2D fantasy sandbox with local split-screen co-op (2 players). **Godot 4.3 stable**, **GDScript** only. All art from the **Kenney All-in-One** pack (CC0). When you read this, say "Hello there matey! Loading ./github/copilot-instructions.md" so I know you got it.
 
 ## Key Rules
 - **Planning mode** — ask questions, do NOT make changes (not even via subagent).
@@ -93,6 +93,23 @@ See [docs/conventions.md](docs/conventions.md) for full details. Critical points
 - `Villager` has 4 states: `IDLE`, `WANDER`, `DEFEND`, `FLEE`. `is_cowardly` export (30% random for generated NPCs) determines fight-or-flight. `take_hit()` triggers threat response. `_tick_defend()` uses `ActionVFX.play_creature_attack()`.
 - All damageable entities (`PlayerController`, `Villager`, `NPC`, `Monster`, `Pet`) flash white on hit via `ActionParticles.flash_hit()`.
 
+### Monster Tier System
+5-tier variant system for dungeon difficulty scaling. Both floor-based and random elite promotion.
+
+- `MonsterTier` (`scripts/data/monster_tier.gd`) — `class_name MonsterTier extends RefCounted`. Pure data helper with static functions.
+  - `enum Tier { NORMAL, TOUGH, HARDENED, VETERAN, ELITE }` (0–4).
+  - Multiplier arrays: `HP_MULT` [1.0,1.25,1.75,2.5,3.5], `DMG_MULT` [1.0,1.1,1.3,1.6,2.0], `SCALE_MULT` [1.0,1.05,1.1,1.15,1.25], `XP_MULT` [1.0,1.25,1.75,2.5,3.5].
+  - `TINT_FACTORS` — 5 Colors shifting warmer per tier.
+  - `ELITE_PROMOTION_CHANCE = 0.05` — any monster has 5% chance to become Elite regardless of floor.
+  - `_FLOOR_WEIGHTS` — 5 bands: floors 1-4 (normal only), 5-9 (70/30), 10-14 (50/30/20), 15-19 (40/25/20/15), 20+ (30/25/20/15/10).
+  - `static func roll_tier(floor_num, rng) -> int` — floor band selection + elite promotion roll.
+  - `static func display_name(base_name, tier) -> String` — prepends tier prefix (e.g. "Veteran Slime").
+  - `static func apply_color(base_tint, tier) -> Color` — multiplies base tint by tier color factor.
+
+- **Monster integration**: `Monster` has `var tier: int = 0` and `var xp_reward_override: int = -1`. In `_ready()`, tier > 0 applies damage/scale/tint multipliers. Tier 1+ shows a colored name label above hearts. Tier 3+ (Veteran/Elite) gets a GPUParticles2D aura with additive blend.
+- **NPC parity**: `NPC` has the same `tier` and `xp_reward_override` vars. In `_ready()`, tier > 0 applies damage/HP/scale/tint multipliers.
+- **Spawn pipeline**: `LabyrinthGenerator._scatter_enemies()` calls `MonsterTier.roll_tier(floor_num, rng)` for each spawn entry. Overworld monsters default to tier 0. `WorldRoot._spawn_monster()` reads `entry.tier` and applies HP/XP multipliers.
+
 ## Death & Revival
 - `PlayerController` emits `signal player_died(player_id)` when `health` reaches 0.
 - `Game` connects the signal → pauses via `PauseManager.set_paused(true)` → shows `MathDeathScreen`.
@@ -136,7 +153,7 @@ Mining is **tile-based** — decorations on `TileMapLayer`, not `Sprite2D` nodes
 ### Data-driven mineable resources
 - Definitions in `resources/mineables.json`. SpritePicker's **Mineable Resources** category edits this.
 - `MineableRegistry` (`scripts/data/mineable_registry.gd`) — static loader/cache. `build_hp_table()`, `build_drops_table()`, `build_pickaxe_bonus_set()`, `build_decoration_cells()`, `build_tall_kinds()`, `get_biome_weights(biome_id)`.
-- `WorldRoot` lazy static vars (`MINEABLE_HP`, `MINEABLE_DROPS`, `PICKAXE_BONUS_KINDS`) compute from registry on first access. `reload_mineable_tables()` clears caches.
+- `WorldRoot` `const` dictionaries (`MINEABLE_HP`, `MINEABLE_DROPS`, `PICKAXE_BONUS_KINDS`) are hardcoded in `world_root.gd`. `MineableRegistry` provides builder methods (`build_hp_table()` etc.) for use by other systems but WorldRoot uses inline consts.
 - `TilesetCatalog` merges mineable sprites from registry. `WorldGenerator._scatter_decorations()` merges biome weights.
 
 ### Runtime flow
@@ -159,6 +176,38 @@ Toggle inputs: `p*_auto_mine` (C / Numpad7), `p*_auto_attack` (V / Numpad8).
 - **Auto-attack melee**: scans entities for hostile NPC/Monster within 24px reach.
 - **Auto-attack ranged**: fires in facing direction, dot-product alignment (>0.7), 80px reach.
 - `ControlsHud` shows bold green "(ON)" when active.
+
+## Skillful Combat (Dodge / Block / Parry / Telegraph)
+Reactive combat loop: enemies telegraph → player reads → dodge or block/parry → punish stagger window.
+
+### Dodge Roll
+- Input: `p*_dodge` (Space / Numpad1). Cooldown `0.8s`, duration `0.2s`, distance `40px`.
+- I-frames during first `0.15s` of dodge — `take_hit()` returns immediately.
+- Direction: movement input or current facing. Visual squish (0.7x width, 1.3x height).
+- Cancels block on activation.
+
+### Block & Parry
+- Input: `p*_block` (Left Shift / Numpad2). Hold to block.
+- **Parry window**: first `0.15s` of block. Successful parry negates all damage and calls `attacker.stagger()`.
+- **Block**: after parry window, reduces damage to `25%` (min 1). Movement slowed to `50%`.
+- Auto-attack pauses while blocking.
+
+### Enemy Telegraphs
+- Enemies (Monster, NPC) show a red tint (`Color(1.5, 0.5, 0.5)`) before attacking.
+- Duration from `CreatureSpriteRegistry.get_telegraph_duration(kind)` — defaults to `max(0.2, attack_speed * 0.5)`.
+- Configurable per creature via `telegraph_duration` field in `creature_sprites.json`.
+
+### Stagger
+- On successful parry, `stagger()` is called on the attacker.
+- `Monster`: `_stagger_timer = 0.6s`, blocks all action while active.
+- `NPC`: enters `State.STAGGERED` for `0.6s`, then transitions to CHASE.
+
+### Charge Attack
+- Hold attack button to charge. After `0.2s` threshold, yellow glow intensifies on sprite.
+- Release to fire — damage multiplied up to `2.0x` at full charge (`1.0s`).
+- Applies to both entity hits and mining.
+- Cancelled by: taking damage, dodging, or blocking.
+- `get_charge_ratio() -> float` returns 0.0–1.0 for UI feedback.
 
 ## Dialogue System
 - `DialogueTree → DialogueNode → DialogueChoice` (Resource subclasses in `scripts/data/`).
@@ -260,8 +309,7 @@ Mining is **tile-based** — decorations are painted on a `TileMapLayer` (`Decor
 ### Data-driven mineable resources
 - All mineable resource definitions live in `resources/mineables.json`. The SpritePicker tool's **Mineable Resources** category reads and writes this file.
 - `MineableRegistry` (`scripts/data/mineable_registry.gd`) — static loader/cache for the JSON. Provides `build_hp_table()`, `build_drops_table()`, `build_pickaxe_bonus_set()`, `build_decoration_cells()`, `build_tall_kinds()`, `get_biome_weights(biome_id)`.
-- `WorldRoot.MINEABLE_HP`, `MINEABLE_DROPS`, `PICKAXE_BONUS_KINDS` are now **lazy static vars** that compute from `MineableRegistry` on first access.
-- `WorldRoot.reload_mineable_tables()` clears all caches (call after SpritePicker saves).
+- `WorldRoot.MINEABLE_HP`, `MINEABLE_DROPS`, `PICKAXE_BONUS_KINDS` are **`const` dictionaries** hardcoded in `world_root.gd`. `MineableRegistry` provides builder methods used by `TilesetCatalog` and `WorldGenerator` but WorldRoot itself uses inline consts.
 - `TilesetCatalog` merges mineable decoration sprites from `MineableRegistry.build_decoration_cells()` on top of `TileMappings` data. `is_tall_decoration()` reads from `MineableRegistry.build_tall_kinds()`.
 - `WorldGenerator._scatter_decorations()` merges mineable biome weights from `MineableRegistry.get_biome_weights()` with the biome's non-mineable `decoration_weights`.
 

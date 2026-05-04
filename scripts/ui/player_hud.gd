@@ -19,6 +19,8 @@ var _biome_label: Label = null
 var _status_container: HBoxContainer = null
 var _status_labels: Dictionary = {}  # effect_id -> Label
 var _clock_label: Label = null
+var _level_flash_label: Label = null
+var _level_flash_tween: Tween = null
 
 
 func _ready() -> void:
@@ -35,9 +37,13 @@ func _ready() -> void:
 
 
 func set_player(p: PlayerController) -> void:
+	if _player != null and _player.leveled_up.is_connected(_on_leveled_up):
+		_player.leveled_up.disconnect(_on_leveled_up)
 	_player = p
 	if _hotbar != null and p != null:
 		_hotbar.set_inventory(p.inventory)
+	if p != null and not p.leveled_up.is_connected(_on_leveled_up):
+		p.leveled_up.connect(_on_leveled_up)
 	_refresh_all()
 
 
@@ -59,10 +65,26 @@ func _build() -> void:
 	# Status effect icons below hearts.
 	_status_container = HBoxContainer.new()
 	_status_container.name = "StatusEffects"
-	_status_container.position = Vector2(MARGIN, MARGIN + 24)
+	_status_container.position = Vector2(MARGIN, MARGIN + 30)
 	_status_container.add_theme_constant_override("separation", 6)
 	_status_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_status_container)
+
+	# Level-up flash label — centred horizontally, 25% down.
+	_level_flash_label = Label.new()
+	_level_flash_label.name = "LevelFlash"
+	_level_flash_label.text = "LEVEL UP!"
+	_level_flash_label.add_theme_font_size_override("font_size", 18)
+	_level_flash_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.2))
+	_level_flash_label.anchor_left = 0.5
+	_level_flash_label.anchor_right = 0.5
+	_level_flash_label.anchor_top = 0.25
+	_level_flash_label.offset_left = -100
+	_level_flash_label.offset_right = 100
+	_level_flash_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_level_flash_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_level_flash_label.visible = false
+	add_child(_level_flash_label)
 
 	# Hotbar centred along the bottom.
 	_hotbar = Hotbar.new()
@@ -220,3 +242,16 @@ func _refresh_status_effects() -> void:
 			_status_container.add_child(lbl)
 			_status_labels[eid] = lbl
 		lbl.text = "%s %.1f" % [eff.display_name, remaining]
+
+
+func _on_leveled_up(_pid: int, _new_level: int) -> void:
+	if _level_flash_label == null:
+		return
+	if _level_flash_tween != null and _level_flash_tween.is_valid():
+		_level_flash_tween.kill()
+	_level_flash_label.visible = true
+	_level_flash_label.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	_level_flash_tween = create_tween()
+	_level_flash_tween.tween_interval(1.5)
+	_level_flash_tween.tween_property(_level_flash_label, "modulate:a", 0.0, 0.5)
+	_level_flash_tween.tween_callback(func() -> void: _level_flash_label.visible = false)

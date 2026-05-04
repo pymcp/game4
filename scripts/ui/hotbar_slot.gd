@@ -98,3 +98,24 @@ func _update_border_color(def: ItemDefinition) -> void:
 ## Test helper: returns the current id+count without scene introspection.
 func snapshot() -> Dictionary:
 	return {"id": item_id, "count": count}
+
+
+## Highlight this slot as the active (selected) hotbar slot.
+func set_active(active: bool) -> void:
+	if _bg_panel == null:
+		return
+	var sb: StyleBoxFlat = _bg_panel.get_theme_stylebox("panel") as StyleBoxFlat
+	if sb == null:
+		return
+	if active:
+		sb.border_width_left = 3
+		sb.border_width_right = 3
+		sb.border_width_top = 3
+		sb.border_width_bottom = 3
+		sb.border_color = Color(1.0, 1.0, 0.6)
+	else:
+		sb.border_width_left = 2
+		sb.border_width_right = 2
+		sb.border_width_top = 2
+		sb.border_width_bottom = 2
+		_update_border_color(ItemRegistry.get_item(item_id))

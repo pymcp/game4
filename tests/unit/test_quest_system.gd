@@ -262,3 +262,15 @@ func test_tracker_inactive_quest_queries() -> void:
 	assert_false(QuestTracker.is_quest_complete("herbalist_remedy"))
 	assert_eq(QuestTracker.get_active_branch("herbalist_remedy"), "")
 	assert_false(QuestTracker.is_quest_ready_to_complete("herbalist_remedy"))
+
+
+func test_registry_get_quests_by_giver_mara() -> void:
+	QuestRegistry.reload()
+	var ids: Array[String] = QuestRegistry.get_quests_by_giver("Mara")
+	assert_true(ids.has("herbalist_remedy"), "Mara should give herbalist_remedy")
+
+
+func test_registry_get_quests_by_giver_unknown_returns_empty() -> void:
+	QuestRegistry.reload()
+	var ids: Array[String] = QuestRegistry.get_quests_by_giver("Nobody")
+	assert_true(ids.is_empty(), "Unknown giver returns empty array")

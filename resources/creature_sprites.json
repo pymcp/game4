@@ -29,7 +29,8 @@
 			130,
 			64,
 			64
-		]
+		],
+		"xp_reward": 10
 	},
 	"bear": {
 		"anchor_ratio": [
@@ -61,7 +62,89 @@
 			260,
 			64,
 			64
-		]
+		],
+		"xp_reward": 50
+	},
+	"cat": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			0,
+			0,
+			64,
+			64
+		],
+		"attack_style": "swing",
+		"attack_damage": 1,
+		"attack_speed": 0.8,
+		"attack_range_tiles": 1.0,
+		"xp_reward": 10
+	},
+	"chameleon": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			65,
+			0,
+			64,
+			64
+		],
+		"attack_style": "none",
+		"attack_damage": 0,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 0.0,
+		"xp_reward": 10
+	},
+	"dog": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			130,
+			0,
+			64,
+			64
+		],
+		"attack_style": "none",
+		"attack_damage": 0,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 0.0,
+		"xp_reward": 10
 	},
 	"dragon": {
 		"anchor_ratio": [
@@ -109,7 +192,35 @@
 			130,
 			129,
 			129
-		]
+		],
+		"xp_reward": 150
+	},
+	"duck": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			195,
+			0,
+			64,
+			64
+		],
+		"attack_style": "none",
+		"attack_damage": 0,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 0.0,
+		"xp_reward": 10
 	},
 	"fire_elemental": {
 		"anchor_ratio": [
@@ -146,7 +257,8 @@
 			0,
 			129,
 			129
-		]
+		],
+		"xp_reward": 25
 	},
 	"goblin": {
 		"anchor_ratio": [
@@ -178,7 +290,8 @@
 			130,
 			64,
 			64
-		]
+		],
+		"xp_reward": 25
 	},
 	"goblin_jester": {
 		"anchor_ratio": [
@@ -210,7 +323,8 @@
 			195,
 			64,
 			64
-		]
+		],
+		"xp_reward": 25
 	},
 	"grasshopper": {
 		"anchor_ratio": [
@@ -247,7 +361,8 @@
 			260,
 			64,
 			64
-		]
+		],
+		"xp_reward": 10
 	},
 	"harpy": {
 		"anchor_ratio": [
@@ -279,7 +394,35 @@
 			260,
 			64,
 			64
-		]
+		],
+		"xp_reward": 25
+	},
+	"hedgehog": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			260,
+			0,
+			64,
+			64
+		],
+		"attack_style": "none",
+		"attack_damage": 0,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 0.0,
+		"xp_reward": 10
 	},
 	"ice_elemental": {
 		"anchor_ratio": [
@@ -316,7 +459,8 @@
 			0,
 			129,
 			129
-		]
+		],
+		"xp_reward": 25
 	},
 	"imp": {
 		"anchor_ratio": [
@@ -349,7 +493,8 @@
 			260,
 			64,
 			64
-		]
+		],
+		"xp_reward": 25
 	},
 	"ogre": {
 		"anchor_ratio": [
@@ -385,7 +530,8 @@
 			0,
 			129,
 			129
-		]
+		],
+		"xp_reward": 50
 	},
 	"orc": {
 		"anchor_ratio": [
@@ -417,7 +563,8 @@
 			260,
 			64,
 			64
-		]
+		],
+		"xp_reward": 25
 	},
 	"rat": {
 		"anchor_ratio": [
@@ -449,7 +596,35 @@
 			260,
 			64,
 			64
-		]
+		],
+		"xp_reward": 10
+	},
+	"roly_poly": {
+		"is_pet": true,
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sheet": "res://assets/icons/hires/pets.png",
+		"region": [
+			325,
+			0,
+			64,
+			64
+		],
+		"attack_style": "none",
+		"attack_damage": 0,
+		"attack_speed": 1.0,
+		"attack_range_tiles": 0.0,
+		"xp_reward": 10
 	},
 	"skeleton": {
 		"anchor_ratio": [
@@ -481,7 +656,8 @@
 			130,
 			64,
 			64
-		]
+		],
+		"xp_reward": 25
 	},
 	"skeleton_mage": {
 		"anchor_ratio": [
@@ -513,7 +689,8 @@
 			195,
 			64,
 			64
-		]
+		],
+		"xp_reward": 25
 	},
 	"slime": {
 		"anchor_ratio": [
@@ -545,7 +722,8 @@
 			130,
 			64,
 			64
-		]
+		],
+		"xp_reward": 10
 	},
 	"slime_king": {
 		"anchor_ratio": [
@@ -588,7 +766,8 @@
 			0,
 			129,
 			129
-		]
+		],
+		"xp_reward": 150
 	},
 	"snake": {
 		"anchor_ratio": [
@@ -620,7 +799,8 @@
 			195,
 			64,
 			64
-		]
+		],
+		"xp_reward": 10
 	},
 	"spider": {
 		"anchor_ratio": [
@@ -652,7 +832,8 @@
 			260,
 			64,
 			64
-		]
+		],
+		"xp_reward": 10
 	},
 	"troll": {
 		"anchor_ratio": [
@@ -688,7 +869,8 @@
 			130,
 			129,
 			129
-		]
+		],
+		"xp_reward": 50
 	},
 	"wolf": {
 		"anchor_ratio": [
@@ -720,7 +902,8 @@
 			195,
 			64,
 			64
-		]
+		],
+		"xp_reward": 25
 	},
 	"zombie": {
 		"anchor_ratio": [
@@ -752,6 +935,7 @@
 			260,
 			64,
 			64
-		]
+		],
+		"xp_reward": 25
 	}
 }
