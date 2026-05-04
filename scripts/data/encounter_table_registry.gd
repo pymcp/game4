@@ -105,3 +105,43 @@ static func weighted_pick(rng: RandomNumberGenerator, table: Array) -> Dictionar
 		if roll <= acc:
 			return e
 	return table[0]
+
+
+## Returns filtered, weighted creature entries for the overworld at
+## [param biome_id] and [param region_distance] (Manhattan from 0,0).
+## Each entry: {creature: StringName, weight: int}
+static func get_overworld_weighted_list(biome_id: String, region_distance: int) -> Array:
+	_ensure_loaded()
+	var overworld: Variant = _data.get("overworld", null)
+	if not (overworld is Dictionary):
+		return []
+	var biome_tables: Variant = overworld.get("biome_tables", null)
+	if not (biome_tables is Dictionary):
+		return []
+	var entries: Variant = biome_tables.get(biome_id, null)
+	if not (entries is Array):
+		return []
+	var out: Array = []
+	for entry in entries:
+		var mn: int = int(entry.get("min_dist", 0))
+		var mx: int = int(entry.get("max_dist", 99))
+		if region_distance >= mn and region_distance <= mx:
+			out.append({
+				"creature": StringName(entry.get("creature", "")),
+				"weight": int(entry.get("weight", 1)),
+			})
+	return out
+
+
+## Picks a creature for the overworld using the biome table filtered by
+## [param region_distance]. Falls back to [code]&"slime"[/code] when
+## no table entry matches (guarantees a valid result).
+static func pick_overworld_creature(biome_id: String, region_distance: int,
+		rng: RandomNumberGenerator) -> StringName:
+	var table: Array = get_overworld_weighted_list(biome_id, region_distance)
+	if table.is_empty():
+		return &"slime"
+	var entry: Dictionary = weighted_pick(rng, table)
+	if entry.is_empty():
+		return &"slime"
+	return StringName(entry.get("creature", "slime"))

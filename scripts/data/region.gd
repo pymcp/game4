@@ -36,6 +36,14 @@ const SIZE: int = 128
 @export var encounters: Array = []
 ## Path tiles painted with overlay path indices (1-tile-wide corridor).
 @export var path_tiles: Array[Vector2i] = []
+## Visit-based respawn tracking. Incremented each time apply_view loads this
+## region. Entries in `killed_cells` whose stored count matches
+## `region_visit_count` are still dead (killed this visit); any entry whose
+## count is older than the current value respawns on the next apply_view.
+@export var region_visit_count: int = 0
+## Maps scatter cell → the visit count at which the monster was killed.
+## Vector2i keys are serialised fine by Godot's Resource .tres format.
+@export var killed_cells: Dictionary = {}
 
 
 func _init() -> void:

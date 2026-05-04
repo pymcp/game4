@@ -67,6 +67,33 @@
 			],
 			"width_tiles": 1
 		},
+		"blue_nightcap_mushroom": {
+			"biome_weights": {
+				"grass": 0.004,
+				"swamp": 0.008
+			},
+			"display_name": "Blue Nightcap Mushroom",
+			"drops": [
+				{
+					"count": 1,
+					"item_id": "blue_nightcap"
+				}
+			],
+			"height_tiles": 1,
+			"hp": 1,
+			"is_pickaxe_bonus": false,
+			"ref_id": "blue_nightcap_mushroom",
+			"sprites": [
+				[
+					36,
+					29
+				]
+			],
+			"walkable_mask": [
+				true
+			],
+			"width_tiles": 1
+		},
 		"copper_vein": {
 			"biome_weights": {
 				"rocky": 0.01

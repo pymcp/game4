@@ -117,5 +117,52 @@
 				"weight": 6
 			}
 		]
+	},
+	"overworld": {
+		"biome_tables": {
+			"grass": [
+				{"creature": "slime",        "min_dist": 0, "max_dist": 99, "weight": 10},
+				{"creature": "snake",        "min_dist": 0, "max_dist": 7,  "weight": 7},
+				{"creature": "rat",          "min_dist": 0, "max_dist": 6,  "weight": 6},
+				{"creature": "goblin_jester","min_dist": 1, "max_dist": 5,  "weight": 6},
+				{"creature": "wolf",         "min_dist": 2, "max_dist": 99, "weight": 8},
+				{"creature": "goblin",       "min_dist": 2, "max_dist": 99, "weight": 7},
+				{"creature": "bear",         "min_dist": 4, "max_dist": 99, "weight": 4}
+			],
+			"desert": [
+				{"creature": "rat",    "min_dist": 0, "max_dist": 99, "weight": 10},
+				{"creature": "snake",  "min_dist": 0, "max_dist": 99, "weight": 10},
+				{"creature": "spider", "min_dist": 0, "max_dist": 7,  "weight": 7},
+				{"creature": "bat",    "min_dist": 1, "max_dist": 5,  "weight": 5},
+				{"creature": "harpy",  "min_dist": 3, "max_dist": 99, "weight": 6}
+			],
+			"rocky": [
+				{"creature": "bat",      "min_dist": 0, "max_dist": 8,  "weight": 8},
+				{"creature": "spider",   "min_dist": 0, "max_dist": 7,  "weight": 7},
+				{"creature": "skeleton", "min_dist": 1, "max_dist": 99, "weight": 8},
+				{"creature": "wolf",     "min_dist": 1, "max_dist": 8,  "weight": 8},
+				{"creature": "bear",     "min_dist": 2, "max_dist": 6,  "weight": 6},
+				{"creature": "orc",      "min_dist": 4, "max_dist": 99, "weight": 5},
+				{"creature": "troll",    "min_dist": 6, "max_dist": 99, "weight": 3}
+			],
+			"snow": [
+				{"creature": "wolf",          "min_dist": 0, "max_dist": 99, "weight": 10},
+				{"creature": "bat",           "min_dist": 0, "max_dist": 8,  "weight": 8},
+				{"creature": "spider",        "min_dist": 1, "max_dist": 5,  "weight": 5},
+				{"creature": "zombie",        "min_dist": 2, "max_dist": 7,  "weight": 7},
+				{"creature": "skeleton",      "min_dist": 2, "max_dist": 7,  "weight": 7},
+				{"creature": "ice_elemental", "min_dist": 5, "max_dist": 99, "weight": 4}
+			],
+			"swamp": [
+				{"creature": "snake",         "min_dist": 0, "max_dist": 99, "weight": 10},
+				{"creature": "spider",        "min_dist": 0, "max_dist": 9,  "weight": 9},
+				{"creature": "bat",           "min_dist": 0, "max_dist": 7,  "weight": 7},
+				{"creature": "slime",         "min_dist": 0, "max_dist": 5,  "weight": 5},
+				{"creature": "zombie",        "min_dist": 1, "max_dist": 8,  "weight": 8},
+				{"creature": "skeleton",      "min_dist": 2, "max_dist": 6,  "weight": 6},
+				{"creature": "skeleton_mage", "min_dist": 4, "max_dist": 99, "weight": 4},
+				{"creature": "troll",         "min_dist": 5, "max_dist": 99, "weight": 3}
+			]
+		}
 	}
 }

@@ -106,10 +106,10 @@ func _ready() -> void:
 	add_to_group(&"world_instances")
 	# Invalidate entity cache when enemies/players enter or leave this instance.
 	entities.child_entered_tree.connect(func(node: Node) -> void:
-		if node is PlayerController or node is NPC or node is Monster:
+		if node is PlayerController or node is Monster:
 			mark_entity_cache_dirty())
 	entities.child_exiting_tree.connect(func(node: Node) -> void:
-		if node is PlayerController or node is NPC or node is Monster:
+		if node is PlayerController or node is Monster:
 			mark_entity_cache_dirty())
 
 
@@ -126,7 +126,11 @@ func _rebuild_entity_cache() -> void:
 	for child in entities.get_children():
 		if child is PlayerController:
 			_player_cache.append(child as PlayerController)
-		elif child is NPC or child is Monster:
+		elif child is Monster:
+			_hostile_cache.append(child as Node2D)
+		elif child is Villager:
+			# Villagers can be attacked by monsters so they belong in the hostile cache
+			# for LOD and pet targeting purposes.
 			_hostile_cache.append(child as Node2D)
 	_entity_cache_dirty = false
 
@@ -1352,7 +1356,10 @@ func _build_door_index(view_kind: StringName) -> void:
 				_doors[c] = {"kind": &"house_enter", "cell": c,
 						"style": entry.get("style", &"wood")}
 			elif ek == &"labyrinth":
-				_doors[c] = {"kind": &"labyrinth_enter", "cell": c}
+				var door_data: Dictionary = {"kind": &"labyrinth_enter", "cell": c}
+				if entry.get("quest_mine", false):
+					door_data["quest_mine"] = true
+				_doors[c] = door_data
 			else:
 				_doors[c] = {"kind": &"dungeon_enter", "cell": c}
 		for rune in _region.runes:
@@ -1383,6 +1390,8 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 					MapManager.DEFAULT_FLOOR_SIZE, &"house", hstyle)
 			World.instance().transition_player(player.player_id, &"house", _region, house)
 		&"labyrinth_enter":
+			if door.get("quest_mine", false):
+				QuestTracker.notify_location_reached("moonstone_mine")
 			_handle_enter_interior(player, cell, &"labyrinth")
 		&"interior_exit":
 			if _interior != null:
@@ -1606,6 +1615,11 @@ const _TreasureChestScene: PackedScene = preload("res://scenes/entities/Treasure
 
 func _spawn_scattered_npcs() -> void:
 	_maybe_inject_mara()
+	_maybe_inject_quest_interactables()
+	# Increment the visit counter for overworld regions so the respawn logic
+	# can tell "killed this visit" from "killed a previous visit".
+	if _interior == null and _region != null:
+		_region.region_visit_count += 1
 	var entries: Array = []
 	if _interior != null:
 		entries = _interior.npcs_scatter
@@ -1614,6 +1628,11 @@ func _spawn_scattered_npcs() -> void:
 	for entry in entries:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
+		# Skip monsters killed during the current visit (respawn on next entry).
+		if _interior == null and _region != null:
+			var cell: Vector2i = entry.get("cell", Vector2i(-1, -1))
+			if _region.killed_cells.get(cell, -1) == _region.region_visit_count:
+				continue
 		var kind: StringName = entry.get("kind", &"")
 		match kind:
 			&"villager":
@@ -1628,12 +1647,24 @@ func _spawn_scattered_npcs() -> void:
 	# Boss room — spawn boss + adds if this is a labyrinth boss floor.
 	if _interior != null and not _interior.boss_data.is_empty():
 		var bd: Dictionary = _interior.boss_data
+		var boss_kind: StringName = bd.get("kind", &"slime_king")
+		var boss_cell: Vector2i = bd.get("cell", Vector2i.ZERO)
 		var boss_entry: Dictionary = {
-			"monster_kind": bd.get("kind", &"slime_king"),
-			"cell": bd.get("cell", Vector2i.ZERO),
-			"kind": bd.get("kind", &"slime_king"),
+			"monster_kind": boss_kind,
+			"cell": boss_cell,
+			"kind": boss_kind,
 		}
 		_spawn_monster(boss_entry)
+		# Hook boss death for quest mine_leak interactable.
+		if boss_kind == &"corrupted_golem":
+			var boss_pos: Vector2 = (Vector2(boss_cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+			# Find the boss Monster we just spawned.
+			for child in entities.get_children():
+				if child is Monster and child.monster_kind == &"corrupted_golem":
+					child.died.connect(
+						func(_pos: Vector2, _drops: Array) -> void:
+							_spawn_mine_leak(boss_pos))
+					break
 		for add in bd.get("adds", []):
 			var add_entry: Dictionary = {
 				"monster_kind": StringName(add.get("kind", &"slime")),
@@ -1641,6 +1672,24 @@ func _spawn_scattered_npcs() -> void:
 				"kind": StringName(add.get("kind", &"slime")),
 			}
 			_spawn_monster(add_entry)
+
+
+func _spawn_mine_leak(boss_pos: Vector2) -> void:
+	# Spawn a QuestInteractable for the mine leak objective behind where the boss was.
+	var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
+	qi.quest_id = "herbalist_remedy"
+	qi.objective_id = "seal_leak"
+	qi.interact_speaker = ""
+	qi.interact_text = "You seal the crack with loose stone. Dark fluid stops seeping through."
+	qi.give_item_id = &"contaminated_ore"
+	qi.give_item_count = 1
+	qi.position = boss_pos + Vector2(0, -24)
+	var spr: Sprite2D = qi.get_node("Sprite2D") as Sprite2D
+	if spr != null:
+		var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0.35, 0.25, 0.4, 0.9))
+		spr.texture = ImageTexture.create_from_image(img)
+	entities.add_child(qi)
 
 
 func _maybe_inject_mara() -> void:
@@ -1668,6 +1717,61 @@ func _maybe_inject_mara() -> void:
 		"seed": 0xA4A7A,  # Deterministic seed for "Mara" appearance.
 		"dialogue": "res://resources/dialogue/healer_mara.tres",
 		"quest_giver_name": "Mara",
+	})
+
+
+const _QuestInteractableScene: PackedScene = preload("res://scenes/entities/QuestInteractable.tscn")
+
+
+func _maybe_inject_quest_interactables() -> void:
+	# Only on overworld starting region.
+	if _interior != null or _region == null:
+		return
+	var rid: Vector2i = _region.region_id
+	if abs(rid.x) > 1 or abs(rid.y) > 1:
+		return
+	if _region.spawn_points.is_empty():
+		return
+	var centre: Vector2i = _region.spawn_points[0]
+	# Spring — clean water source for herbalist quest.
+	_inject_spring(centre)
+	# Moonstone mine — labyrinth entrance east of spawn.
+	_inject_moonstone_mine(centre)
+
+
+func _inject_spring(centre: Vector2i) -> void:
+	# Check if already placed.
+	for child in entities.get_children():
+		if child is QuestInteractable and child.objective_id == "get_water":
+			return
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(-5, 4), 4, true)
+	var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
+	qi.quest_id = "herbalist_remedy"
+	qi.objective_id = "get_water"
+	qi.interact_speaker = ""
+	qi.interact_text = "You fill a vial with clear spring water."
+	qi.give_item_id = &"clean_spring_water"
+	qi.give_item_count = 1
+	qi.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+	# Visual: use a water-coloured placeholder sprite.
+	var spr: Sprite2D = qi.get_node("Sprite2D") as Sprite2D
+	if spr != null:
+		var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0.3, 0.6, 0.9, 0.8))
+		spr.texture = ImageTexture.create_from_image(img)
+	entities.add_child(qi)
+
+
+func _inject_moonstone_mine(centre: Vector2i) -> void:
+	# Check if already placed.
+	for entry in _region.dungeon_entrances:
+		if entry.get("quest_mine", false):
+			return
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(12, 0), 6, true)
+	_region.dungeon_entrances.append({
+		"kind": &"labyrinth",
+		"cell": cell,
+		"quest_mine": true,
 	})
 
 
@@ -1730,6 +1834,12 @@ func spawn_loot_at(world_pos: Vector2, item_id: StringName, count: int = 1) -> v
 
 
 func _on_monster_died(world_position: Vector2, drops: Array) -> void:
+	# Record the kill so the monster stays dead for the rest of this visit.
+	if _interior == null and _region != null:
+		var kill_cell := Vector2i(
+				int(floor(world_position.x / float(WorldConst.TILE_PX))),
+				int(floor(world_position.y / float(WorldConst.TILE_PX))))
+		_region.killed_cells[kill_cell] = _region.region_visit_count
 	for d in drops:
 		var pickup := LootPickup.new()
 		pickup.item_id = d["id"] if d is Dictionary else d
@@ -1844,6 +1954,11 @@ func show_dialogue_tree(player: PlayerController, tree: DialogueTree, npc: Node2
 
 
 func _on_choice_selected(choice: DialogueChoice, passed: bool) -> void:
+	# Auto-start quest if the choice's set_flag matches a quest trigger_flag.
+	if choice.set_flag != "":
+		var match: Dictionary = QuestRegistry.get_quest_for_trigger_flag(choice.set_flag)
+		if not match.is_empty():
+			QuestTracker.start_quest(match["quest_id"], match["branch_id"])
 	var next: Resource = choice.next_node if passed else choice.failure_node
 	if next == null:
 		next = choice.next_node  # fallback on missing failure branch

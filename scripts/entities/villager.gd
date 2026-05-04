@@ -396,6 +396,8 @@ func _tick_flee(delta: float) -> void:
 func interact(player: PlayerController) -> bool:
 	if _world == null or player == null:
 		return false
+	# Check quest turn-in before dialogue.
+	_try_quest_turn_in(player)
 	if shop_id != &"" and ShopRegistry.has_shop(String(shop_id)):
 		_world.open_shop(player, String(shop_id), self)
 		return true
@@ -468,3 +470,24 @@ func _tick_indicator_bob(delta: float) -> void:
 		return
 	_indicator_bob_t += delta
 	_quest_indicator.position.y = -32.0 + sin(_indicator_bob_t * TAU * 1.5) * 3.0
+
+
+## Mark any "talk" objectives targeting this NPC in active quests, then
+## auto-complete quests that become ready.
+func _try_quest_turn_in(_player: PlayerController) -> void:
+	if quest_giver_name.is_empty():
+		return
+	for qid in _giver_quest_ids:
+		if not QuestTracker.is_quest_active(qid):
+			continue
+		var branch_id: String = QuestTracker.get_active_branch(qid)
+		var branch: Dictionary = QuestRegistry.get_branch(qid, branch_id)
+		for obj in branch.get("objectives", []):
+			if obj.get("type", "") != "talk":
+				continue
+			if obj.get("npc", "") != quest_giver_name:
+				continue
+			QuestTracker.mark_objective_done(qid, obj["id"])
+		# Auto-complete if all objectives now met.
+		if QuestTracker.is_quest_ready_to_complete(qid):
+			QuestTracker.complete_quest(qid)

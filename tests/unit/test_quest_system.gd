@@ -88,8 +88,8 @@ func test_registry_requirement_summary() -> void:
 	QuestRegistry.reload()
 	var summary: Dictionary = QuestRegistry.get_requirement_summary("herbalist_remedy")
 	assert_true(summary["total"] > 0, "should have requirements")
-	assert_eq(summary["implemented"], 1, "fennel_root is implemented")
-	assert_eq(summary["not_implemented"], summary["total"] - 1)
+	assert_eq(summary["implemented"], 16, "16 requirements now implemented")
+	assert_eq(summary["not_implemented"], summary["total"] - 16)
 
 
 func test_registry_requirements_cover_all_categories() -> void:
@@ -98,12 +98,14 @@ func test_registry_requirements_cover_all_categories() -> void:
 	var categories: Dictionary = {}
 	for entry in missing:
 		categories[entry["category"]] = true
-	assert_true(categories.has("npcs"), "should have NPC requirements")
-	assert_true(categories.has("items"), "should have item requirements")
+	# Only locations and entities remain NOT_IMPLEMENTED
 	assert_true(categories.has("locations"), "should have location requirements")
 	assert_true(categories.has("entities"), "should have entity requirements")
-	assert_true(categories.has("terrain_features"), "should have terrain requirements")
-	assert_true(categories.has("dialogue_updates"), "should have dialogue update requirements")
+	# These are now all IMPLEMENTED:
+	assert_false(categories.has("npcs"), "npcs should be implemented")
+	assert_false(categories.has("items"), "items should be implemented")
+	assert_false(categories.has("terrain_features"), "terrain should be implemented")
+	assert_false(categories.has("dialogue_updates"), "dialogue should be implemented")
 
 
 # ─── QuestTracker: lifecycle ──────────────────────────────────────

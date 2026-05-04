@@ -5,12 +5,50 @@
 ##
 ## Builds and saves Mara the Herbalist's dialogue tree to
 ## `res://resources/dialogue/healer_mara.tres`.
+##
+## The tree has 3 layers:
+##   1. Router root — checks quest_herbalist_remedy_complete, then quest_started
+##   2. Initial conversation — intro → knowledge/deal/help → quest start
+##   3. Return-visit leaves — branch-specific completion dialogue
 extends SceneTree
 
 
 func _init() -> void:
-	# ── Leaf nodes (end of conversation) ──────────────────────────────
+	# ════════════════════════════════════════════════════════════════════
+	# POST-COMPLETION (quest done)
+	# ════════════════════════════════════════════════════════════════════
+	var leaf_complete := DialogueNode.new()
+	leaf_complete.speaker = "Mara"
+	leaf_complete.text = "The valley owes you a debt it can never repay. The animals are recovering and the water runs clear again. If you ever need a tonic, you know where to find me."
+	leaf_complete.condition_flag = "quest_herbalist_remedy_complete"
 
+	# ════════════════════════════════════════════════════════════════════
+	# RETURN-VISIT (quest in progress)
+	# ════════════════════════════════════════════════════════════════════
+	# Return: herbs branch active
+	var return_herbs := DialogueNode.new()
+	return_herbs.speaker = "Mara"
+	return_herbs.text = "You're back! Have you found the herbs I need? Fennel root, blue nightcap mushrooms, and clean spring water. The valley grows sicker by the day."
+	return_herbs.condition_flag = "quest_herbalist_herbs"
+	return_herbs.condition_flag_false = "quest_herbalist_remedy_complete"
+
+	# Return: mine branch active
+	var return_mine := DialogueNode.new()
+	return_mine.speaker = "Mara"
+	return_mine.text = "The mine entrance is east of here. Seal whatever is leaking down there and bring back proof — a piece of that contaminated ore. Be careful."
+	return_mine.condition_flag = "quest_herbalist_mine"
+	return_mine.condition_flag_false = "quest_herbalist_remedy_complete"
+
+	# Return: both branch active
+	var return_both := DialogueNode.new()
+	return_both.speaker = "Mara"
+	return_both.text = "You've taken on quite a task! The herbs — fennel root, blue nightcap, and spring water — and sealing the mine. The valley is counting on you."
+	return_both.condition_flag = "quest_herbalist_both"
+	return_both.condition_flag_false = "quest_herbalist_remedy_complete"
+
+	# ════════════════════════════════════════════════════════════════════
+	# INITIAL CONVERSATION (quest not yet started)
+	# ════════════════════════════════════════════════════════════════════
 	var leaf_clue := DialogueNode.new()
 	leaf_clue.speaker = "Mara"
 	leaf_clue.text = "The sickness started near the old mine in the eastern hills. Something seeped into the groundwater. If you go there, be careful — the animals nearby have gone feral."
@@ -87,19 +125,40 @@ func _init() -> void:
 			"quest_herbalist_both"),
 	]
 
-	# ── Depth-1 node (root response after intro) ─────────────────────
+	# ── Intro root ────────────────────────────────────────────────────
+	var intro := DialogueNode.new()
+	intro.speaker = "Mara"
+	intro.text = "Traveller! Thank the stars someone's come. The Quiet Sickness is spreading — cattle dropping, dogs going blind, even the wild rabbits are wasting away. I'm running out of remedies and running out of time. Can you help?"
+	intro.condition_flag_false = "quest_herbalist_remedy_started"
+	intro.choices = [
+		_choice_stat(&"wisdom", 3, "What do you know about the cause?", know_d2, null),
+		_choice_stat(&"charisma", 3, "I might help — but what's in it for me?", deal_d2, null),
+		_choice("Tell me what you need. I'm here to help.", help_d2),
+	]
 
+	# ── Router root ───────────────────────────────────────────────────
+	# Choices are flag-gated so only relevant options appear.
+	# After quest completion, _try_quest_turn_in() fires before dialogue
+	# opens, so quest_herbalist_remedy_complete is already set.
 	var root := DialogueNode.new()
 	root.speaker = "Mara"
-	root.text = "Traveller! Thank the stars someone's come. The Quiet Sickness is spreading — cattle dropping, dogs going blind, even the wild rabbits are wasting away. I'm running out of remedies and running out of time. Can you help?"
+	root.text = "Ah, traveller! What brings you back to old Mara?"
 	root.choices = [
+		# Post-completion (only visible after quest is done)
+		_choice_require("How is the valley doing?", leaf_complete, "quest_herbalist_remedy_complete"),
+		# Return-visit: herbs branch in progress
+		_choice_require("I'm still gathering the herbs.", return_herbs, "quest_herbalist_herbs"),
+		# Return-visit: mine branch in progress
+		_choice_require("I'm working on the mine.", return_mine, "quest_herbalist_mine"),
+		# Return-visit: both branch in progress
+		_choice_require("I'm working on it — both tasks.", return_both, "quest_herbalist_both"),
+		# Initial conversation (only when quest NOT started)
 		_choice_stat(&"wisdom", 3, "What do you know about the cause?", know_d2, null),
 		_choice_stat(&"charisma", 3, "I might help — but what's in it for me?", deal_d2, null),
 		_choice("Tell me what you need. I'm here to help.", help_d2),
 	]
 
 	# ── Tree wrapper ──────────────────────────────────────────────────
-
 	var tree := DialogueTree.new()
 	tree.root = root
 
@@ -151,4 +210,12 @@ func _choice_flag(label: String, next: DialogueNode, flag: String) -> DialogueCh
 	c.label = label
 	c.next_node = next
 	c.set_flag = flag
+	return c
+
+
+func _choice_require(label: String, next: DialogueNode, flag: String) -> DialogueChoice:
+	var c := DialogueChoice.new()
+	c.label = label
+	c.next_node = next
+	c.require_flag = flag
 	return c

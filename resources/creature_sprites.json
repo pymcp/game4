@@ -119,6 +119,50 @@
 		"attack_range_tiles": 0.0,
 		"xp_reward": 10
 	},
+	"corrupted_golem": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 5,
+		"attack_range_tiles": 1.5,
+		"attack_speed": 1.8,
+		"attack_style": "slam",
+		"facing_right": true,
+		"footprint": [
+			2,
+			2
+		],
+		"is_boss": true,
+		"scale": [
+			0.25,
+			0.25
+		],
+		"sprite_tiles": [
+			2,
+			2
+		],
+		"tint": [
+			0.4,
+			0.55,
+			0.3,
+			1
+		],
+		"boss_adds": [
+			{
+				"creature": "slime",
+				"count": 2
+			}
+		],
+		"xp_reward": 100,
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			0,
+			325,
+			129,
+			129
+		]
+	},
 	"dog": {
 		"is_pet": true,
 		"anchor_ratio": [

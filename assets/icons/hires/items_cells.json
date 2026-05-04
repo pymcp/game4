@@ -1,8 +1,48 @@
 {
+	"antidote_recipe": {
+		"cell": [
+			3,
+			1
+		],
+		"size": [
+			1,
+			1
+		]
+	},
 	"arrow": {
 		"cell": [
 			0,
 			0
+		],
+		"size": [
+			1,
+			1
+		]
+	},
+	"blue_nightcap": {
+		"cell": [
+			4,
+			1
+		],
+		"size": [
+			1,
+			1
+		]
+	},
+	"clean_spring_water": {
+		"cell": [
+			5,
+			1
+		],
+		"size": [
+			1,
+			1
+		]
+	},
+	"contaminated_ore": {
+		"cell": [
+			6,
+			1
 		],
 		"size": [
 			1,
@@ -92,6 +132,16 @@
 	"stone": {
 		"cell": [
 			1,
+			1
+		],
+		"size": [
+			1,
+			1
+		]
+	},
+	"tonic": {
+		"cell": [
+			7,
 			1
 		],
 		"size": [

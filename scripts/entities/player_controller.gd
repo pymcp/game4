@@ -725,6 +725,7 @@ func _tick_auto_mine() -> void:
 			if &"scavenger" in unlocked_passives and randf() < 0.25:
 				cnt *= 2
 			inventory.add(d["id"], cnt)
+			QuestTracker.notify_item_collected(StringName(d["id"]), cnt)
 	_attack_cooldown = ATTACK_COOLDOWN_SEC
 
 
@@ -744,12 +745,7 @@ func _auto_attack_melee(weapon_id: StringName, def: ItemDefinition) -> void:
 	for n in _world.entities.get_children():
 		if n == self:
 			continue
-		var is_hostile: bool = false
-		if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
-			is_hostile = true
-		elif n is Monster and (n as Monster).health > 0:
-			is_hostile = true
-		if not is_hostile:
+		if not (n is Monster and (n as Monster).health > 0):
 			continue
 		var eff_reach: float = reach + HitboxCalc.get_radius(n)
 		var eff_reach2: float = eff_reach * eff_reach
@@ -788,12 +784,7 @@ func _auto_attack_ranged(weapon_id: StringName, def: ItemDefinition) -> void:
 	for n in _world.entities.get_children():
 		if n == self:
 			continue
-		var is_hostile: bool = false
-		if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
-			is_hostile = true
-		elif n is Monster and (n as Monster).health > 0:
-			is_hostile = true
-		if not is_hostile:
+		if not (n is Monster and (n as Monster).health > 0):
 			continue
 		var to: Vector2 = (n as Node2D).position - position
 		var eff_reach: float = reach + HitboxCalc.get_radius(n)
@@ -992,6 +983,7 @@ func try_attack(charge_mult: float = 1.0) -> Dictionary:
 			if &"scavenger" in unlocked_passives and randf() < 0.25:
 				cnt *= 2
 			inventory.add(d["id"], cnt)
+			QuestTracker.notify_item_collected(StringName(d["id"]), cnt)
 	return res
 
 
@@ -1032,12 +1024,7 @@ func _find_facing_hostile() -> Node2D:
 	for n in _world.entities.get_children():
 		if n == self:
 			continue
-		var is_hostile: bool = false
-		if n is NPC and (n as NPC).hostile and (n as NPC).health > 0:
-			is_hostile = true
-		elif n is Monster and (n as Monster).health > 0:
-			is_hostile = true
-		if not is_hostile:
+		if not (n is Monster and (n as Monster).health > 0):
 			continue
 		var to: Vector2 = (n as Node2D).position - position
 		var eff_reach: float = reach + HitboxCalc.get_radius(n)
