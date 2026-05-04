@@ -1,25 +1,24 @@
 ## CooldownWidget
 ##
-## Draws two arc pies showing the attack and dodge cooldown readiness.
-## Arc is drawn clockwise from the top; a full circle means the action
-## is *ready*. The arc drains as the cooldown counts down.
+## Two labeled horizontal bars showing attack and dodge cooldown readiness.
+## Bar drains left-to-right as the cooldown counts down; full bar = ready.
 ##
-## Ratios are provided via [method update_ratios]; call each frame from Game._process.
+## Ratios are provided via [method update_ratios]; call each frame from game._process.
 extends Control
 class_name CooldownWidget
 
-## Size of each arc disc in pixels.
-const _DISC_SIZE: float = 18.0
-## Gap between the two discs.
-const _GAP: float = 6.0
+const _BAR_W:    float = 60.0
+const _BAR_H:    float = 7.0
+const _LABEL_W:  float = 24.0
+const _GAP:      float = 6.0
+const _ROW_H:    float = 18.0
 
-const _COLOR_READY:  Color = Color(0.3, 0.85, 0.35)   # green
-const _COLOR_CHARGE: Color = Color(0.9, 0.7, 0.2)     # orange
-const _COLOR_COOL:   Color = Color(0.45, 0.45, 0.45)  # gray (cooling)
-const _COLOR_BG:     Color = Color(0.0, 0.0, 0.0, 0.5)
-
-# dodge arc colours
-const _COLOR_DODGE_READY: Color = Color(0.35, 0.6, 1.0)  # blue
+const _COLOR_ATK_READY:  Color = Color(0.9,  0.55, 0.2)   # orange
+const _COLOR_ATK_COOL:   Color = Color(0.45, 0.3,  0.1)   # dim orange
+const _COLOR_DGE_READY:  Color = Color(0.3,  0.65, 1.0)   # blue
+const _COLOR_DGE_COOL:   Color = Color(0.15, 0.3,  0.5)   # dim blue
+const _COLOR_TRACK:      Color = Color(0.0,  0.0,  0.0, 0.45)
+const _COLOR_LABEL:      Color = Color(0.75, 0.75, 0.75)
 
 var _atk_ratio: float = 0.0   ## 0 = ready, 1 = full cooldown
 var _dodge_ratio: float = 0.0
@@ -27,7 +26,7 @@ var _dodge_ratio: float = 0.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	custom_minimum_size = Vector2(_DISC_SIZE * 2 + _GAP, _DISC_SIZE)
+	custom_minimum_size = Vector2(_LABEL_W + _BAR_W, _ROW_H * 2 + _GAP)
 
 
 ## [param atk_ratio] and [param dodge_ratio] are each 0.0 (ready) → 1.0 (cooling).
@@ -40,46 +39,26 @@ func update_ratios(atk_ratio: float, dodge_ratio: float) -> void:
 
 
 func _draw() -> void:
-	var r: float = _DISC_SIZE * 0.5
-	# --- Attack disc ---
-	var atk_center := Vector2(r, r)
-	draw_circle(atk_center, r, _COLOR_BG)
-	_draw_filled_arc(atk_center, r, 1.0 - _atk_ratio,
-			_COLOR_CHARGE if _atk_ratio > 0.0 else _COLOR_READY)
-
-	# --- Dodge disc ---
-	var dodge_center := Vector2(_DISC_SIZE + _GAP + r, r)
-	draw_circle(dodge_center, r, _COLOR_BG)
-	_draw_filled_arc(dodge_center, r, 1.0 - _dodge_ratio,
-			_COLOR_COOL if _dodge_ratio > 0.0 else _COLOR_DODGE_READY)
-
-	# --- Letter labels ---
-	_draw_label("A", atk_center)
-	_draw_label("D", dodge_center)
+	var atk_fill: float = 1.0 - _atk_ratio
+	var dge_fill: float = 1.0 - _dodge_ratio
+	_draw_row(0.0,           "ATK", atk_fill,
+			_COLOR_ATK_READY if _atk_ratio <= 0.0 else _COLOR_ATK_COOL)
+	_draw_row(_ROW_H + _GAP, "DGE", dge_fill,
+			_COLOR_DGE_READY if _dodge_ratio <= 0.0 else _COLOR_DGE_COOL)
 
 
-func _draw_filled_arc(center: Vector2, r: float, fill: float, col: Color) -> void:
-	if fill <= 0.0:
-		return
-	# Draw a filled wedge using a polygon. 32 points is smooth enough at this size.
-	const SEGS: int = 32
-	var angle_start: float = -PI * 0.5  # top
-	var angle_end: float = angle_start + fill * TAU
-	var pts: PackedVector2Array = PackedVector2Array()
-	pts.append(center)
-	var steps: int = maxi(1, int(fill * SEGS))
-	for i in range(steps + 1):
-		var t: float = float(i) / float(steps)
-		var angle: float = lerpf(angle_start, angle_end, t)
-		pts.append(center + Vector2(cos(angle), sin(angle)) * r)
-	draw_colored_polygon(pts, col)
-
-
-func _draw_label(txt: String, center: Vector2) -> void:
+func _draw_row(y: float, label: String, fill: float, col: Color) -> void:
+	var bar_y: float = y + (_ROW_H - _BAR_H) * 0.5
+	# Track
+	draw_rect(Rect2(_LABEL_W, bar_y, _BAR_W, _BAR_H), _COLOR_TRACK)
+	# Fill
+	if fill > 0.0:
+		draw_rect(Rect2(_LABEL_W, bar_y, _BAR_W * fill, _BAR_H), col)
+	# Label
 	var font: Font = ThemeDB.fallback_font
 	if font == null:
 		return
 	var sz: int = 9
-	var ts: Vector2 = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, sz)
-	draw_string(font, center - ts * 0.5 + Vector2(0, ts.y * 0.5), txt,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(1, 1, 1, 0.9))
+	var ts: Vector2 = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, sz)
+	draw_string(font, Vector2(_LABEL_W - ts.x - 3.0, y + _ROW_H * 0.5 + ts.y * 0.35),
+			label, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, _COLOR_LABEL)
