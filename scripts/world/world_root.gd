@@ -1805,6 +1805,9 @@ func _inject_moonstone_mine(centre: Vector2i) -> void:
 		"cell": cell,
 		"quest_mine": true,
 	})
+	# Register the door and repaint entrance markers so the sprite is visible.
+	_doors[cell] = {"kind": &"maze_enter", "cell": cell, "quest_mine": true}
+	_paint_overworld_entrance_markers(_region)
 
 
 func _spawn_villager(entry: Dictionary) -> void:

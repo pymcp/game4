@@ -260,6 +260,15 @@ static func _carve_boss_room(rng: RandomNumberGenerator, m: InteriorMap,
 		"adds": adds_data,
 	}
 
+	# Move the exit (stairs down) into the boss room so the player finds it
+	# after defeating the boss without backtracking.
+	var old_exit: Vector2i = m.exit_cell
+	var new_exit: Vector2i = centre + Vector2i(0, _BOSS_ROOM_HALF - 1)
+	if old_exit != new_exit:
+		m.set_at(old_exit, TerrainCodes.INTERIOR_FLOOR)
+		m.set_at(new_exit, TerrainCodes.INTERIOR_STAIRS_DOWN)
+		m.exit_cell = new_exit
+
 	m.chest_scatter = m.chest_scatter.filter(
 		func(e: Dictionary) -> bool: return e["cell"] != centre)
 
