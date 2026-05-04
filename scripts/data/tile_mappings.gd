@@ -119,6 +119,10 @@ extends Resource
 ## `StringName → Array[Vector2i]` (element [0] is canonical).
 @export var interior_terrain: Dictionary = {}
 
+## Top atlas cell for the two-tile-tall house interior door (interior_sheet.png).
+## Follows the mineable convention: index 0 = top cell; bottom = top + Vector2i(0, 1).
+@export var interior_door: Array[Vector2i] = []
+
 ## Wall autotile for stone-style room walls (dungeon_sheet.png cols 17-21, rows 1-4).
 ## Same schema as dungeon_wall_autotile: flat Array of {mask, cell, flip_v, flip_h}.
 ## Stone = rows 1-4, wood = rows 6-9 (row_offset = 5).
@@ -383,11 +387,11 @@ static func default_mappings() -> TileMappings:
 		&"RW2": Vector2i(8, 11),
 	}
 
-	m.interior_terrain = {
-		&"floor": [Vector2i(5, 13)],
-		&"wall":  [Vector2i(5, 1)],
-		&"door":  [Vector2i(20, 9)],
-	}
+	# interior_terrain kept empty — field is deprecated but retained so
+	# existing .tres files still load without errors.
+	m.interior_terrain = {}
+	# Door top cell: bottom is derived as top + Vector2i(0, 1).
+	m.interior_door = [Vector2i(20, 8)]
 
 	# ── House room-wall autotile — dungeon_sheet.png cols 17-21 ─────────────
 	# Stone style: rows 1-4 for walls, row 12 for floor.
@@ -456,10 +460,10 @@ static func default_mappings() -> TileMappings:
 	]
 	# Wood corners:
 	m.house_wall_wood_corners = [
-		Vector2i(17, 5), # [0] fSE floor → NW-cap tile
-		Vector2i(19, 5), # [1] fSW floor → NE-cap tile
-		Vector2i(17, 7), # [2] fNE floor → SW-cap tile
-		Vector2i(19, 7), # [3] fNW floor → SE-cap tile
+		Vector2i(19, 5), # [0] fSE floor → NW-cap tile
+		Vector2i(17, 5), # [1] fSW floor → NE-cap tile
+		Vector2i(19, 7), # [2] fNE floor → SW-cap tile
+		Vector2i(17, 7), # [3] fNW floor → SE-cap tile
 	]
 	# Stone floor variants (dungeon_sheet.png cols 17-21, row 12):
 	m.house_floor_stone = [
