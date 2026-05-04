@@ -1,7 +1,7 @@
 ## DungeonFogData
 ##
 ## Per-player fog-of-war bitmask store for interior maps (dungeons,
-## labyrinths, etc.). Mirrors [FogOfWarData] but uses [StringName]
+## mazes, etc.). Mirrors [FogOfWarData] but uses [StringName]
 ## map_ids as keys instead of [Vector2i] region ids.
 ##
 ## Interior maps are at most 128 tiles wide/tall (MAX_SIZE = 96 + margin),

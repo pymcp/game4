@@ -1,6 +1,6 @@
 ## DungeonMapView
 ##
-## Per-player dungeon / labyrinth floor map overlay. Opens/closes with
+## Per-player dungeon / maze floor map overlay. Opens/closes with
 ## the same zoom-from-centre animation as [WorldMapView] but draws the
 ## current interior floor using [DungeonFogData] for fog, reading tile
 ## data directly from the [InteriorMap] resource.

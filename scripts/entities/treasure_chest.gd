@@ -1,6 +1,6 @@
 ## TreasureChest
 ##
-## Interactive chest entity placed at labyrinth dead ends. A player within
+## Interactive chest entity placed at maze dead ends. A player within
 ## interaction range pressing their interact input opens the chest, spawning
 ## LootPickup nodes and switching to the open sprite frame.
 ##
@@ -28,7 +28,7 @@ const INTERACT_RADIUS_PX: float = 20.0
 @onready var _sprite: Sprite2D = $Sprite2D
 
 ## Atlas cells on dungeon_sheet.png for closed and open frames.
-## Reads from TilesetCatalog.LABYRINTH_CHEST_CELLS (editable via Game Editor).
+## Reads from TilesetCatalog.MAZE_CHEST_CELLS (editable via Game Editor).
 const _TILE_PX: int = 16
 const _MARGIN: int = 1
 
@@ -89,9 +89,9 @@ func is_player_in_range(player: Node) -> bool:
 func _refresh_sprite(opened: bool) -> void:
 	if _sprite == null:
 		return
-	var cells: Array = TilesetCatalog.LABYRINTH_CHEST_CELLS
+	var cells: Array = TilesetCatalog.MAZE_CHEST_CELLS
 	var atlas: Vector2i = cells[1] if (opened and cells.size() >= 2) else cells[0]
-	var tex: Texture2D = load(TilesetCatalog.get_sheet_path(&"labyrinth_terrain"))
+	var tex: Texture2D = load(TilesetCatalog.get_sheet_path(&"maze_terrain"))
 	if tex == null:
 		return
 	_sprite.texture = tex

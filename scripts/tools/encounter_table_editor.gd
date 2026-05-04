@@ -11,7 +11,7 @@ var _dirty: bool = false
 var _type_selector: OptionButton
 var _boss_interval_spin: SpinBox
 var _table_container: VBoxContainer
-var _current_type: String = "labyrinth"
+var _current_type: String = "maze"
 
 
 func _ready() -> void:
