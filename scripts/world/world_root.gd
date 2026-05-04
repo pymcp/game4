@@ -551,13 +551,14 @@ func _paint_room_walls(interior: InteriorMap) -> void:
 			var cell := Vector2i(x, y)
 			var code: int = interior.at(cell)
 			if code == TerrainCodes.INTERIOR_DOOR:
-				# Door: use interior_sheet floor on ground + door sprite on decoration.
-				var gfloor: Vector2i = TilesetCatalog.cell_for(&"house", &"floor")
-				if gfloor.x >= 0:
-					ground.set_cell(cell, 0, gfloor, 0)
-				var door_atlas: Vector2i = TilesetCatalog.cell_for(&"house", &"door")
-				if door_atlas.x >= 0:
-					ground.set_cell(cell, 0, door_atlas, 0)
+				# Floor under the door (same house floor as regular floor cells).
+				ground.set_cell(cell, 1, floor_cell, 0)
+				# Door bottom on Decoration (player walks in front of it).
+				var door_top: Vector2i = TilesetCatalog.INTERIOR_DOOR_CELL
+				decoration.set_cell(cell, 0, door_top + Vector2i(0, 1), 0)
+				# Door top on Canopy (player walks behind it, like tree foliage).
+				if cell.y > 0:
+					canopy.set_cell(cell + Vector2i(0, -1), 0, door_top, 0)
 				continue
 			if _is_room_floor(interior, cell):
 				ground.set_cell(cell, 1, floor_cell, 0)
@@ -583,8 +584,10 @@ func _paint_room_walls(interior: InteriorMap) -> void:
 					elif fSW: atlas = corner_cells[1] # NE corner
 					elif fNE: atlas = corner_cells[2] # SW corner
 					else: atlas = corner_cells[3]     # SE corner
+				elif diag_count == 0:
+					continue  # Deadzone: no floor neighbors at all → leave unpainted (black).
 				else:
-					# Multi-diagonal or isolated → solid center (row 3/8).
+					# Multi-diagonal → solid center (row 3/8).
 					atlas = Vector2i(19, 3 if style != &"wood" else 8)
 			else:
 				var entry: Variant = wall_lut.get(mask, null)
