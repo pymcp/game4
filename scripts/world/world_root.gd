@@ -319,7 +319,7 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 			sheet_field = &"city_terrain"
 		&"house":
 			ts = TilesetCatalog.interior()
-			sheet_field = &"interior_terrain"
+			sheet_field = &"interior_door"
 		&"dungeon":
 			ts = TilesetCatalog.dungeon()
 			sheet_field = &"dungeon_terrain"
