@@ -1,6 +1,6 @@
 ## FloorConfirmMenu
 ##
-## Overlay prompt shown when a player steps on dungeon/labyrinth stairs
+## Overlay prompt shown when a player steps on dungeon/maze stairs
 ## or enters an interior entrance. Presents 2–3 labelled options; the
 ## player navigates with their movement keys (up/down) and confirms
 ## with interact. Only responds to the owning player's input bindings.

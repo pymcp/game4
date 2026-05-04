@@ -83,31 +83,31 @@ extends Resource
 ## Leave empty to disable floor borders (falls back to plain floor cell).
 @export var dungeon_floor_border_3x3: Array[Vector2i] = []
 
-## Same as dungeon_floor_border_3x3 for labyrinth floors.
-@export var labyrinth_floor_border_3x3: Array[Vector2i] = []
+## Same as dungeon_floor_border_3x3 for maze floors.
+@export var maze_floor_border_3x3: Array[Vector2i] = []
 
 ## Two side-by-side cells for the cave-mouth marker on the overworld.
 ## Length 2, ordered [west, east].
 @export var dungeon_entrance_pair: Array[Vector2i] = []
 
-## Two side-by-side labyrinth entrance marker tiles on the dungeon sheet.
-## Painted on the overworld to mark labyrinth entrances with a tint.
-@export var labyrinth_entrance_pair: Array[Vector2i] = []
+## Two side-by-side maze entrance marker tiles on the dungeon sheet.
+## Painted on the overworld to mark maze entrances with a tint.
+@export var maze_entrance_pair: Array[Vector2i] = []
 
 ## Two atlas cells for the treasure chest sprite: [closed_cell, open_cell].
 ## Used by TreasureChest._refresh_sprite() to draw the correct frame.
-@export var labyrinth_chest_pair: Array[Vector2i] = []
+@export var maze_chest_pair: Array[Vector2i] = []
 
-## Single-cell labyrinth terrains (floor / door / water).
+## Single-cell maze terrains (floor / door / water).
 ## `StringName → Array[Vector2i]` (element [0] is canonical).
 ## Defaults to dungeon tiles until overridden via the Game Editor.
-@export var labyrinth_terrain: Dictionary = {}
+@export var maze_terrain: Dictionary = {}
 
-## Wall autotile lookup for the labyrinth (same schema as dungeon_wall_autotile).
-@export var labyrinth_wall_autotile: Array[Dictionary] = []
+## Wall autotile lookup for the maze (same schema as dungeon_wall_autotile).
+@export var maze_wall_autotile: Array[Dictionary] = []
 
-## Decorative floor overlay cells for the labyrinth (~10% on floor tiles).
-@export var labyrinth_floor_decor: Array[Vector2i] = []
+## Decorative floor overlay cells for the maze (~10% on floor tiles).
+@export var maze_floor_decor: Array[Vector2i] = []
 
 ## Wooden doorframe cells for dungeon corridor exits, addressed by named
 ## slot. Slots: `&"TL"`, `&"TOP"`, `&"TR"`, `&"LW"`, `&"LW2"`, `&"RW"`,
@@ -293,15 +293,15 @@ static func default_mappings() -> TileMappings:
 
 	m.dungeon_entrance_pair = [Vector2i(24, 4), Vector2i(25, 4)]
 
-	# Labyrinth terrain defaults — same floor tile as dungeon until the user
-	# overrides it in the Game Editor → Labyrinth sections.
-	# Note: &"door" and &"water" are intentionally absent — LabyrinthGenerator
+	# Maze terrain defaults — same floor tile as dungeon until the user
+	# overrides it in the Game Editor → Maze sections.
+	# Note: &"door" and &"water" are intentionally absent — MazeGenerator
 	# never emits those codes, so they are not used by the painting path.
-	m.labyrinth_terrain = {
+	m.maze_terrain = {
 		&"floor": [Vector2i(9, 7)],
 	}
 
-	m.labyrinth_wall_autotile = [
+	m.maze_wall_autotile = [
 		{"mask": 2,  "cell": Vector2i(8, 7),  "flip_v": 0, "flip_h": 0},
 		{"mask": 1,  "cell": Vector2i(10, 7), "flip_v": 0, "flip_h": 0},
 		{"mask": 8,  "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
@@ -319,7 +319,7 @@ static func default_mappings() -> TileMappings:
 		{"mask": 15, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
 	]
 
-	m.labyrinth_floor_decor = [
+	m.maze_floor_decor = [
 		Vector2i(12, 10), Vector2i(13, 10),
 		Vector2i(12, 11), Vector2i(13, 11),
 		Vector2i(12, 12), Vector2i(13, 12),
@@ -327,7 +327,7 @@ static func default_mappings() -> TileMappings:
 		Vector2i(12, 14), Vector2i(13, 14),
 	]
 
-	m.labyrinth_chest_pair = [Vector2i(2, 10), Vector2i(3, 10)]
+	m.maze_chest_pair = [Vector2i(2, 10), Vector2i(3, 10)]
 
 	# Floor-border 3×3: NW N NE / W C E / SW S SE.
 	# Defaults to all pointing at the plain floor cell (9,7) — border is
@@ -338,7 +338,7 @@ static func default_mappings() -> TileMappings:
 		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # SW  S  SE
 	]
 
-	m.labyrinth_floor_border_3x3 = [
+	m.maze_floor_border_3x3 = [
 		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # NW  N  NE
 		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # W   C   E
 		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # SW  S  SE
@@ -385,10 +385,10 @@ func build_dungeon_wall_autotile_dict() -> Dictionary:
 	return out
 
 
-## Same as build_dungeon_wall_autotile_dict but for labyrinth_wall_autotile.
-func build_labyrinth_wall_autotile_dict() -> Dictionary:
+## Same as build_dungeon_wall_autotile_dict but for maze_wall_autotile.
+func build_maze_wall_autotile_dict() -> Dictionary:
 	var out: Dictionary = {}
-	for entry in labyrinth_wall_autotile:
+	for entry in maze_wall_autotile:
 		var mask: int = int(entry.get("mask", -1))
 		if mask < 0:
 			continue

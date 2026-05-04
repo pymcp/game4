@@ -28,10 +28,10 @@ const _DEFAULT_SHEETS: Dictionary = {
 	&"dungeon_wall_autotile": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_floor_decor": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_entrance_pair": "res://assets/tiles/roguelike/dungeon_sheet.png",
-	&"labyrinth_entrance_pair": "res://assets/tiles/roguelike/dungeon_sheet.png",
-	&"labyrinth_terrain":       "res://assets/tiles/roguelike/dungeon_sheet.png",
-	&"labyrinth_wall_autotile": "res://assets/tiles/roguelike/dungeon_sheet.png",
-	&"labyrinth_floor_decor":   "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"maze_entrance_pair": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"maze_terrain":       "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"maze_wall_autotile": "res://assets/tiles/roguelike/dungeon_sheet.png",
+	&"maze_floor_decor":   "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_doorframe": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"interior_terrain": "res://assets/tiles/roguelike/interior_sheet.png",
 }
@@ -344,13 +344,13 @@ const _DEFAULT_DUNGEON_FLOOR_BORDER: Array = [
 ]
 static var DUNGEON_FLOOR_BORDER_3X3: Array = _DEFAULT_DUNGEON_FLOOR_BORDER
 
-## Same as DUNGEON_FLOOR_BORDER_3X3 for labyrinth.
-const _DEFAULT_LABYRINTH_FLOOR_BORDER: Array = [
+## Same as DUNGEON_FLOOR_BORDER_3X3 for maze.
+const _DEFAULT_MAZE_FLOOR_BORDER: Array = [
 	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
 	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
 	Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),
 ]
-static var LABYRINTH_FLOOR_BORDER_3X3: Array = _DEFAULT_LABYRINTH_FLOOR_BORDER
+static var MAZE_FLOOR_BORDER_3X3: Array = _DEFAULT_MAZE_FLOOR_BORDER
 
 # Cave entrance marker on the overworld. Two side-by-side dungeon-sheet
 # tiles (anchor cell + cell to the east) drawn on a Sprite-based marker.
@@ -359,22 +359,22 @@ const _DEFAULT_DUNGEON_ENTRANCE: Array = [
 ]
 static var DUNGEON_OVERWORLD_ENTRANCE_CELLS: Array = _DEFAULT_DUNGEON_ENTRANCE
 
-## Labyrinth entrance marker — default reuses dungeon entrance cells.
+## Maze entrance marker — default reuses dungeon entrance cells.
 ## SpritePicker can override to distinct tiles.
-const _DEFAULT_LABYRINTH_ENTRANCE: Array = [
+const _DEFAULT_MAZE_ENTRANCE: Array = [
 	Vector2i(24, 4), Vector2i(25, 4),
 ]
-static var LABYRINTH_OVERWORLD_ENTRANCE_CELLS: Array = _DEFAULT_LABYRINTH_ENTRANCE
+static var MAZE_OVERWORLD_ENTRANCE_CELLS: Array = _DEFAULT_MAZE_ENTRANCE
 
-# Labyrinth interior terrain. Only &"floor" is used by the painting path.
-# (&"door" and &"water" are never emitted by LabyrinthGenerator, so they
+# Maze interior terrain. Only &"floor" is used by the painting path.
+# (&"door" and &"water" are never emitted by MazeGenerator, so they
 # are intentionally omitted here.)
-const _DEFAULT_LABYRINTH_TERRAIN: Dictionary = {
+const _DEFAULT_MAZE_TERRAIN: Dictionary = {
 	&"floor": [Vector2i(9, 7)],
 }
-static var LABYRINTH_TERRAIN_CELLS: Dictionary = _DEFAULT_LABYRINTH_TERRAIN
+static var MAZE_TERRAIN_CELLS: Dictionary = _DEFAULT_MAZE_TERRAIN
 
-const _DEFAULT_LABYRINTH_WALL_AUTOTILE: Dictionary = {
+const _DEFAULT_MAZE_WALL_AUTOTILE: Dictionary = {
 	2:  [Vector2i(8, 7),  false, false],
 	1:  [Vector2i(10, 7), false, false],
 	8:  [Vector2i(9, 9),  false, false],
@@ -391,21 +391,21 @@ const _DEFAULT_LABYRINTH_WALL_AUTOTILE: Dictionary = {
 	14: [Vector2i(8, 7),  false, false],
 	15: [Vector2i(9, 9),  false, false],
 }
-static var LABYRINTH_WALL_AUTOTILE: Dictionary = _DEFAULT_LABYRINTH_WALL_AUTOTILE
+static var MAZE_WALL_AUTOTILE: Dictionary = _DEFAULT_MAZE_WALL_AUTOTILE
 
-const _DEFAULT_LABYRINTH_FLOOR_DECOR: Array = [
+const _DEFAULT_MAZE_FLOOR_DECOR: Array = [
 	Vector2i(12, 10), Vector2i(13, 10),
 	Vector2i(12, 11), Vector2i(13, 11),
 	Vector2i(12, 12), Vector2i(13, 12),
 	Vector2i(12, 13), Vector2i(13, 13),
 	Vector2i(12, 14), Vector2i(13, 14),
 ]
-static var LABYRINTH_FLOOR_DECOR_CELLS: Array = _DEFAULT_LABYRINTH_FLOOR_DECOR
+static var MAZE_FLOOR_DECOR_CELLS: Array = _DEFAULT_MAZE_FLOOR_DECOR
 
 ## Treasure chest sprite cells on the dungeon sheet: [closed, open].
 ## TreasureChest reads index 0 for closed state, index 1 for open state.
-const _DEFAULT_LABYRINTH_CHEST: Array = [Vector2i(2, 10), Vector2i(3, 10)]
-static var LABYRINTH_CHEST_CELLS: Array = _DEFAULT_LABYRINTH_CHEST
+const _DEFAULT_MAZE_CHEST: Array = [Vector2i(2, 10), Vector2i(3, 10)]
+static var MAZE_CHEST_CELLS: Array = _DEFAULT_MAZE_CHEST
 
 # Wooden doorframe drawn at the south end of a north-south cave corridor
 # where it opens into a room. Purely decorative — placed as Sprite2D
@@ -514,23 +514,23 @@ static func _ensure_loaded() -> void:
 		DUNGEON_FLOOR_DECOR_CELLS = m.dungeon_floor_decor
 	if not m.dungeon_entrance_pair.is_empty():
 		DUNGEON_OVERWORLD_ENTRANCE_CELLS = m.dungeon_entrance_pair
-	if not m.labyrinth_entrance_pair.is_empty():
-		LABYRINTH_OVERWORLD_ENTRANCE_CELLS = m.labyrinth_entrance_pair
-	# Labyrinth terrain
-	if not m.labyrinth_terrain.is_empty():
-		LABYRINTH_TERRAIN_CELLS = m.labyrinth_terrain
-	var lab_autotile: Dictionary = m.build_labyrinth_wall_autotile_dict()
+	if not m.maze_entrance_pair.is_empty():
+		MAZE_OVERWORLD_ENTRANCE_CELLS = m.maze_entrance_pair
+	# Maze terrain
+	if not m.maze_terrain.is_empty():
+		MAZE_TERRAIN_CELLS = m.maze_terrain
+	var lab_autotile: Dictionary = m.build_maze_wall_autotile_dict()
 	if not lab_autotile.is_empty():
-		LABYRINTH_WALL_AUTOTILE = lab_autotile
-	if not m.labyrinth_floor_decor.is_empty():
-		LABYRINTH_FLOOR_DECOR_CELLS = m.labyrinth_floor_decor
-	if m.labyrinth_chest_pair.size() >= 2:
-		LABYRINTH_CHEST_CELLS = m.labyrinth_chest_pair
+		MAZE_WALL_AUTOTILE = lab_autotile
+	if not m.maze_floor_decor.is_empty():
+		MAZE_FLOOR_DECOR_CELLS = m.maze_floor_decor
+	if m.maze_chest_pair.size() >= 2:
+		MAZE_CHEST_CELLS = m.maze_chest_pair
 	# Exact 9 required — partial arrays would mis-index the NW…SE lookup.
 	if m.dungeon_floor_border_3x3.size() == 9:
 		DUNGEON_FLOOR_BORDER_3X3 = m.dungeon_floor_border_3x3
-	if m.labyrinth_floor_border_3x3.size() == 9:
-		LABYRINTH_FLOOR_BORDER_3X3 = m.labyrinth_floor_border_3x3
+	if m.maze_floor_border_3x3.size() == 9:
+		MAZE_FLOOR_BORDER_3X3 = m.maze_floor_border_3x3
 	if not m.dungeon_doorframe.is_empty():
 		DUNGEON_DOORFRAME = m.dungeon_doorframe
 	# Interior
@@ -543,7 +543,7 @@ static func _ensure_loaded() -> void:
 static var _overworld_ts: TileSet = null
 static var _city_ts: TileSet = null
 static var _dungeon_ts: TileSet = null
-static var _labyrinth_ts: TileSet = null
+static var _maze_ts: TileSet = null
 static var _interior_ts: TileSet = null
 static var _runes_ts: TileSet = null
 
@@ -573,13 +573,13 @@ static func dungeon() -> TileSet:
 	return _dungeon_ts
 
 
-static func labyrinth() -> TileSet:
+static func maze() -> TileSet:
 	_ensure_loaded()
-	if _labyrinth_ts == null:
-		var sheet := get_sheet_path(&"labyrinth_terrain")
-		_labyrinth_ts = _build(sheet, LABYRINTH_TERRAIN_CELLS, true,
+	if _maze_ts == null:
+		var sheet := get_sheet_path(&"maze_terrain")
+		_maze_ts = _build(sheet, MAZE_TERRAIN_CELLS, true,
 				SheetSpecReader.read(sheet))
-	return _labyrinth_ts
+	return _maze_ts
 
 
 static func interior() -> TileSet:
@@ -767,7 +767,7 @@ static func cell_for(view_kind: StringName, terrain: StringName) -> Vector2i:
 		&"overworld": d = OVERWORLD_TERRAIN_CELLS
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
-		&"labyrinth": d = LABYRINTH_TERRAIN_CELLS
+		&"maze": d = MAZE_TERRAIN_CELLS
 		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
@@ -792,7 +792,7 @@ static func cell_for_variant(view_kind: StringName, terrain: StringName, hash32:
 		&"overworld": d = OVERWORLD_TERRAIN_CELLS
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
-		&"labyrinth": d = LABYRINTH_TERRAIN_CELLS
+		&"maze": d = MAZE_TERRAIN_CELLS
 		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)

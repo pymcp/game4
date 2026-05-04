@@ -223,8 +223,8 @@ func _enter_view(pid: int, view_kind: StringName, region: Region,
 	var _cd: CaravanData = _caravan_datas[pid] if pid < _caravan_datas.size() else null
 	if _cd != null and _cd.travel_logs.size() > pid:
 		var tlog: TravelLog = _cd.travel_logs[pid]
-		var is_dungeon: bool = (view_kind == &"dungeon" or view_kind == &"labyrinth")
-		var was_dungeon: bool = (prev_view_kind == &"dungeon" or prev_view_kind == &"labyrinth")
+		var is_dungeon: bool = (view_kind == &"dungeon" or view_kind == &"maze")
+		var was_dungeon: bool = (prev_view_kind == &"dungeon" or prev_view_kind == &"maze")
 		var rid_str: String = "%d_%d" % [region.region_id.x, region.region_id.y] \
 				if region != null else "0_0"
 		if is_dungeon and not was_dungeon:
@@ -379,7 +379,7 @@ func _ensure_warrior_for_player(pid: int, inst: WorldRoot,
 	# Always update caravan reference in case it was set after warrior was created.
 	warrior.caravan = _caravans[pid]
 	# Update in-dungeon flag.
-	warrior.is_in_dungeon = (view_kind == &"dungeon" or view_kind == &"labyrinth")
+	warrior.is_in_dungeon = (view_kind == &"dungeon" or view_kind == &"maze")
 	# Re-parent to this instance.
 	if warrior.get_parent() == null:
 		inst.entities.add_child(warrior)

@@ -286,9 +286,9 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 		&"dungeon":
 			ts = TilesetCatalog.dungeon()
 			sheet_field = &"dungeon_terrain"
-		&"labyrinth":
-			ts = TilesetCatalog.labyrinth()
-			sheet_field = &"labyrinth_terrain"
+		&"maze":
+			ts = TilesetCatalog.maze()
+			sheet_field = &"maze_terrain"
 		_:
 			ts = TilesetCatalog.dungeon()
 			sheet_field = &"dungeon_terrain"
@@ -449,9 +449,9 @@ func _paint_region(region: Region) -> void:
 
 
 func _paint_interior(interior: InteriorMap, view_kind: StringName) -> void:
-	if view_kind == &"dungeon" or view_kind == &"labyrinth":
+	if view_kind == &"dungeon" or view_kind == &"maze":
 		_paint_dungeon_interior(interior, view_kind)
-		if view_kind == &"labyrinth" and not interior.boss_room_cells.is_empty():
+		if view_kind == &"maze" and not interior.boss_room_cells.is_empty():
 			_paint_boss_room_overlay(interior)
 		return
 	for y in interior.height:
@@ -492,15 +492,15 @@ static func _view_kind_from_interior(interior: InteriorMap) -> StringName:
 # --- Cave (dungeon) painting --------------------------------------
 
 func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"dungeon") -> void:
-	var ts: TileSet = TilesetCatalog.labyrinth() if view_kind == &"labyrinth" else TilesetCatalog.dungeon()
+	var ts: TileSet = TilesetCatalog.maze() if view_kind == &"maze" else TilesetCatalog.dungeon()
 	var dim_layer: TileMapLayer = _ensure_dungeon_dim_layer(ts)
 	dim_layer.clear()
 	var floor_cell: Vector2i = TilesetCatalog.cell_for(view_kind, &"floor")
 	var dim_seed: int = interior.map_id.hash()
-	var floor_decor: Array = (TilesetCatalog.LABYRINTH_FLOOR_DECOR_CELLS
-			if view_kind == &"labyrinth" else TilesetCatalog.DUNGEON_FLOOR_DECOR_CELLS)
-	var wall_autotile: Dictionary = (TilesetCatalog.LABYRINTH_WALL_AUTOTILE
-			if view_kind == &"labyrinth" else TilesetCatalog.DUNGEON_WALL_AUTOTILE)
+	var floor_decor: Array = (TilesetCatalog.MAZE_FLOOR_DECOR_CELLS
+			if view_kind == &"maze" else TilesetCatalog.DUNGEON_FLOOR_DECOR_CELLS)
+	var wall_autotile: Dictionary = (TilesetCatalog.MAZE_WALL_AUTOTILE
+			if view_kind == &"maze" else TilesetCatalog.DUNGEON_WALL_AUTOTILE)
 	var decor_count: int = floor_decor.size()
 	for y in interior.height:
 		for x in interior.width:
@@ -544,8 +544,8 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 			decoration.set_cell(cell, 0, atlas, alt)
 	# Floor border pass — overwrites Ground with edge/corner tiles where
 	# floor meets wall. No-op when border_cells are all the plain floor cell.
-	var floor_border: Array = (TilesetCatalog.LABYRINTH_FLOOR_BORDER_3X3
-			if view_kind == &"labyrinth" else TilesetCatalog.DUNGEON_FLOOR_BORDER_3X3)
+	var floor_border: Array = (TilesetCatalog.MAZE_FLOOR_BORDER_3X3
+			if view_kind == &"maze" else TilesetCatalog.DUNGEON_FLOOR_BORDER_3X3)
 	_paint_dungeon_floor_border(interior, floor_border)
 	_paint_dungeon_corridor_frames(interior)
 	_paint_dungeon_stair_markers(interior)
@@ -553,7 +553,7 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 
 ## Paint a distinct floor decor pattern over boss room cells.
 func _paint_boss_room_overlay(interior: InteriorMap) -> void:
-	var decor: Array = TilesetCatalog.LABYRINTH_FLOOR_DECOR_CELLS
+	var decor: Array = TilesetCatalog.MAZE_FLOOR_DECOR_CELLS
 	if decor.is_empty():
 		return
 	var boss_tile: Vector2i = decor[decor.size() - 1]
@@ -782,9 +782,9 @@ func _paint_overworld_entrance_markers(region: Region) -> void:
 		if ek == &"house":
 			tint = Color(1.4, 0.95, 0.6)  # warm yellow
 			cells_to_use = cells
-		elif ek == &"labyrinth":
+		elif ek == &"maze":
 			tint = Color(1.2, 0.6, 1.4)   # purple
-			cells_to_use = TilesetCatalog.LABYRINTH_OVERWORLD_ENTRANCE_CELLS
+			cells_to_use = TilesetCatalog.MAZE_OVERWORLD_ENTRANCE_CELLS
 		else:
 			tint = Color.WHITE
 			cells_to_use = cells
@@ -1124,15 +1124,15 @@ func _build_door_index(view_kind: StringName) -> void:
 			var ek: StringName = entry.get("kind", &"dungeon")
 			if ek == &"house":
 				_doors[c] = {"kind": &"house_enter", "cell": c}
-			elif ek == &"labyrinth":
-				_doors[c] = {"kind": &"labyrinth_enter", "cell": c}
+			elif ek == &"maze":
+				_doors[c] = {"kind": &"maze_enter", "cell": c}
 			else:
 				_doors[c] = {"kind": &"dungeon_enter", "cell": c}
 		for rune in _region.runes:
 			var rc: Vector2i = rune["cell"]
 			_doors[rc] = {"kind": &"rune", "cell": rc, "source": int(rune["source"])}
 	elif _interior != null:
-		if view_kind == &"dungeon" or view_kind == &"labyrinth":
+		if view_kind == &"dungeon" or view_kind == &"maze":
 			_doors[_interior.entry_cell] = {"kind": &"stairs_up"}
 			_doors[_interior.exit_cell] = {"kind": &"stairs_down"}
 		else:
@@ -1154,8 +1154,8 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 					hmid, hrid, cell, 1,
 					MapManager.DEFAULT_FLOOR_SIZE, &"house")
 			World.instance().transition_player(player.player_id, &"house", _region, house)
-		&"labyrinth_enter":
-			_handle_enter_interior(player, cell, &"labyrinth")
+		&"maze_enter":
+			_handle_enter_interior(player, cell, &"maze")
 		&"interior_exit":
 			if _interior != null:
 				Sfx.play(&"dungeon_exit")
@@ -1262,14 +1262,14 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 					"Floor %d" % deeper.floor_num)
 
 
-## Common handler for dungeon/labyrinth overworld entrances. Checks if the
+## Common handler for dungeon/maze overworld entrances. Checks if the
 ## player has been here before and offers a resume prompt if so.
 func _handle_enter_interior(player: PlayerController, cell: Vector2i,
 		kind: StringName) -> void:
 	var rid: Vector2i = _region.region_id
-	# Deterministic size for labyrinths derived from the entrance seed.
+	# Deterministic size for mazes derived from the entrance seed.
 	var lsize: int = MapManager.DEFAULT_FLOOR_SIZE
-	if kind == &"labyrinth":
+	if kind == &"maze":
 		var rng := RandomNumberGenerator.new()
 		rng.seed = MapManager.make_id(rid, cell, 1, kind).hash()
 		lsize = rng.randi_range(64, 96)
@@ -1282,7 +1282,7 @@ func _handle_enter_interior(player: PlayerController, cell: Vector2i,
 		var game_e: Game = Game.instance()
 		if game_e != null:
 			game_e.show_floor_confirm_menu(pid_e,
-					"Return to %s?" % String(kind).capitalize(),
+					"Return to %s?" % floor1.display_name,
 					["Resume at Floor %d" % deepest.floor_num,
 					"Start from Floor 1"],
 					func(idx: int) -> void:
@@ -1300,7 +1300,7 @@ func _handle_enter_interior(player: PlayerController, cell: Vector2i,
 		Sfx.play(&"dungeon_enter")
 		var entry_kind: StringName = WorldRoot._view_kind_from_interior(floor1)
 		World.instance().transition_player(pid_e, entry_kind, _region, floor1),
-		"Floor 1")
+		floor1.display_name)
 
 
 func _play_cave_transition(pid: int, switch_fn: Callable,
@@ -1397,7 +1397,7 @@ func _spawn_scattered_npcs() -> void:
 				if LootTableRegistry.has_table(kind):
 					entry["monster_kind"] = kind
 					_spawn_monster(entry)
-	# Boss room — spawn boss + adds if this is a labyrinth boss floor.
+	# Boss room — spawn boss + adds if this is a maze boss floor.
 	if _interior != null and not _interior.boss_data.is_empty():
 		var bd: Dictionary = _interior.boss_data
 		var boss_entry: Dictionary = {
@@ -1761,8 +1761,8 @@ func debug_spawn_interactables_for(player: PlayerController) -> void:
 			centre, Vector2i(-2, 0), "cave entrance")
 	_debug_place_entrance(&"house", &"house_enter",
 			centre, Vector2i(2, 0), "house entrance")
-	_debug_place_entrance(&"labyrinth", &"labyrinth_enter",
-			centre, Vector2i(4, 0), "labyrinth entrance")
+	_debug_place_entrance(&"maze", &"maze_enter",
+			centre, Vector2i(4, 0), "maze entrance")
 	_debug_spawn_encounters(centre)
 	debug_drop_all_items_for(player)
 	_debug_refresh_labels()

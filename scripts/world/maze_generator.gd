@@ -1,15 +1,15 @@
-## LabyrinthGenerator
+## MazeGenerator
 ##
-## Generates Gauntlet-style labyrinths using Prim's maze algorithm on a
+## Generates Gauntlet-style mazes using Prim's maze algorithm on a
 ## coarse junction grid. Corridors are 2-4 tiles wide, producing the dense
-## dead-end-rich layout that makes Prim's feel like a true labyrinth.
+## dead-end-rich layout that makes Prim's feel like a true maze.
 ##
 ## Output is an [InteriorMap] with INTERIOR_FLOOR / INTERIOR_WALL /
 ## INTERIOR_STAIRS_UP / INTERIOR_STAIRS_DOWN cells, plus chest_scatter
 ## at dead-end junctions, and boss_data / boss_room_cells on boss floors.
 ##
 ## All randomness is seeded from `seed_val` for determinism.
-class_name LabyrinthGenerator
+class_name MazeGenerator
 extends RefCounted
 
 const _MIN_CORRIDOR_WIDTH: int = 2
@@ -107,7 +107,7 @@ static func generate(seed_val: int, width: int, height: int,
 			"floor_num": floor_num,
 		})
 
-	var boss_interval: int = EncounterTableRegistry.get_boss_interval(&"labyrinth")
+	var boss_interval: int = EncounterTableRegistry.get_boss_interval(&"maze")
 	if floor_num > 0 and (floor_num % boss_interval) == 0:
 		_carve_boss_room(rng, m, junctions, exit_idx, floor_num, connection)
 
@@ -268,7 +268,7 @@ static func _pick_boss_kind(rng: RandomNumberGenerator) -> StringName:
 
 static func _scatter_enemies(rng: RandomNumberGenerator, m: InteriorMap,
 		junctions: Array, entry_idx: int, floor_num: int) -> void:
-	var table: Array = EncounterTableRegistry.get_weighted_list(&"labyrinth", floor_num)
+	var table: Array = EncounterTableRegistry.get_weighted_list(&"maze", floor_num)
 	if table.is_empty():
 		return
 	var boss_cells: Dictionary = {}

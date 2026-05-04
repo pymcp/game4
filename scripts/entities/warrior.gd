@@ -1,12 +1,12 @@
 ## Warrior
 ##
-## Companion fighter that follows the player into dungeons and labyrinths.
+## Companion fighter that follows the player into dungeons and mazes.
 ## On the overworld, the warrior stands near the caravan.
 ##
 ## Behavior:
 ##   OVERWORLD (_is_in_dungeon == false):
 ##     Follow caravan position, idle when close.
-##   DUNGEON/LABYRINTH (_is_in_dungeon == true):
+##   DUNGEON/MAZE (_is_in_dungeon == true):
 ##     Follow player, attack hostiles on sight, auto-collect nearby loot.
 ##
 ## world.gd spawns/manages one Warrior per player. The Warrior is NOT added
@@ -28,7 +28,7 @@ const _ENEMY_SCAN_INTERVAL: float = 0.3
 @export var owner_player: PlayerController = null
 ## Reference to the player's caravan (for overworld follow target).
 @export var caravan: Caravan = null
-## True when inside a dungeon/labyrinth (follow player + attack mode).
+## True when inside a dungeon/maze (follow player + attack mode).
 @export var is_in_dungeon: bool = false
 
 var health: int = 20

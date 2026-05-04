@@ -3,5 +3,28 @@
   "warrior":      ["Derin", "Kael", "Brynn", "Torva", "Grath"],
   "blacksmith":   ["Gund", "Petra", "Orin", "Mave", "Skor"],
   "cook":         ["Hessie", "Tam", "Brix", "Corla", "Wynn"],
-  "alchemist":    ["Syle", "Fenn", "Cress", "Vix", "Nael"]
+  "alchemist":    ["Syle", "Fenn", "Cress", "Vix", "Nael"],
+
+  "dungeon_prefix": [
+    "The Sunken", "The Forgotten", "The Silent", "The Howling",
+    "The Ashen", "The Crimson", "The Hollow", "The Buried",
+    "The Shattered", "The Withered", "The Blighted", "The Iron",
+    "The Frozen", "The Blackened", "The Rotting", "The Cursed"
+  ],
+  "dungeon_noun": [
+    "Crypt", "Vault", "Depths", "Sanctum", "Tomb", "Pit",
+    "Cavern", "Lair", "Mine", "Abyss", "Warren", "Burrow",
+    "Grotto", "Den", "Chamber", "Cellar"
+  ],
+  "maze_prefix": [
+    "The Twisted", "The Winding", "The Endless", "The Thorned",
+    "The Mossy", "The Echoing", "The Shifting", "The Dim",
+    "The Overgrown", "The Crumbling", "The Tangled", "The Pale",
+    "The Verdant", "The Murky", "The Branching", "The Lost"
+  ],
+  "maze_noun": [
+    "Maze", "Labyrinth", "Passages", "Tunnels", "Corridors",
+    "Warren", "Thicket", "Tangle", "Sprawl", "Web",
+    "Pathway", "Coils", "Meander", "Spiral", "Network", "Knot"
+  ]
 }
