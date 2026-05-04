@@ -1667,6 +1667,7 @@ func _maybe_inject_mara() -> void:
 		"cell": cell,
 		"seed": 0xA4A7A,  # Deterministic seed for "Mara" appearance.
 		"dialogue": "res://resources/dialogue/healer_mara.tres",
+		"quest_giver_name": "Mara",
 	})
 
 
@@ -1685,6 +1686,9 @@ func _spawn_villager(entry: Dictionary) -> void:
 	if sid != "":
 		v.shop_id = StringName(sid)
 	v.is_cowardly = entry.get("is_cowardly", false)
+	var giver_name: String = entry.get("quest_giver_name", "")
+	if giver_name != "":
+		v.quest_giver_name = giver_name
 	v._lod_index = _spawn_index % 4
 	_spawn_index += 1
 	v.add_to_group(&"scattered_npcs")

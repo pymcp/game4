@@ -21,12 +21,13 @@ signal choice_selected(choice: DialogueChoice, passed: bool)
 ## Emitted when the dialogue closes (leaf dismiss or hide_line).
 signal dismissed
 
-@onready var _panel: PanelContainer = $Panel
-@onready var _vbox: VBoxContainer = $Panel/VBox
-@onready var _speaker_label: Label = $Panel/VBox/Speaker
-@onready var _body_label: Label = $Panel/VBox/Body
-@onready var _choices_vbox: VBoxContainer = $Panel/VBox/Choices
-@onready var _hint_label: Label = $Panel/VBox/Hint
+@onready var _outer: VBoxContainer = $Outer
+@onready var _panel: PanelContainer = $Outer/Panel
+@onready var _portrait_rect: TextureRect = $Outer/Portrait
+@onready var _speaker_label: Label = $Outer/Panel/VBox/Speaker
+@onready var _body_label: Label = $Outer/Panel/VBox/Body
+@onready var _choices_vbox: VBoxContainer = $Outer/Panel/VBox/Choices
+@onready var _hint_label: Label = $Outer/Panel/VBox/Hint
 
 var _open: bool = false
 
@@ -53,19 +54,20 @@ const _COLOR_HINT := Color(0.7, 0.7, 0.7)
 func show_line(speaker: String, body: String) -> void:
 	if _speaker_label == null:
 		return
+	_update_portrait(speaker)
 	_speaker_label.text = speaker
 	_body_label.text = body
 	_clear_choices()
 	_hint_label.text = "[E] close"
 	_hint_label.visible = true
 	_resize_panel()
-	_panel.visible = true
+	_outer.visible = true
 	_open = true
 
 
 func hide_line() -> void:
-	if _panel != null:
-		_panel.visible = false
+	if _outer != null:
+		_outer.visible = false
 	_open = false
 	dismissed.emit()
 
@@ -82,6 +84,7 @@ func show_node(node: DialogueNode, stats: Dictionary = {}) -> void:
 	if _speaker_label == null:
 		return
 	_player_stats = stats
+	_update_portrait(node.speaker)
 	_speaker_label.text = node.speaker
 	_body_label.text = node.text
 	_build_choices(node.choices)
@@ -96,7 +99,7 @@ func show_node(node: DialogueNode, stats: Dictionary = {}) -> void:
 		_highlight(_selected_idx)
 
 	_resize_panel()
-	_panel.visible = true
+	_outer.visible = true
 	_open = true
 
 
@@ -199,9 +202,22 @@ func _pick_choice(idx: int) -> void:
 	choice_selected.emit(choice, passed)
 
 
+func _update_portrait(speaker: String) -> void:
+	if not NpcPortraitRegistry.has_portrait(speaker):
+		_portrait_rect.visible = false
+		return
+	var cell: Vector2i = NpcPortraitRegistry.get_cell(speaker)
+	var tex: Texture2D = load(NpcPortraitRegistry.SHEET_PATH)
+	if tex == null:
+		_portrait_rect.visible = false
+		return
+	var atlas := AtlasTexture.new()
+	atlas.atlas = tex
+	atlas.region = Rect2(cell.x * 65, cell.y * 65, 64, 64)
+	_portrait_rect.texture = atlas
+	_portrait_rect.visible = true
+
+
 func _resize_panel() -> void:
-	# Let the VBox dictate the height; just ensure minimum clearance.
-	_panel.offset_top = -_HOTBAR_CLEARANCE_PX - 400  # generous max
-	# The PanelContainer will shrink-wrap to content via size flags.
-	_panel.size_flags_vertical = Control.SIZE_SHRINK_END
+	pass  # Layout handled by VBoxContainer.alignment = ALIGNMENT_END in the scene.
 

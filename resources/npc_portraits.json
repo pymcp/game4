@@ -1,0 +1,7 @@
+{
+	"_comment": "Maps NPC speaker names (matching DialogueNode.speaker) to portrait sheet cells.",
+	"_sheet": "res://assets/icons/hires/portraits.png",
+	"portraits": {
+		"Mara": [0, 0]
+	}
+}
