@@ -1528,6 +1528,11 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 					Sfx.play(&"dungeon_exit")
 					var r_ex: Region = WorldManager.get_or_generate(exit_rid_ex)
 					World.instance().transition_player(pid_ex, &"overworld", r_ex, null, exit_origin_ex))
+
+
+## Common handler for dungeon/labyrinth overworld entrances. Checks if the
+## player has been here before and offers a resume prompt if so.
+func _handle_enter_interior(player: PlayerController, cell: Vector2i,
 		kind: StringName, quest_mine: bool = false) -> void:
 	var rid: Vector2i = _region.region_id
 	# Deterministic size for labyrinths derived from the entrance seed.
