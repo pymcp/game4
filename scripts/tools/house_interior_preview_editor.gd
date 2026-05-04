@@ -30,6 +30,7 @@ var _complex: bool = false
 var _status: Label = null
 var _view: _HouseView = null
 var _texture: Texture2D = null
+var _door_texture: Texture2D = null
 
 
 # ── Inner class: _HouseView ──────────────────────────────────────────────────
@@ -47,6 +48,7 @@ var _texture: Texture2D = null
 ##   is_door     : bool      — optional, highlights door cells
 class _HouseView extends Control:
 	var texture: Texture2D = null
+	var door_texture: Texture2D = null
 	var interior: InteriorMap = null
 	var draw_data: Array = []
 	var tile_px: int = 16
@@ -61,8 +63,9 @@ class _HouseView extends Control:
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_STOP
 
-	func setup(tex: Texture2D, im: InteriorMap, data: Array) -> void:
+	func setup(tex: Texture2D, door_tex: Texture2D, im: InteriorMap, data: Array) -> void:
 		texture = tex
+		door_texture = door_tex
 		interior = im
 		draw_data = data
 		_hovered = Vector2i(-1, -1)
@@ -127,6 +130,16 @@ class _HouseView extends Control:
 				var src := Rect2(float(wa.x * src_step), float(wa.y * src_step),
 					float(tile_px), float(tile_px))
 				draw_texture_rect_region(texture, dest, src)
+			var dba: Vector2i = d.get("door_bot_atlas", Vector2i(-1, -1))
+			if dba.x >= 0 and door_texture != null:
+				var src := Rect2(float(dba.x * src_step), float(dba.y * src_step),
+					float(tile_px), float(tile_px))
+				draw_texture_rect_region(door_texture, dest, src)
+			var dta: Vector2i = d.get("door_top_atlas", Vector2i(-1, -1))
+			if dta.x >= 0 and door_texture != null:
+				var src := Rect2(float(dta.x * src_step), float(dta.y * src_step),
+					float(tile_px), float(tile_px))
+				draw_texture_rect_region(door_texture, dest, src)
 			if d.get("is_door", false):
 				draw_rect(dest, Color(0.0, 0.8, 0.8, 0.7), false, 2.0)
 		if _hovered.x >= 0 and interior != null \
@@ -148,6 +161,9 @@ func _ready() -> void:
 		_texture = src.texture
 	if _texture == null:
 		_texture = load(DUNGEON_PNG) as Texture2D
+	var int_src := ts.get_source(0) as TileSetAtlasSource
+	if int_src != null:
+		_door_texture = int_src.texture
 	_build_ui()
 	_refresh()
 
@@ -230,7 +246,7 @@ func _refresh() -> void:
 	var interior: InteriorMap = HouseGenerator.generate(_seed_val, _style, _complex)
 	var data: Array = _compute_draw_data(interior, _style)
 	if _view != null:
-		_view.setup(_texture, interior, data)
+		_view.setup(_texture, _door_texture, interior, data)
 
 
 # ── Draw-data builder ────────────────────────────────────────────────────────
@@ -259,7 +275,21 @@ func _compute_draw_data(interior: InteriorMap, sty: StringName) -> Array:
 			var code: int = interior.at(cell)
 
 			if code == TerrainCodes.INTERIOR_DOOR:
-				data.append({"cell": cell, "floor_atlas": floor_cell, "mask": -1, "is_door": true})
+				var door_top: Vector2i = TilesetCatalog.INTERIOR_DOOR_CELL
+				data.append({
+					"cell": cell,
+					"floor_atlas": floor_cell,
+					"door_bot_atlas": door_top + Vector2i(0, 1),
+					"mask": -1,
+					"is_door": true,
+				})
+				if cell.y > 0:
+					data.append({
+						"cell": cell + Vector2i(0, -1),
+						"door_top_atlas": door_top,
+						"mask": -1,
+						"is_door_top": true,
+					})
 				continue
 
 			if _is_room_floor(interior, cell):
@@ -294,9 +324,8 @@ func _compute_draw_data(interior: InteriorMap, sty: StringName) -> Array:
 							"floor_atlas": floor_cell, "mask": 0, "corner_idx": ci}
 					data.append(entry)
 				else:
-					# Outer fill / isolated (0 or 2+ diagonals): not clickable.
-					atlas = Vector2i(19, 3 if sty != &"wood" else 8)
-					data.append({"cell": cell, "wall_atlas": atlas, "mask": -1})
+					# Outer fill / isolated (0 or 2+ diagonals): leave as background.
+					pass
 				continue
 
 			var lut_entry: Variant = wall_lut.get(lut_mask, null)
