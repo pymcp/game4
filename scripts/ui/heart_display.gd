@@ -85,12 +85,10 @@ func update(curr: int, max_value: int) -> void:
 	_prev_fills.resize(new_count)
 	for i in range(new_count):
 		_prev_fills[i] = heart_fill(_curr, _max, i)
-	# Resize control to fit hearts.
+	# Set minimum height only — width is controlled by parent rect.
 	var scale_f: float = _heart_px / 7.0
-	var w: float = float(new_count) * _heart_px + float(maxi(new_count - 1, 0)) * _heart_px * SPACING_FRAC
 	var h: float = 6.0 * scale_f
-	custom_minimum_size = Vector2(w, h)
-	size = Vector2(w, h)
+	custom_minimum_size.y = h
 	queue_redraw()
 
 
@@ -102,8 +100,11 @@ func _draw() -> void:
 		return
 	var scale_f: float = _heart_px / 7.0
 	var stride: float = _heart_px + _heart_px * SPACING_FRAC
+	# Right-align: offset so last heart ends at the right edge of the control.
+	var needed_w: float = float(count) * _heart_px + float(maxi(count - 1, 0)) * _heart_px * SPACING_FRAC
+	var x_base: float = size.x - needed_w
 	for i in range(count):
-		var ox: float = float(i) * stride
+		var ox: float = x_base + float(i) * stride
 		var fill: float = heart_fill(_curr, _max, i)
 		_draw_heart(ox, scale_f, fill)
 

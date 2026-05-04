@@ -344,18 +344,16 @@ func _build_heart_display(container: Control) -> HeartDisplay:
 	var hd := HeartDisplay.new(47.0)
 	hd.name = "HeartDisplay"
 	hd.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Right edge flush against the hotbar's left edge; hearts grow leftward.
+	# Wide rect whose RIGHT edge is 8px from hotbar. Hearts right-align inside.
 	var bar_w: float = HotbarSlot.SLOT_SIZE * 8 + 4 * 7
 	hd.anchor_left = 0.5
 	hd.anchor_right = 0.5
 	hd.anchor_top = 1.0
 	hd.anchor_bottom = 1.0
-	hd.offset_left = -bar_w * 0.5 - 8.0 - 300.0  # generous max width
 	hd.offset_right = -bar_w * 0.5 - 8.0
+	hd.offset_left = hd.offset_right - 400.0
 	hd.offset_top = -HotbarSlot.SLOT_SIZE - 12.0
 	hd.offset_bottom = -12.0
-	hd.size_flags_horizontal = Control.SIZE_SHRINK_END
-	hd.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	container.add_child(hd)
 	return hd
 
@@ -374,7 +372,7 @@ func _build_cooldown_widget(container: Control) -> CooldownWidget:
 	cw.name = "CooldownWidget"
 	# Anchored beside the hotbar on the right — same bottom row.
 	var bar_w: float = HotbarSlot.SLOT_SIZE * 8 + 4 * 7
-	var widget_w: float = CooldownWidget._LABEL_W + CooldownWidget._BAR_W
+	var widget_w: float = CooldownWidget._WIDGET_W
 	cw.anchor_left = 0.5
 	cw.anchor_right = 0.5
 	cw.anchor_top = 1.0
