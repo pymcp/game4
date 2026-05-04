@@ -341,8 +341,8 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 	# tile coords with mismatched atlas data.
 	patch.tile_set = null
 	patch.scale = Vector2.ONE
-	canopy.tile_set = null
-	canopy.scale = Vector2.ONE
+	canopy.tile_set = ts
+	canopy.scale = sv
 	overlay.tile_set = TilesetCatalog.runes()
 	overlay.scale = Vector2.ONE
 
