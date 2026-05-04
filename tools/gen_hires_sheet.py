@@ -20,7 +20,8 @@ Categories
   items     — resources/items.json entries (effective slot: none / "")
   weapons   — resources/items.json entries (effective slot: weapon)
   armor     — resources/items.json entries (effective slot: head/body/feet/off_hand)
-  creatures — ALL resources/creature_sprites.json entries
+  creatures — resources/creature_sprites.json entries WITHOUT is_pet flag
+  pets      — resources/creature_sprites.json entries WITH is_pet: true
 
 Re-run behaviour
 ----------------
@@ -83,6 +84,7 @@ SENTINEL = {
     "weapons":   (100, 45,  45),   # dark crimson
     "armor":     (40,  65, 110),   # steel blue
     "creatures": (70,  30, 100),   # deep purple
+    "pets":      (60, 100,  60),   # olive green
 }
 
 ARMOR_SLOTS = {"head", "body", "feet", "off_hand"}
@@ -306,9 +308,14 @@ def _run_item_category(category, slot_filter):
 
 
 def _run_creatures():
-    """Build / refresh creatures.png and patch creature_sprites.json."""
+    """Build / refresh creatures.png and patch creature_sprites.json.
+
+    Skips entries tagged ``is_pet: true`` — those belong on pets.png.
+    """
     creatures  = json.loads(CREATURES_JSON.read_text(encoding="utf-8"))
-    entity_ids = sorted(creatures.keys())
+    entity_ids = sorted(
+        eid for eid in creatures if not creatures[eid].get("is_pet", False)
+    )
 
     # Read sprite_tiles field from each entry (default [1,1]).
     entity_sizes = {
@@ -353,6 +360,54 @@ def _run_creatures():
     print(f"  creatures.png  ({sheet.width}×{sheet.height} px)  "
           f"{len(entity_ids)} entities  |  patched {patched} in creature_sprites.json")
 
+
+def _run_pets():
+    """Build / refresh pets.png and patch creature_sprites.json entries tagged is_pet."""
+    creatures  = json.loads(CREATURES_JSON.read_text(encoding="utf-8"))
+    entity_ids = sorted(
+        eid for eid in creatures if creatures[eid].get("is_pet", False)
+    )
+
+    entity_sizes = {
+        eid: creatures[eid].get("sprite_tiles", [1, 1])
+        for eid in entity_ids
+    }
+
+    cells = _load_cells("pets")
+    png_path = HIRES_DIR / "pets.png"
+    existing = Image.open(str(png_path)).convert("RGBA") if png_path.exists() else None
+
+    sheet = _build_sheet(entity_sizes, cells, SENTINEL["pets"], existing)
+    sheet.save(str(png_path))
+    _save_cells("pets", cells)
+
+    # Patch creature_sprites.json — same field set as _run_creatures but pets.png.
+    patched = 0
+    for eid in entity_ids:
+        if eid not in cells:
+            continue
+        col, row       = cells[eid]["cell"]
+        size_w, size_h = cells[eid]["size"]
+        stub_w = size_w * TILE + (size_w - 1) * MARGIN
+        stub_h = size_h * TILE + (size_h - 1) * MARGIN
+
+        entry = creatures[eid]
+        entry["sheet"]        = "res://assets/icons/hires/pets.png"
+        entry["region"]       = [col * STRIDE, row * STRIDE, stub_w, stub_h]
+        entry["anchor_ratio"] = [0.5, 0.95]
+        if "scale" not in entry:
+            entry["scale"] = [0.25, 0.25]
+        entry.pop("anchor", None)
+        patched += 1
+
+    CREATURES_JSON.write_text(
+        json.dumps(creatures, indent="\t", ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    print(f"  pets.png  ({sheet.width}×{sheet.height} px)  "
+          f"{len(entity_ids)} entities  |  patched {patched} in creature_sprites.json")
+
 # ── Global _spec.json ─────────────────────────────────────────────────────────
 
 def _ensure_global_spec():
@@ -376,6 +431,7 @@ CATEGORIES = {
                      "armor",
                      lambda s: s in ARMOR_SLOTS),
     "creatures": _run_creatures,
+    "pets":      _run_pets,
 }
 
 # ── Entry point ───────────────────────────────────────────────────────────────

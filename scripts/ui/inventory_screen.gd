@@ -35,10 +35,9 @@ const EQUIPMENT_SLOT_ORDER: Array = [
 	ItemDefinition.Slot.TOOL,
 ]
 
-enum Tab { EQUIPMENT, ALL, WEAPONS, ARMOR, TOOLS, MATERIALS, CHARACTER }
+enum Tab { ALL, WEAPONS, ARMOR, TOOLS, MATERIALS, CHARACTER }
 
 const TAB_LABELS: Array = [
-	"Equipment",
 	"All Items",
 	"Weapons",
 	"Armor",
@@ -65,7 +64,6 @@ var _current_tab: int = Tab.ALL
 var _tab_buttons: Array[Button] = []
 var _tab_column: VBoxContainer = null
 var _content_stack: Control = null
-var _eq_page: Control = null
 var _grid_page: VBoxContainer = null
 var _inv_slots: Array[HotbarSlot] = []
 var _eq_slots: Array[HotbarSlot] = []
@@ -81,9 +79,17 @@ var _char_row_labels: Array[Label] = []
 var _char_value_labels: Array[Label] = []
 var _char_cursor: int = 0
 var _char_opts: Dictionary = {}
+var _char_stats_container: VBoxContainer = null
+var _char_xp_bar: XpBar = null
+var _char_stat_value_labels: Dictionary = {}   # StringName stat -> Label
+var _char_stat_plus_buttons: Dictionary = {}   # StringName stat -> Button
+var _char_pending_label: Label = null
+var _char_passives_label: Label = null
 var _detail_label: Label = null
 var _detail_name_label: Label = null
 var _detail_desc_label: Label = null
+var _detail_meta_label: Label = null
+var _tooltip_label: Label = null
 var _controls_bar: PanelContainer = null
 var _controls_label: RichTextLabel = null
 
@@ -264,16 +270,19 @@ func _build() -> void:
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
 
-	var center := CenterContainer.new()
-	center.anchor_right = 1.0
-	center.anchor_bottom = 1.0
-	add_child(center)
-
-	# Main panel with fantasy frame.
+	# Main panel with fantasy frame — 90% viewport height, horizontally centred.
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(720, 460)
+	panel.anchor_top = 0.05
+	panel.anchor_bottom = 0.95
+	panel.anchor_left = 0.5
+	panel.anchor_right = 0.5
+	panel.offset_left = -440.0
+	panel.offset_right = 440.0
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.custom_minimum_size = Vector2(880, 0)
 	panel.theme_type_variation = &"WoodPanel"
-	center.add_child(panel)
+	add_child(panel)
 
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
@@ -299,7 +308,7 @@ func _build() -> void:
 	vsep.theme_type_variation = &"WoodSep"
 	content_row.add_child(vsep)
 
-	# Right: content stack (only one child visible at a time).
+	# Middle: content stack (only one child visible at a time).
 	var content_margin := MarginContainer.new()
 	content_margin.add_theme_constant_override("margin_left", 12)
 	content_margin.add_theme_constant_override("margin_right", 12)
@@ -314,11 +323,7 @@ func _build() -> void:
 	_content_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content_margin.add_child(_content_stack)
 
-	# Build all content pages.
-	_eq_page = _build_equipment_page()
-	_eq_page.visible = false
-	_content_stack.add_child(_eq_page)
-
+	# Build content pages (no Equipment page — doll is always visible at right).
 	_grid_page = _build_grid_page()
 	_content_stack.add_child(_grid_page)
 
@@ -326,9 +331,39 @@ func _build() -> void:
 	_char_page.visible = false
 	_content_stack.add_child(_char_page)
 
+	# Right separator.
+	var rsep := Panel.new()
+	rsep.custom_minimum_size = Vector2(2, 0)
+	rsep.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rsep.theme_type_variation = &"WoodSep"
+	content_row.add_child(rsep)
+
+	# Right column: permanent paper doll.
+	var doll_margin := MarginContainer.new()
+	doll_margin.add_theme_constant_override("margin_left", 8)
+	doll_margin.add_theme_constant_override("margin_right", 8)
+	doll_margin.add_theme_constant_override("margin_top", 8)
+	doll_margin.add_theme_constant_override("margin_bottom", 8)
+	doll_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content_row.add_child(doll_margin)
+
+	_paperdoll = _build_paperdoll()
+	doll_margin.add_child(_paperdoll)
+
 	# Bottom: controls hint bar.
 	_controls_bar = _build_controls_bar()
 	outer.add_child(_controls_bar)
+
+	# Floating tooltip — rendered above all other children.
+	_tooltip_label = Label.new()
+	_tooltip_label.name = "Tooltip"
+	_tooltip_label.add_theme_font_size_override("font_size", 11)
+	_tooltip_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.85))
+	_tooltip_label.add_theme_stylebox_override("normal", _make_tooltip_style())
+	_tooltip_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tooltip_label.z_index = 100
+	_tooltip_label.visible = false
+	add_child(_tooltip_label)
 
 
 func _build_title_bar() -> PanelContainer:
@@ -387,6 +422,8 @@ func _build_grid_page() -> VBoxContainer:
 	_grid_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_grid_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# Re-fill grid whenever the available area changes (e.g. window resize).
+	_grid_scroll.resized.connect(_refresh)
 	page.add_child(_grid_scroll)
 
 	_grid = GridContainer.new()
@@ -409,20 +446,27 @@ func _build_grid_page() -> VBoxContainer:
 	_cursor_panel.z_index = 10
 	page.add_child(_cursor_panel)
 
-	# Detail panel below grid: name (rarity colored) + generated description.
+	# Detail panel below grid: name + slot/power meta + description.
 	var detail_box := VBoxContainer.new()
 	detail_box.add_theme_constant_override("separation", 2)
 	detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	detail_box.custom_minimum_size = Vector2(0, 48)
+	detail_box.custom_minimum_size = Vector2(0, 60)
 
 	_detail_name_label = Label.new()
 	_detail_name_label.theme_type_variation = &"DimLabel"
 	_detail_name_label.text = ""
 	detail_box.add_child(_detail_name_label)
 
+	_detail_meta_label = Label.new()
+	_detail_meta_label.add_theme_font_size_override("font_size", 11)
+	_detail_meta_label.add_theme_color_override("font_color", UITheme.COL_LABEL_DIM)
+	_detail_meta_label.text = ""
+	_detail_meta_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_box.add_child(_detail_meta_label)
+
 	_detail_desc_label = Label.new()
 	_detail_desc_label.theme_type_variation = &"HintLabel"
-	_detail_desc_label.text = "(empty)"
+	_detail_desc_label.text = "(select an item)"
 	_detail_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_desc_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail_box.add_child(_detail_desc_label)
@@ -431,18 +475,6 @@ func _build_grid_page() -> VBoxContainer:
 	_detail_label = _detail_desc_label
 	page.add_child(detail_box)
 
-	return page
-
-
-func _build_equipment_page() -> HBoxContainer:
-	var page := HBoxContainer.new()
-	page.add_theme_constant_override("separation", 14)
-	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	page.anchor_right = 1.0
-	page.anchor_bottom = 1.0
-
-	_paperdoll = _build_paperdoll()
-	page.add_child(_paperdoll)
 	return page
 
 
@@ -572,13 +604,13 @@ func _select_tab(tab_idx: int) -> void:
 			&"WoodTabButtonActive" if active else &"WoodTabButton"
 
 	# Show the appropriate content page.
-	_eq_page.visible = (tab_idx == Tab.EQUIPMENT)
-	_grid_page.visible = (tab_idx not in [Tab.EQUIPMENT, Tab.CHARACTER])
+	_grid_page.visible = (tab_idx != Tab.CHARACTER)
 	_char_page.visible = (tab_idx == Tab.CHARACTER)
 	if tab_idx == Tab.CHARACTER:
 		_load_char_opts_from_session()
 		_refresh_char_preview()
 		_refresh_char_labels()
+		_refresh_char_stats()
 
 	_cursor = 0
 	_refresh()
@@ -592,11 +624,6 @@ func _cycle_tab(dir: int) -> void:
 # ---------- Cursor navigation ----------
 
 func _move_cursor(dx: int, dy: int) -> void:
-	if _current_tab == Tab.EQUIPMENT:
-		# Navigate equipment slots (5 slots, vertical list).
-		_cursor = clampi(_cursor + dy + dx, 0, EQUIPMENT_SLOT_ORDER.size() - 1)
-		_refresh_cursor()
-		return
 	if _current_tab == Tab.CHARACTER:
 		_move_char_cursor(dx, dy)
 		return
@@ -605,29 +632,21 @@ func _move_cursor(dx: int, dy: int) -> void:
 	var total: int = _filtered_view.size()
 	if total == 0:
 		return
-	var col: int = _cursor % COLS
-	var row: int = _cursor / COLS
-	col = clampi(col + dx, 0, COLS - 1)
-	row = clampi(row + dy, 0, (total - 1) / COLS)
-	var new_idx: int = row * COLS + col
+	var num_cols: int = _grid.columns if _grid != null and _grid.columns > 0 else COLS
+	var col: int = _cursor % num_cols
+	var row: int = _cursor / num_cols
+	col = clampi(col + dx, 0, num_cols - 1)
+	row = clampi(row + dy, 0, (total - 1) / num_cols)
+	var new_idx: int = row * num_cols + col
 	_cursor = clampi(new_idx, 0, total - 1)
 	_refresh_cursor()
 
 
 func _refresh_cursor() -> void:
-	if _current_tab == Tab.EQUIPMENT:
-		# Highlight the equipment slot.
-		if _cursor >= 0 and _cursor < _eq_slots.size():
-			var slot: HotbarSlot = _eq_slots[_cursor]
-			_cursor_panel.visible = true
-			_cursor_panel.global_position = slot.global_position - Vector2(2, 2)
-			_cursor_panel.size = slot.size + Vector2(4, 4)
-		_update_detail_equipment()
-		return
-
 	if _current_tab == Tab.CHARACTER:
 		_cursor_panel.visible = false
 		_clear_detail("")
+		_hide_tooltip()
 		return
 
 	# Grid cursor.
@@ -647,19 +666,24 @@ func _refresh_cursor() -> void:
 	else:
 		_cursor_panel.visible = false
 
-	# Update detail text.
+	# Update detail text and tooltip.
 	if _cursor >= 0 and _cursor < _filtered_view.size():
 		var entry: Dictionary = _filtered_view[_cursor]
 		if entry["id"] != &"":
 			var def: ItemDefinition = ItemRegistry.get_item(entry["id"])
 			if def != null:
 				_show_item_detail(def)
+				if _cursor < _inv_slots.size():
+					_show_tooltip(def.display_name, _inv_slots[_cursor])
 			else:
 				_clear_detail(String(entry["id"]))
+				_hide_tooltip()
 		else:
 			_clear_detail("(empty)")
+			_hide_tooltip()
 	else:
 		_clear_detail("(empty)")
+		_hide_tooltip()
 
 
 func _update_detail_equipment() -> void:
@@ -693,13 +717,63 @@ func _show_item_detail(def: ItemDefinition, prefix: String = "") -> void:
 		name_text += " [%s]" % rarity_name
 	_detail_name_label.text = name_text
 	_detail_name_label.add_theme_color_override("font_color", rarity_color)
+
+	# Meta line: slot + power + stack size for materials.
+	if _detail_meta_label != null:
+		var meta_parts: Array[String] = []
+		var slot_name: String = slot_label(int(def.slot))
+		if slot_name != "?":
+			meta_parts.append(slot_name)
+		if def.power > 0:
+			meta_parts.append("Power: %d" % def.power)
+		if def.slot == ItemDefinition.Slot.NONE:
+			meta_parts.append("Stack: %d" % def.stack_size)
+		_detail_meta_label.text = "  ·  ".join(meta_parts)
+
 	_detail_desc_label.text = def.generate_description()
 
 
-func _clear_detail(text: String = "(empty)") -> void:
+func _clear_detail(text: String = "(select an item)") -> void:
 	_detail_name_label.text = ""
 	_detail_name_label.add_theme_color_override("font_color", UITheme.COL_LABEL)
+	if _detail_meta_label != null:
+		_detail_meta_label.text = ""
 	_detail_desc_label.text = text
+
+
+func _make_tooltip_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.1, 0.1, 0.1, 0.85)
+	sb.corner_radius_top_left = 3
+	sb.corner_radius_top_right = 3
+	sb.corner_radius_bottom_left = 3
+	sb.corner_radius_bottom_right = 3
+	sb.content_margin_left = 5
+	sb.content_margin_right = 5
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
+	return sb
+
+
+func _show_tooltip(item_name: String, near_slot: Control) -> void:
+	if _tooltip_label == null or near_slot == null:
+		return
+	_tooltip_label.text = item_name
+	# Force layout to get correct size.
+	_tooltip_label.reset_size()
+	var slot_pos: Vector2 = near_slot.global_position - global_position
+	var tip_x: float = slot_pos.x + near_slot.size.x * 0.5 - _tooltip_label.size.x * 0.5
+	var tip_y: float = slot_pos.y - _tooltip_label.size.y - 4.0
+	# Clamp within our own rect.
+	tip_x = clampf(tip_x, 0.0, size.x - _tooltip_label.size.x)
+	tip_y = maxf(tip_y, 0.0)
+	_tooltip_label.position = Vector2(tip_x, tip_y)
+	_tooltip_label.visible = true
+
+
+func _hide_tooltip() -> void:
+	if _tooltip_label != null:
+		_tooltip_label.visible = false
 
 
 # ---------- Interact / Drop ----------
@@ -707,16 +781,6 @@ func _clear_detail(text: String = "(empty)") -> void:
 func _interact_cursor() -> void:
 	if _player == null:
 		return
-	if _current_tab == Tab.EQUIPMENT:
-		# Unequip the selected slot.
-		if _cursor >= 0 and _cursor < EQUIPMENT_SLOT_ORDER.size():
-			var slot_type: int = EQUIPMENT_SLOT_ORDER[_cursor]
-			var eq_id: StringName = _player.equipment.get_equipped(slot_type)
-			if eq_id != &"":
-				_player.equipment.unequip(slot_type)
-				_player.inventory.add(eq_id, 1)
-		return
-
 	if _current_tab == Tab.CHARACTER:
 		return
 
@@ -756,16 +820,6 @@ func _interact_cursor() -> void:
 func _drop_cursor() -> void:
 	if _player == null:
 		return
-	if _current_tab == Tab.EQUIPMENT:
-		# Drop equipped item.
-		if _cursor >= 0 and _cursor < EQUIPMENT_SLOT_ORDER.size():
-			var slot_type: int = EQUIPMENT_SLOT_ORDER[_cursor]
-			var eq_id: StringName = _player.equipment.get_equipped(slot_type)
-			if eq_id != &"":
-				_player.equipment.unequip(slot_type)
-				_spawn_loot_pickup(eq_id, 1)
-		return
-
 	if _current_tab == Tab.CHARACTER:
 		return
 
@@ -810,11 +864,22 @@ func _refresh() -> void:
 	# Build filtered inventory view for current tab.
 	_build_filtered_view()
 
-	# Ensure enough grid slots exist (at least COLS * ROWS, or as many as
+	# Compute how many columns and rows fit in the visible scroll area (fills the panel).
+	# slot_cell = SLOT_SZ + separation(4).
+	var cell: float = SLOT_SZ + 4.0
+	var dyn_cols: int = COLS
+	var dyn_rows: int = ROWS
+	if _grid_scroll != null and _grid_scroll.size.x > 0:
+		dyn_cols = maxi(int(_grid_scroll.size.x / cell), COLS)
+	if _grid_scroll != null and _grid_scroll.size.y > 0:
+		dyn_rows = maxi(int(_grid_scroll.size.y / cell), ROWS)
+	_grid.columns = dyn_cols
+
+	# Ensure enough grid slots exist (at least dyn_cols*dyn_rows, or as many as
 	# needed for the filtered view).
-	var needed: int = maxi(_filtered_view.size(), COLS * ROWS)
+	var needed: int = maxi(_filtered_view.size(), dyn_cols * dyn_rows)
 	# Round up to full row.
-	needed = ceili(float(needed) / COLS) * COLS
+	needed = ceili(float(needed) / dyn_cols) * dyn_cols
 	while _inv_slots.size() < needed:
 		var slot := _make_slot()
 		_grid.add_child(slot)
@@ -837,6 +902,8 @@ func _refresh() -> void:
 	_cursor = clampi(_cursor, 0, max_cursor)
 	_refresh_cursor()
 	_update_controls_text()
+	if _current_tab == Tab.CHARACTER:
+		_refresh_char_stats()
 
 
 func _build_filtered_view() -> void:
@@ -896,6 +963,10 @@ const _CHAR_ROWS: Array = [
 	["face_variant", "Beard Shape"],
 ]
 
+const _STAT_ORDER: Array[StringName] = [
+	&"strength", &"dexterity", &"defense", &"charisma", &"wisdom", &"speed"
+]
+
 const _CHAR_VIEWPORT_SIZE: int = 32
 
 
@@ -903,6 +974,14 @@ func _build_character_page() -> VBoxContainer:
 	var page := VBoxContainer.new()
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	# --- Stats section ---
+	_char_stats_container = _build_char_stats_section()
+	page.add_child(_char_stats_container)
+
+	var sep := HSeparator.new()
+	sep.add_theme_constant_override("separation", 8)
+	page.add_child(sep)
 
 	var content := HBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1152,6 +1231,139 @@ func _make_slot() -> HotbarSlot:
 	count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(count_label)
 	return slot
+
+
+func _build_char_stats_section() -> VBoxContainer:
+	var section := VBoxContainer.new()
+	section.add_theme_constant_override("separation", 4)
+	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	# Level + XP row.
+	var lv_row := HBoxContainer.new()
+	lv_row.add_theme_constant_override("separation", 8)
+	section.add_child(lv_row)
+
+	var lv_label := Label.new()
+	lv_label.text = "Level"
+	lv_label.add_theme_font_size_override("font_size", 13)
+	lv_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
+	lv_label.custom_minimum_size.x = 42
+	lv_row.add_child(lv_label)
+
+	var lv_val := Label.new()
+	lv_val.add_theme_font_size_override("font_size", 13)
+	lv_val.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
+	lv_val.custom_minimum_size.x = 24
+	lv_row.add_child(lv_val)
+	_char_stat_value_labels[&"_level"] = lv_val
+
+	_char_xp_bar = XpBar.new()
+	_char_xp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lv_row.add_child(_char_xp_bar)
+
+	# Pending points label (hidden when 0).
+	_char_pending_label = Label.new()
+	_char_pending_label.add_theme_font_size_override("font_size", 12)
+	_char_pending_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.2))
+	_char_pending_label.visible = false
+	section.add_child(_char_pending_label)
+
+	# Stat rows.
+	for stat: StringName in _STAT_ORDER:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		section.add_child(row)
+
+		var name_lbl := Label.new()
+		name_lbl.text = String(stat).capitalize()
+		name_lbl.custom_minimum_size.x = 90
+		name_lbl.add_theme_font_size_override("font_size", 12)
+		name_lbl.add_theme_color_override("font_color", UITheme.COL_LABEL)
+		row.add_child(name_lbl)
+
+		var val_lbl := Label.new()
+		val_lbl.custom_minimum_size.x = 28
+		val_lbl.add_theme_font_size_override("font_size", 12)
+		val_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+		row.add_child(val_lbl)
+		_char_stat_value_labels[stat] = val_lbl
+
+		var plus_btn := Button.new()
+		plus_btn.text = "[+]"
+		plus_btn.flat = true
+		plus_btn.custom_minimum_size = Vector2(32, 20)
+		plus_btn.add_theme_font_size_override("font_size", 11)
+		plus_btn.visible = false
+		var s: StringName = stat  # capture for closure
+		plus_btn.pressed.connect(func() -> void: _on_stat_plus_pressed(s))
+		row.add_child(plus_btn)
+		_char_stat_plus_buttons[stat] = plus_btn
+
+	# Passives row.
+	_char_passives_label = Label.new()
+	_char_passives_label.add_theme_font_size_override("font_size", 11)
+	_char_passives_label.add_theme_color_override("font_color", UITheme.COL_LABEL_DIM)
+	_char_passives_label.text = ""
+	section.add_child(_char_passives_label)
+
+	return section
+
+
+func _refresh_char_stats() -> void:
+	if _player == null or _char_stat_value_labels.is_empty():
+		return
+
+	# Level label.
+	var lv_lbl: Label = _char_stat_value_labels.get(&"_level")
+	if lv_lbl != null:
+		lv_lbl.text = str(_player.level)
+
+	# XP bar.
+	if _char_xp_bar != null:
+		_char_xp_bar.update(
+			_player.xp,
+			_player.level,
+			LevelingConfig.xp_to_next(_player.level),
+			_player._pending_stat_points > 0
+		)
+
+	# Stat rows.
+	var has_points: bool = _player._pending_stat_points > 0
+	for stat: StringName in _STAT_ORDER:
+		var val_lbl: Label = _char_stat_value_labels.get(stat)
+		if val_lbl != null:
+			val_lbl.text = str(_player.get_stat(stat))
+		var btn: Button = _char_stat_plus_buttons.get(stat)
+		if btn != null:
+			btn.visible = has_points
+
+	# Pending points header.
+	if _char_pending_label != null:
+		if has_points:
+			_char_pending_label.text = "[%d stat point%s to spend — press [+]]" % [
+				_player._pending_stat_points,
+				"s" if _player._pending_stat_points > 1 else ""
+			]
+			_char_pending_label.visible = true
+		else:
+			_char_pending_label.visible = false
+
+	# Passives.
+	if _char_passives_label != null:
+		if _player.unlocked_passives.is_empty():
+			_char_passives_label.text = ""
+		else:
+			var names: Array[String] = []
+			for p: StringName in _player.unlocked_passives:
+				names.append(String(p).capitalize().replace("_", " "))
+			_char_passives_label.text = "Passives: %s" % ", ".join(names)
+
+
+func _on_stat_plus_pressed(stat: StringName) -> void:
+	if _player == null:
+		return
+	_player.spend_stat_point(stat)
+	_refresh_char_stats()
 
 
 # ---------- Test helpers ----------

@@ -12,7 +12,7 @@ const DEFAULT_VISIBLE_SLOTS: int = 10
 
 var _inventory: Inventory = null
 
-@onready var _row: HBoxContainer = $Row
+var _row: HBoxContainer = null
 
 
 ## Pure helper: build a view-model of the first [param n] inventory slots.
@@ -33,6 +33,7 @@ static func build_view(inv: Inventory, n: int) -> Array:
 
 
 func _ready() -> void:
+	_row = get_node_or_null("Row") as HBoxContainer
 	focus_mode = Control.FOCUS_NONE
 	_ensure_slot_nodes()
 	_refresh()

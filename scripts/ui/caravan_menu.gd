@@ -15,10 +15,11 @@ var _player: PlayerController = null
 var _player_id: int = 0
 var _caravan_data: CaravanData = null
 
-@onready var _members_container: VBoxContainer = $Panel/HBox/LeftPanel/MembersContainer
-@onready var _inv_list: Label = $Panel/HBox/LeftPanel/InvList
-@onready var _left_panel: VBoxContainer = $Panel/HBox/LeftPanel
-@onready var _right_panel: Control = $Panel/HBox/RightPanel
+## Emitted when the player wants to swap their active pet.
+signal swap_pet_requested(player_id: int, species: StringName)
+
+## Reference to the World node, for reading pet roster.
+var _world_node: Node = null
 
 var _member_buttons: Array[Button] = []
 var _member_ids: Array[StringName] = []
@@ -26,6 +27,11 @@ var _current_crafter: CrafterPanel = null
 
 var _member_cursor: int = 0
 var _focus: _Focus = _Focus.LEFT
+
+@onready var _members_container: VBoxContainer = $Panel/HBox/LeftPanel/MembersContainer
+@onready var _inv_list: Label = $Panel/HBox/LeftPanel/InvList
+@onready var _left_panel: VBoxContainer = $Panel/HBox/LeftPanel
+@onready var _right_panel: Control = $Panel/HBox/RightPanel
 
 
 func _ready() -> void:
@@ -36,10 +42,11 @@ func _ready() -> void:
 	visible = false
 
 
-func setup(player: PlayerController, caravan_data: CaravanData) -> void:
+func setup(player: PlayerController, caravan_data: CaravanData, world_node: Node = null) -> void:
 	_player = player
 	_player_id = player.player_id if player != null else 0
 	_caravan_data = caravan_data
+	_world_node = world_node
 
 
 func open() -> void:
@@ -160,6 +167,17 @@ func _refresh_members() -> void:
 				lines.append("%s ×%d" % [item_name, slot["count"]])
 		_inv_list.text = "\n".join(lines) if not lines.is_empty() else "(empty)"
 
+	# ─── Pets tab ──────────────────────────────────────────────
+	if _world_node != null and _world_node.has_method("get_pet_roster"):
+		var pets_btn := Button.new()
+		pets_btn.text = "Pets"
+		pets_btn.focus_mode = Control.FOCUS_NONE
+		pets_btn.theme_type_variation = &"WoodButton"
+		pets_btn.pressed.connect(_on_member_selected.bind(&"__pets_tab__"))
+		_members_container.add_child(pets_btn)
+		_member_buttons.append(pets_btn)
+		_member_ids.append(&"__pets_tab__")
+
 
 func _refresh_member_cursor() -> void:
 	for i in _member_buttons.size():
@@ -172,6 +190,18 @@ func _refresh_member_cursor() -> void:
 
 
 func _on_member_selected(member_id: StringName) -> void:
+	if member_id == &"__pets_tab__":
+		for child in _right_panel.get_children():
+			child.queue_free()
+		_current_crafter = null
+		var panel := PetsPanel.new()
+		panel.setup(_player_id, _world_node)
+		panel.pet_follow_requested.connect(func(pid: int, sp: StringName) -> void:
+			swap_pet_requested.emit(pid, sp)
+		)
+		_right_panel.add_child(panel)
+		_set_focus(_Focus.RIGHT)
+		return
 	for child in _right_panel.get_children():
 		child.queue_free()
 	_current_crafter = null
@@ -204,3 +234,7 @@ func _on_member_selected(member_id: StringName) -> void:
 		label.anchor_right = 1.0
 		label.anchor_bottom = 1.0
 		_right_panel.add_child(label)
+
+
+# ─── Pet panel ─────────────────────────────────────────────────────────
+

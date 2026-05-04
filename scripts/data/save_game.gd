@@ -12,7 +12,9 @@
 class_name SaveGame
 extends Resource
 
-const VERSION: int = 4
+## v5→v6: Added xp, level, unlocked_passives, pending_stat_points to PlayerSaveData.
+##         Missing fields in v5 saves default to initial values automatically.
+const VERSION: int = 6
 const _SAVE_DIR: String = "user://saves/"
 
 @export var version: int = VERSION
@@ -64,6 +66,7 @@ static func snapshot(world: WorldRoot) -> SaveGame:
 		save.active_interior_id = MapManager.active_interior.map_id
 	if world != null and world._region != null:
 		save.active_region_id = world._region.region_id
+		var world_node: World = World.instance()
 		for pid in 2:
 			var p: PlayerController = world.get_player(pid)
 			var psd := PlayerSaveData.new()
@@ -78,15 +81,24 @@ static func snapshot(world: WorldRoot) -> SaveGame:
 			if p.equipment != null:
 				psd.equipment_data = p.equipment.to_dict()
 			psd.stats = p.stats.duplicate()
+			psd.xp = p.xp
+			psd.level = p.level
+			psd.unlocked_passives = p.unlocked_passives.duplicate()
+			psd.pending_stat_points = p._pending_stat_points
 			psd.fog_data = p.fog_of_war.to_dict()
 			psd.dungeon_fog_data = p.dungeon_fog.to_dict()
+			# Pet roster — read from the World coordinator.
+			if world_node != null and world_node.has_method("get_active_pet_species"):
+				psd.active_pet_species = world_node.call("get_active_pet_species", pid)
+				var roster: Array[StringName] = world_node.call("get_pet_roster", pid)
+				psd.pet_roster = roster
 			save.players.append(psd)
 	# Save caravan state.
 	save.caravans.clear()
-	var world_node: World = World.instance()
-	if world_node != null:
+	var _world_node_caravan: World = World.instance()
+	if _world_node_caravan != null:
 		for pid in range(2):
-			var caravan_data: CaravanData = world_node.get_caravan_data(pid)
+			var caravan_data: CaravanData = _world_node_caravan.get_caravan_data(pid)
 			if caravan_data == null:
 				continue
 			var csd := CaravanSaveData.new()
@@ -113,6 +125,7 @@ func apply(world: WorldRoot = null) -> void:
 		caravans = []
 	if version < 4:
 		quest_tracker_data = {}
+	# VERSION 5: pet_roster / active_pet_species — no migration needed (defaults to empty).
 	WorldManager.reset(world_seed)
 	GameState.from_dict(game_state_flags)
 	if not quest_tracker_data.is_empty():
@@ -149,10 +162,24 @@ func apply(world: WorldRoot = null) -> void:
 			p.equipment.from_dict(psd.equipment_data)
 		if not psd.stats.is_empty():
 			p.stats = psd.stats.duplicate()
+		p.xp = psd.xp
+		p.level = psd.level
+		p.unlocked_passives = psd.unlocked_passives.duplicate()
+		p._pending_stat_points = psd.pending_stat_points
 		if not psd.fog_data.is_empty():
 			p.fog_of_war.from_dict(psd.fog_data)
 		if not psd.dungeon_fog_data.is_empty():
 			p.dungeon_fog.from_dict(psd.dungeon_fog_data)
+	# Restore pet rosters into GameSession so World picks them up.
+	for psd: PlayerSaveData in players:
+		if psd.pet_roster.is_empty():
+			continue
+		if psd.player_id == 0:
+			GameSession.p1_pet_roster = psd.pet_roster.duplicate()
+			GameSession.p1_active_pet = psd.active_pet_species
+		elif psd.player_id == 1:
+			GameSession.p2_pet_roster = psd.pet_roster.duplicate()
+			GameSession.p2_active_pet = psd.active_pet_species
 	# Restore caravan state.
 	var world_node: World = World.instance() if world != null else null
 	if world_node != null:

@@ -36,10 +36,12 @@ extends Resource
 ## `StringName → Array[Vector2i]`.
 @export var overworld_decoration: Dictionary = {}
 
-## 3×3 patch sets for blended terrain edges. Each value is exactly 9 cells
-## in row-major NW, N, NE, W, C, E, SW, S, SE order.
-## `StringName → Array[Vector2i]` (length 9).
-@export var overworld_terrain_patches_3x3: Dictionary = {}
+## Transparent overlay sets keyed by overlay set name (e.g. &"dirt", &"stone").
+## 20-tile sets: indices 0–8 blob, 9–12 inner corners, 13–19 path-only tiles.
+## 13-tile sets: indices 0–8 blob, 9–12 inner corners (no path tiles).
+## Indices 13–19 on a 13-tile set are clamped to center (4) at runtime.
+## `StringName → Array[Vector2i]` (length 13 or 20).
+@export var overworld_overlay_sets: Dictionary = {}
 
 ## Fully-opaque 3×3 water-on-grass border tiles (centre = plain water,
 ## corners curve grass into water). Same NW…SE ordering. Length 9.
@@ -81,31 +83,31 @@ extends Resource
 ## Leave empty to disable floor borders (falls back to plain floor cell).
 @export var dungeon_floor_border_3x3: Array[Vector2i] = []
 
-## Same as dungeon_floor_border_3x3 for labyrinth floors.
-@export var labyrinth_floor_border_3x3: Array[Vector2i] = []
+## Same as dungeon_floor_border_3x3 for maze floors.
+@export var maze_floor_border_3x3: Array[Vector2i] = []
 
 ## Two side-by-side cells for the cave-mouth marker on the overworld.
 ## Length 2, ordered [west, east].
 @export var dungeon_entrance_pair: Array[Vector2i] = []
 
-## Two side-by-side labyrinth entrance marker tiles on the dungeon sheet.
-## Painted on the overworld to mark labyrinth entrances with a tint.
-@export var labyrinth_entrance_pair: Array[Vector2i] = []
+## Two side-by-side maze entrance marker tiles on the dungeon sheet.
+## Painted on the overworld to mark maze entrances with a tint.
+@export var maze_entrance_pair: Array[Vector2i] = []
 
 ## Two atlas cells for the treasure chest sprite: [closed_cell, open_cell].
 ## Used by TreasureChest._refresh_sprite() to draw the correct frame.
-@export var labyrinth_chest_pair: Array[Vector2i] = []
+@export var maze_chest_pair: Array[Vector2i] = []
 
-## Single-cell labyrinth terrains (floor / door / water).
+## Single-cell maze terrains (floor / door / water).
 ## `StringName → Array[Vector2i]` (element [0] is canonical).
 ## Defaults to dungeon tiles until overridden via the Game Editor.
-@export var labyrinth_terrain: Dictionary = {}
+@export var maze_terrain: Dictionary = {}
 
-## Wall autotile lookup for the labyrinth (same schema as dungeon_wall_autotile).
-@export var labyrinth_wall_autotile: Array[Dictionary] = []
+## Wall autotile lookup for the maze (same schema as dungeon_wall_autotile).
+@export var maze_wall_autotile: Array[Dictionary] = []
 
-## Decorative floor overlay cells for the labyrinth (~10% on floor tiles).
-@export var labyrinth_floor_decor: Array[Vector2i] = []
+## Decorative floor overlay cells for the maze (~10% on floor tiles).
+@export var maze_floor_decor: Array[Vector2i] = []
 
 ## Wooden doorframe cells for dungeon corridor exits, addressed by named
 ## slot. Slots: `&"TL"`, `&"TOP"`, `&"TR"`, `&"LW"`, `&"LW2"`, `&"RW"`,
@@ -172,36 +174,68 @@ static func default_mappings() -> TileMappings:
 		&"lilypad": [Vector2i(28, 10)],
 	}
 
-	m.overworld_terrain_patches_3x3 = {
+	m.overworld_overlay_sets = {
+		# ── 20-tile sets ──────────────────────────────────────────────────
 		&"dirt": [
-			Vector2i(0, 25), Vector2i(1, 25), Vector2i(2, 25),
-			Vector2i(0, 26), Vector2i(1, 26), Vector2i(2, 26),
-			Vector2i(0, 27), Vector2i(1, 27), Vector2i(2, 27),
+			# blob 3×3 (indices 0–8)
+			Vector2i(8, 10), Vector2i(9, 10), Vector2i(10, 10),
+			Vector2i(8, 11), Vector2i(9, 11), Vector2i(10, 11),
+			Vector2i(8, 12), Vector2i(9, 12), Vector2i(10, 12),
+			# inner corners (indices 9–12)
+			Vector2i(7, 11), Vector2i(6, 11), Vector2i(7, 10), Vector2i(6, 10),
+			# path-only (indices 13–19): straight, dead-ends, isolated
+			Vector2i(10, 8), Vector2i(10, 9),
+			Vector2i(6, 12), Vector2i(7, 12), Vector2i(6, 13), Vector2i(7, 13),
+			Vector2i(9, 13),
+			# path corners (indices 20–23): cNE, cNW, cSE, cSW
+			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
+			# path T-junctions (indices 24–27): tW, tS, tE, tN
+			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
+			# path cross (index 28): +
+			Vector2i(0, 0),
 		],
 		&"stone": [
-			Vector2i(3, 25), Vector2i(4, 25), Vector2i(5, 25),
-			Vector2i(3, 26), Vector2i(4, 26), Vector2i(5, 26),
-			Vector2i(3, 27), Vector2i(4, 27), Vector2i(5, 27),
-		],
-		&"sand": [
-			Vector2i(6, 25), Vector2i(7, 25), Vector2i(8, 25),
-			Vector2i(6, 26), Vector2i(7, 26), Vector2i(8, 26),
-			Vector2i(6, 27), Vector2i(7, 27), Vector2i(8, 27),
-		],
-		&"clay": [
-			Vector2i(12, 25), Vector2i(13, 25), Vector2i(14, 25),
-			Vector2i(12, 26), Vector2i(13, 26), Vector2i(14, 26),
-			Vector2i(12, 27), Vector2i(13, 27), Vector2i(14, 27),
-		],
-		&"grass": [
-			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
-			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
-			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
+			Vector2i(8, 16), Vector2i(9, 16), Vector2i(10, 16),
+			Vector2i(8, 17), Vector2i(9, 17), Vector2i(10, 17),
+			Vector2i(8, 18), Vector2i(9, 18), Vector2i(10, 18),
+			Vector2i(7, 17), Vector2i(6, 17), Vector2i(7, 16), Vector2i(6, 16),
+			Vector2i(10, 14), Vector2i(10, 15),
+			Vector2i(6, 18), Vector2i(7, 18), Vector2i(6, 19), Vector2i(7, 19),
+			Vector2i(9, 19),
+			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
+			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
+			Vector2i(0, 0),
 		],
 		&"snow": [
-			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
-			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
-			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
+			Vector2i(8, 22), Vector2i(9, 22), Vector2i(10, 22),
+			Vector2i(8, 23), Vector2i(9, 23), Vector2i(10, 23),
+			Vector2i(8, 24), Vector2i(9, 24), Vector2i(10, 24),
+			Vector2i(7, 23), Vector2i(6, 23), Vector2i(7, 22), Vector2i(6, 22),
+			Vector2i(10, 20), Vector2i(10, 21),
+			Vector2i(6, 24), Vector2i(7, 24), Vector2i(6, 25), Vector2i(7, 25),
+			Vector2i(9, 25),
+			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
+			Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
+			Vector2i(0, 0),
+		],
+		# ── 13-tile sets ──────────────────────────────────────────────────
+		&"grass": [
+			Vector2i(3, 16), Vector2i(4, 16), Vector2i(5, 16),
+			Vector2i(3, 17), Vector2i(4, 17), Vector2i(5, 17),
+			Vector2i(3, 18), Vector2i(4, 18), Vector2i(5, 18),
+			Vector2i(2, 17), Vector2i(1, 17), Vector2i(2, 16), Vector2i(1, 16),
+		],
+		&"mud": [
+			Vector2i(3, 19), Vector2i(4, 19), Vector2i(5, 19),
+			Vector2i(3, 20), Vector2i(4, 20), Vector2i(5, 20),
+			Vector2i(3, 21), Vector2i(4, 21), Vector2i(5, 21),
+			Vector2i(2, 20), Vector2i(1, 20), Vector2i(2, 19), Vector2i(1, 19),
+		],
+		&"purple": [
+			Vector2i(3, 22), Vector2i(4, 22), Vector2i(5, 22),
+			Vector2i(3, 23), Vector2i(4, 23), Vector2i(5, 23),
+			Vector2i(3, 24), Vector2i(4, 24), Vector2i(5, 24),
+			Vector2i(2, 23), Vector2i(1, 23), Vector2i(2, 22), Vector2i(1, 22),
 		],
 	}
 
@@ -259,15 +293,15 @@ static func default_mappings() -> TileMappings:
 
 	m.dungeon_entrance_pair = [Vector2i(24, 4), Vector2i(25, 4)]
 
-	# Labyrinth terrain defaults — same floor tile as dungeon until the user
-	# overrides it in the Game Editor → Labyrinth sections.
-	# Note: &"door" and &"water" are intentionally absent — LabyrinthGenerator
+	# Maze terrain defaults — same floor tile as dungeon until the user
+	# overrides it in the Game Editor → Maze sections.
+	# Note: &"door" and &"water" are intentionally absent — MazeGenerator
 	# never emits those codes, so they are not used by the painting path.
-	m.labyrinth_terrain = {
+	m.maze_terrain = {
 		&"floor": [Vector2i(9, 7)],
 	}
 
-	m.labyrinth_wall_autotile = [
+	m.maze_wall_autotile = [
 		{"mask": 2,  "cell": Vector2i(8, 7),  "flip_v": 0, "flip_h": 0},
 		{"mask": 1,  "cell": Vector2i(10, 7), "flip_v": 0, "flip_h": 0},
 		{"mask": 8,  "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
@@ -285,7 +319,7 @@ static func default_mappings() -> TileMappings:
 		{"mask": 15, "cell": Vector2i(9, 9),  "flip_v": 0, "flip_h": 0},
 	]
 
-	m.labyrinth_floor_decor = [
+	m.maze_floor_decor = [
 		Vector2i(12, 10), Vector2i(13, 10),
 		Vector2i(12, 11), Vector2i(13, 11),
 		Vector2i(12, 12), Vector2i(13, 12),
@@ -293,7 +327,7 @@ static func default_mappings() -> TileMappings:
 		Vector2i(12, 14), Vector2i(13, 14),
 	]
 
-	m.labyrinth_chest_pair = [Vector2i(2, 10), Vector2i(3, 10)]
+	m.maze_chest_pair = [Vector2i(2, 10), Vector2i(3, 10)]
 
 	# Floor-border 3×3: NW N NE / W C E / SW S SE.
 	# Defaults to all pointing at the plain floor cell (9,7) — border is
@@ -304,7 +338,7 @@ static func default_mappings() -> TileMappings:
 		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # SW  S  SE
 	]
 
-	m.labyrinth_floor_border_3x3 = [
+	m.maze_floor_border_3x3 = [
 		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # NW  N  NE
 		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # W   C   E
 		Vector2i(9, 7), Vector2i(9, 7), Vector2i(9, 7),  # SW  S  SE
@@ -351,10 +385,10 @@ func build_dungeon_wall_autotile_dict() -> Dictionary:
 	return out
 
 
-## Same as build_dungeon_wall_autotile_dict but for labyrinth_wall_autotile.
-func build_labyrinth_wall_autotile_dict() -> Dictionary:
+## Same as build_dungeon_wall_autotile_dict but for maze_wall_autotile.
+func build_maze_wall_autotile_dict() -> Dictionary:
 	var out: Dictionary = {}
-	for entry in labyrinth_wall_autotile:
+	for entry in maze_wall_autotile:
 		var mask: int = int(entry.get("mask", -1))
 		if mask < 0:
 			continue

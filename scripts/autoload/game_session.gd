@@ -20,6 +20,13 @@ var pending_load_slot: String = ""
 var p1_appearance: Dictionary = {}
 var p2_appearance: Dictionary = {}
 
+## Per-player pet roster (6 species each) and which species is currently active.
+## Set by start_new_game(); overwritten by SaveGame.apply() on load.
+var p1_pet_roster: Array[StringName] = []
+var p2_pet_roster: Array[StringName] = []
+var p1_active_pet: StringName = &""
+var p2_active_pet: StringName = &""
+
 
 ## Build a random appearance dict using the given RNG.
 ## Keys match CharacterBuilder.build() options.
@@ -71,7 +78,23 @@ func start_new_game(seed_value: int = 0) -> void:
 	rng.seed = WorldManager.world_seed ^ 0xA11CE
 	p1_appearance = randomize_appearance(rng)
 	p2_appearance = randomize_appearance(rng)
+	# Randomize per-player pet rosters using the same seeded rng for determinism.
+	var all_pets: Array[StringName] = PetRegistry.all_species()
+	p1_pet_roster = _shuffle_roster(all_pets.duplicate(), rng)
+	p1_active_pet = p1_pet_roster[0]
+	p2_pet_roster = _shuffle_roster(all_pets.duplicate(), rng)
+	p2_active_pet = p2_pet_roster[0]
 	new_game_started.emit(WorldManager.world_seed)
+
+
+## Seeded Fisher-Yates shuffle. Returns [param arr] in-place for chaining.
+static func _shuffle_roster(arr: Array[StringName], rng: RandomNumberGenerator) -> Array[StringName]:
+	for i: int in range(arr.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp: StringName = arr[i]
+		arr[i] = arr[j]
+		arr[j] = tmp
+	return arr
 
 
 func _process(delta: float) -> void:

@@ -13,7 +13,7 @@ extends Resource
 @export var last_run: Dictionary = {}
 
 ## Begin a new run. Snapshots current_run → last_run, then resets.
-## [param kind]: &"dungeon" or &"labyrinth".
+## [param kind]: &"dungeon" or &"maze".
 ## [param region_str]: region_id serialized as "x_y" string.
 func start_run(kind: StringName, region_str: String) -> void:
 	if not current_run.is_empty():

@@ -286,9 +286,9 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 		&"dungeon":
 			ts = TilesetCatalog.dungeon()
 			sheet_field = &"dungeon_terrain"
-		&"labyrinth":
-			ts = TilesetCatalog.labyrinth()
-			sheet_field = &"labyrinth_terrain"
+		&"maze":
+			ts = TilesetCatalog.maze()
+			sheet_field = &"maze_terrain"
 		_:
 			ts = TilesetCatalog.dungeon()
 			sheet_field = &"dungeon_terrain"
@@ -333,46 +333,65 @@ func _paint_region(region: Region) -> void:
 	# variant tiles every time, but DIFFERENT regions don't share the
 	# same flower-grass arrangement.
 	var seed_hash: int = region.seed
-	# Look up overlay-secondary settings: when a biome's secondary terrain
-	# (e.g. dirt for grass biome, dirt for desert biome) has a registered
-	# 3×3 patch set AND is walkable, we paint PRIMARY on Ground for those
-	# cells and the matching corner/edge tile on the Patch layer. The
-	# transparent corners of patch tiles let the underlying primary show
-	# through, producing soft rounded blob edges instead of hard squares.
 	var biome: BiomeDefinition = BiomeRegistry.get_biome(region.biome)
+
+	# ── Secondary-terrain overlay setup ────────────────────────────────────
+	# Transparent Kenney overlay tiles painted on the Patch layer above the
+	# primary Ground tile. Water-as-secondary is skipped — the water-border
+	# pass handles those cells separately.
 	var overlay_code: int = -1
-	var primary_cell: Vector2i = Vector2i(-1, -1)
-	var patch_cells: Array = []
-	if biome != null:
-		var sec_name: StringName = TerrainCodes.to_terrain_type(
-			biome.secondary_terrain)
-		var prim_name: StringName = TerrainCodes.to_terrain_type(
-			biome.primary_terrain)
-		var pset: Variant = TilesetCatalog.OVERWORLD_TERRAIN_PATCH_3X3.get(
-			sec_name, null)
-		var sec_walkable: bool = bool(
-			TilesetCatalog.WALKABLE.get(sec_name, false))
-		if sec_walkable and pset is Array and (pset as Array).size() == 9:
-			patch_cells = pset
-			primary_cell = TilesetCatalog.cell_for(&"overworld", prim_name)
+	var overlay_cells: Array = []
+	if biome != null and not biome.overlay_set.is_empty():
+		if not _is_water_code(biome.secondary_terrain):
 			overlay_code = biome.secondary_terrain
+			var oset: Variant = TilesetCatalog.OVERWORLD_OVERLAY_SETS.get(biome.overlay_set, null)
+			if oset is Array:
+				overlay_cells = oset as Array
+
 	for y in size:
 		for x in size:
 			var cell := Vector2i(x, y)
 			var code: int = region.tiles[y * size + x]
 			var terrain: StringName = TerrainCodes.to_terrain_type(code)
 			var hash32: int = seed_hash ^ (x * 73856093) ^ (y * 19349663)
-			if code == overlay_code and primary_cell.x >= 0:
-				# Paint primary terrain on Ground so the patch corners blend.
-				ground.set_cell(cell, 0, primary_cell, 0)
-				var idx: int = _patch_index_for_neighbors(
-					region, x, y, overlay_code, size)
-				patch.set_cell(cell, 0, patch_cells[idx], 0)
+
+			if overlay_code >= 0 and code == overlay_code and overlay_cells.size() >= 13:
+				# Secondary terrain blob cell.
+				# Paint primary terrain underneath on Ground, overlay tile on Patch.
+				var prim_cell: Vector2i = TilesetCatalog.cell_for(&"overworld",
+						TerrainCodes.to_terrain_type(biome.primary_terrain))
+				ground.set_cell(cell, 0, prim_cell, 0)
+				var idx: int = _patch_index_for_neighbors(region, x, y, overlay_code, size)
+				# Clamp idx for 13-tile sets (no path tiles → fall back to center).
+				idx = mini(idx, overlay_cells.size() - 1)
+				patch.set_cell(cell, 0, overlay_cells[idx], 0)
 			else:
 				var atlas_cell: Vector2i = TilesetCatalog.cell_for_variant(
-					&"overworld", terrain, hash32)
+						&"overworld", terrain, hash32)
 				if atlas_cell.x >= 0:
 					ground.set_cell(cell, 0, atlas_cell, 0)
+	# Path overlay pass — 1-tile-wide corridors stored in region.path_tiles.
+	# Uses the full 29-tile bitmask lookup for correct corners/T-junctions.
+	if not region.path_tiles.is_empty() and overlay_cells.size() >= 29:
+		var path_prim_cell: Vector2i = Vector2i(-1, -1)
+		if biome != null:
+			path_prim_cell = TilesetCatalog.cell_for(&"overworld",
+					TerrainCodes.to_terrain_type(biome.primary_terrain))
+		var path_set: Dictionary = {}
+		for c: Vector2i in region.path_tiles:
+			path_set[c] = true
+		for c: Vector2i in region.path_tiles:
+			# If this path cell is already inside the dirt blob, let the blob
+			# tiling pass handle it so the path blends in seamlessly.
+			var tile_code: int = region.tiles[c.y * size + c.x]
+			if overlay_code >= 0 and tile_code == overlay_code:
+				continue
+			if path_prim_cell.x >= 0:
+				ground.set_cell(c, 0, path_prim_cell, 0)
+			patch.erase_cell(c)
+			var pidx: int = _path_index_for_cell(path_set, c.x, c.y, size)
+			patch.set_cell(c, 0, overlay_cells[pidx], 0)
+
 	# Decoration pass — trees/rocks/veins from `region.decorations`.
 	for entry in region.decorations:
 		var kind: StringName = entry["kind"]
@@ -430,9 +449,9 @@ func _paint_region(region: Region) -> void:
 
 
 func _paint_interior(interior: InteriorMap, view_kind: StringName) -> void:
-	if view_kind == &"dungeon" or view_kind == &"labyrinth":
+	if view_kind == &"dungeon" or view_kind == &"maze":
 		_paint_dungeon_interior(interior, view_kind)
-		if view_kind == &"labyrinth" and not interior.boss_room_cells.is_empty():
+		if view_kind == &"maze" and not interior.boss_room_cells.is_empty():
 			_paint_boss_room_overlay(interior)
 		return
 	for y in interior.height:
@@ -473,15 +492,15 @@ static func _view_kind_from_interior(interior: InteriorMap) -> StringName:
 # --- Cave (dungeon) painting --------------------------------------
 
 func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"dungeon") -> void:
-	var ts: TileSet = TilesetCatalog.labyrinth() if view_kind == &"labyrinth" else TilesetCatalog.dungeon()
+	var ts: TileSet = TilesetCatalog.maze() if view_kind == &"maze" else TilesetCatalog.dungeon()
 	var dim_layer: TileMapLayer = _ensure_dungeon_dim_layer(ts)
 	dim_layer.clear()
 	var floor_cell: Vector2i = TilesetCatalog.cell_for(view_kind, &"floor")
 	var dim_seed: int = interior.map_id.hash()
-	var floor_decor: Array = (TilesetCatalog.LABYRINTH_FLOOR_DECOR_CELLS
-			if view_kind == &"labyrinth" else TilesetCatalog.DUNGEON_FLOOR_DECOR_CELLS)
-	var wall_autotile: Dictionary = (TilesetCatalog.LABYRINTH_WALL_AUTOTILE
-			if view_kind == &"labyrinth" else TilesetCatalog.DUNGEON_WALL_AUTOTILE)
+	var floor_decor: Array = (TilesetCatalog.MAZE_FLOOR_DECOR_CELLS
+			if view_kind == &"maze" else TilesetCatalog.DUNGEON_FLOOR_DECOR_CELLS)
+	var wall_autotile: Dictionary = (TilesetCatalog.MAZE_WALL_AUTOTILE
+			if view_kind == &"maze" else TilesetCatalog.DUNGEON_WALL_AUTOTILE)
 	var decor_count: int = floor_decor.size()
 	for y in interior.height:
 		for x in interior.width:
@@ -525,8 +544,8 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 			decoration.set_cell(cell, 0, atlas, alt)
 	# Floor border pass — overwrites Ground with edge/corner tiles where
 	# floor meets wall. No-op when border_cells are all the plain floor cell.
-	var floor_border: Array = (TilesetCatalog.LABYRINTH_FLOOR_BORDER_3X3
-			if view_kind == &"labyrinth" else TilesetCatalog.DUNGEON_FLOOR_BORDER_3X3)
+	var floor_border: Array = (TilesetCatalog.MAZE_FLOOR_BORDER_3X3
+			if view_kind == &"maze" else TilesetCatalog.DUNGEON_FLOOR_BORDER_3X3)
 	_paint_dungeon_floor_border(interior, floor_border)
 	_paint_dungeon_corridor_frames(interior)
 	_paint_dungeon_stair_markers(interior)
@@ -534,7 +553,7 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 
 ## Paint a distinct floor decor pattern over boss room cells.
 func _paint_boss_room_overlay(interior: InteriorMap) -> void:
-	var decor: Array = TilesetCatalog.LABYRINTH_FLOOR_DECOR_CELLS
+	var decor: Array = TilesetCatalog.MAZE_FLOOR_DECOR_CELLS
 	if decor.is_empty():
 		return
 	var boss_tile: Vector2i = decor[decor.size() - 1]
@@ -763,9 +782,9 @@ func _paint_overworld_entrance_markers(region: Region) -> void:
 		if ek == &"house":
 			tint = Color(1.4, 0.95, 0.6)  # warm yellow
 			cells_to_use = cells
-		elif ek == &"labyrinth":
+		elif ek == &"maze":
 			tint = Color(1.2, 0.6, 1.4)   # purple
-			cells_to_use = TilesetCatalog.LABYRINTH_OVERWORLD_ENTRANCE_CELLS
+			cells_to_use = TilesetCatalog.MAZE_OVERWORLD_ENTRANCE_CELLS
 		else:
 			tint = Color.WHITE
 			cells_to_use = cells
@@ -802,23 +821,88 @@ func _ensure_entrance_marker_root() -> Node2D:
 
 static func _patch_index_for_neighbors(region: Region, x: int, y: int,
 		secondary: int, size: int) -> int:
-	var n_dirt: bool = (y > 0
+	var n_sec: bool = (y > 0
 		and region.tiles[(y - 1) * size + x] == secondary)
-	var s_dirt: bool = (y < size - 1
+	var s_sec: bool = (y < size - 1
 		and region.tiles[(y + 1) * size + x] == secondary)
-	var w_dirt: bool = (x > 0
+	var w_sec: bool = (x > 0
 		and region.tiles[y * size + (x - 1)] == secondary)
-	var e_dirt: bool = (x < size - 1
+	var e_sec: bool = (x < size - 1
 		and region.tiles[y * size + (x + 1)] == secondary)
-	if not n_dirt and not w_dirt: return 0  # NW
-	if not n_dirt and not e_dirt: return 2  # NE
-	if not s_dirt and not w_dirt: return 6  # SW
-	if not s_dirt and not e_dirt: return 8  # SE
-	if not n_dirt: return 1  # N edge
-	if not s_dirt: return 7  # S edge
-	if not w_dirt: return 3  # W edge
-	if not e_dirt: return 5  # E edge
-	return 4  # fully surrounded
+	var cnt: int = int(n_sec) + int(s_sec) + int(w_sec) + int(e_sec)
+
+	if cnt == 0:
+		return 19  # isolated dot
+
+	if cnt == 1:
+		if n_sec: return 16  # dead-end S (only north neighbour → open end faces S)
+		if s_sec: return 15  # dead-end N
+		if w_sec: return 18  # dead-end E
+		if e_sec: return 17  # dead-end W
+
+	if cnt == 2:
+		# Straight-through paths
+		if n_sec and s_sec: return 13  # N+S straight
+		if w_sec and e_sec: return 14  # E+W straight
+		# Outer corners (two adjacent sides are NOT secondary)
+		if not n_sec and not w_sec: return 0  # NW outer
+		if not n_sec and not e_sec: return 2  # NE outer
+		if not s_sec and not w_sec: return 6  # SW outer
+		if not s_sec and not e_sec: return 8  # SE outer
+
+	if cnt == 3:
+		if not n_sec: return 1  # N edge
+		if not s_sec: return 7  # S edge
+		if not w_sec: return 3  # W edge
+		if not e_sec: return 5  # E edge
+
+	# cnt == 4: all cardinal neighbours are secondary — check diagonals.
+	# A single primary diagonal = concave inner-corner tile.
+	# Out-of-bounds diagonals treated as primary.
+	var nw_prim: bool = x == 0 or y == 0 or region.tiles[(y - 1) * size + (x - 1)] != secondary
+	var ne_prim: bool = x == size - 1 or y == 0 or region.tiles[(y - 1) * size + (x + 1)] != secondary
+	var sw_prim: bool = x == 0 or y == size - 1 or region.tiles[(y + 1) * size + (x - 1)] != secondary
+	var se_prim: bool = x == size - 1 or y == size - 1 or region.tiles[(y + 1) * size + (x + 1)] != secondary
+	var dcnt: int = int(nw_prim) + int(ne_prim) + int(sw_prim) + int(se_prim)
+	if dcnt == 1:
+		if nw_prim: return 9   # inner NW
+		if ne_prim: return 10  # inner NE
+		if sw_prim: return 11  # inner SW
+		if se_prim: return 12  # inner SE
+	return 4  # fully surrounded (center)
+
+
+## Bitmask → path tile index. bit0=N, bit1=S, bit2=E, bit3=W.
+## Indices 13-19 match the 20-tile overlay set (straight/dead-end/isolated).
+## Indices 20-28 are the new corner/T-junction/cross tiles.
+const PATH_BITMASK_TO_INDEX: Array[int] = [
+	19, # 0000 = no connections → isolated
+	16, # 0001 = N only → dead-end (open end toward N)
+	15, # 0010 = S only → dead-end (open end toward S)
+	13, # 0011 = N+S → straight vertical
+	17, # 0100 = E only → dead-end (open end toward E)
+	20, # 0101 = N+E → corner cNE
+	22, # 0110 = S+E → corner cSE
+	24, # 0111 = N+S+E → T-junction missing W (tW)
+	18, # 1000 = W only → dead-end (open end toward W)
+	21, # 1001 = N+W → corner cNW
+	23, # 1010 = S+W → corner cSW
+	26, # 1011 = N+S+W → T-junction missing E (tE)
+	14, # 1100 = E+W → straight horizontal
+	25, # 1101 = N+E+W → T-junction missing S (tS)
+	27, # 1110 = S+E+W → T-junction missing N (tN)
+	28, # 1111 = all four → cross (+)
+]
+
+## Returns the overlay tile index for a path cell based on its 4 cardinal
+## path-set neighbours. `path_set` maps Vector2i → true for all path cells.
+static func _path_index_for_cell(path_set: Dictionary, x: int, y: int, size: int) -> int:
+	var mask: int = 0
+	if y > 0        and path_set.has(Vector2i(x, y - 1)): mask |= 1  # N
+	if y < size - 1 and path_set.has(Vector2i(x, y + 1)): mask |= 2  # S
+	if x < size - 1 and path_set.has(Vector2i(x + 1, y)): mask |= 4  # E
+	if x > 0        and path_set.has(Vector2i(x - 1, y)): mask |= 8  # W
+	return PATH_BITMASK_TO_INDEX[mask]
 
 
 static func _is_water_code(code: int) -> bool:
@@ -1040,15 +1124,15 @@ func _build_door_index(view_kind: StringName) -> void:
 			var ek: StringName = entry.get("kind", &"dungeon")
 			if ek == &"house":
 				_doors[c] = {"kind": &"house_enter", "cell": c}
-			elif ek == &"labyrinth":
-				_doors[c] = {"kind": &"labyrinth_enter", "cell": c}
+			elif ek == &"maze":
+				_doors[c] = {"kind": &"maze_enter", "cell": c}
 			else:
 				_doors[c] = {"kind": &"dungeon_enter", "cell": c}
 		for rune in _region.runes:
 			var rc: Vector2i = rune["cell"]
 			_doors[rc] = {"kind": &"rune", "cell": rc, "source": int(rune["source"])}
 	elif _interior != null:
-		if view_kind == &"dungeon" or view_kind == &"labyrinth":
+		if view_kind == &"dungeon" or view_kind == &"maze":
 			_doors[_interior.entry_cell] = {"kind": &"stairs_up"}
 			_doors[_interior.exit_cell] = {"kind": &"stairs_down"}
 		else:
@@ -1070,8 +1154,8 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 					hmid, hrid, cell, 1,
 					MapManager.DEFAULT_FLOOR_SIZE, &"house")
 			World.instance().transition_player(player.player_id, &"house", _region, house)
-		&"labyrinth_enter":
-			_handle_enter_interior(player, cell, &"labyrinth")
+		&"maze_enter":
+			_handle_enter_interior(player, cell, &"maze")
 		&"interior_exit":
 			if _interior != null:
 				Sfx.play(&"dungeon_exit")
@@ -1178,14 +1262,14 @@ func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) ->
 					"Floor %d" % deeper.floor_num)
 
 
-## Common handler for dungeon/labyrinth overworld entrances. Checks if the
+## Common handler for dungeon/maze overworld entrances. Checks if the
 ## player has been here before and offers a resume prompt if so.
 func _handle_enter_interior(player: PlayerController, cell: Vector2i,
 		kind: StringName) -> void:
 	var rid: Vector2i = _region.region_id
-	# Deterministic size for labyrinths derived from the entrance seed.
+	# Deterministic size for mazes derived from the entrance seed.
 	var lsize: int = MapManager.DEFAULT_FLOOR_SIZE
-	if kind == &"labyrinth":
+	if kind == &"maze":
 		var rng := RandomNumberGenerator.new()
 		rng.seed = MapManager.make_id(rid, cell, 1, kind).hash()
 		lsize = rng.randi_range(64, 96)
@@ -1198,7 +1282,7 @@ func _handle_enter_interior(player: PlayerController, cell: Vector2i,
 		var game_e: Game = Game.instance()
 		if game_e != null:
 			game_e.show_floor_confirm_menu(pid_e,
-					"Return to %s?" % String(kind).capitalize(),
+					"Return to %s?" % floor1.display_name,
 					["Resume at Floor %d" % deepest.floor_num,
 					"Start from Floor 1"],
 					func(idx: int) -> void:
@@ -1216,7 +1300,7 @@ func _handle_enter_interior(player: PlayerController, cell: Vector2i,
 		Sfx.play(&"dungeon_enter")
 		var entry_kind: StringName = WorldRoot._view_kind_from_interior(floor1)
 		World.instance().transition_player(pid_e, entry_kind, _region, floor1),
-		"Floor 1")
+		floor1.display_name)
 
 
 func _play_cave_transition(pid: int, switch_fn: Callable,
@@ -1313,7 +1397,7 @@ func _spawn_scattered_npcs() -> void:
 				if LootTableRegistry.has_table(kind):
 					entry["monster_kind"] = kind
 					_spawn_monster(entry)
-	# Boss room — spawn boss + adds if this is a labyrinth boss floor.
+	# Boss room — spawn boss + adds if this is a maze boss floor.
 	if _interior != null and not _interior.boss_data.is_empty():
 		var bd: Dictionary = _interior.boss_data
 		var boss_entry: Dictionary = {
@@ -1395,6 +1479,16 @@ func _spawn_monster(entry: Dictionary) -> void:
 	_spawn_index += 1
 	entities.add_child(m)
 
+
+
+## Spawn a single [LootPickup] at [param world_pos] with [param item_id] × [param count].
+## Used by hedgehog sniff ability and other sources that spawn loot at an explicit position.
+func spawn_loot_at(world_pos: Vector2, item_id: StringName, count: int = 1) -> void:
+	var pickup := LootPickup.new()
+	pickup.item_id = item_id
+	pickup.count = count
+	pickup.position = world_pos
+	entities.add_child(pickup)
 
 
 func _on_monster_died(world_position: Vector2, drops: Array) -> void:
@@ -1491,7 +1585,7 @@ func get_dialogue_box() -> DialogueBox:
 func _ensure_dialogue_box() -> DialogueBox:
 	if _dialogue_box != null and is_instance_valid(_dialogue_box):
 		return _dialogue_box
-	_dialogue_box = DialogueBox.new()
+	_dialogue_box = load("res://scenes/ui/DialogueBox.tscn").instantiate() as DialogueBox
 	_dialogue_box.name = "DialogueBox"
 	add_child(_dialogue_box)
 	return _dialogue_box
@@ -1541,7 +1635,7 @@ var _shop_screen: ShopScreen = null
 func open_shop(player: PlayerController, shop_id: String, npc: Node2D = null) -> void:
 	_begin_conversation(player, npc)
 	if _shop_screen == null:
-		_shop_screen = ShopScreen.new()
+		_shop_screen = load("res://scenes/ui/ShopScreen.tscn").instantiate() as ShopScreen
 		_shop_screen.name = "ShopScreen"
 		_shop_screen.closed.connect(_on_shop_closed)
 		add_child(_shop_screen)
@@ -1667,8 +1761,8 @@ func debug_spawn_interactables_for(player: PlayerController) -> void:
 			centre, Vector2i(-2, 0), "cave entrance")
 	_debug_place_entrance(&"house", &"house_enter",
 			centre, Vector2i(2, 0), "house entrance")
-	_debug_place_entrance(&"labyrinth", &"labyrinth_enter",
-			centre, Vector2i(4, 0), "labyrinth entrance")
+	_debug_place_entrance(&"maze", &"maze_enter",
+			centre, Vector2i(4, 0), "maze entrance")
 	_debug_spawn_encounters(centre)
 	debug_drop_all_items_for(player)
 	_debug_refresh_labels()

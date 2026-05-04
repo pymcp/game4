@@ -17,6 +17,7 @@ extends Node2D
 class_name PlayerController
 
 signal player_died(player_id: int)
+signal leveled_up(player_id: int, new_level: int)
 
 const _MOVE_SPEED_NATIVE: float = 60.0  ## native px/sec (≈3.75 tiles/s)
 const _BOB_AMP_PX: float = 1.0
@@ -61,17 +62,62 @@ var stats: Dictionary = {
 	&"speed": 0, &"defense": 0, &"dexterity": 0,
 }
 var fog_of_war: FogOfWarData = FogOfWarData.new()
-## Per-floor fog-of-war for dungeons and labyrinths (keyed by map_id).
+## Per-floor fog-of-war for dungeons and mazes (keyed by map_id).
 var dungeon_fog: DungeonFogData = DungeonFogData.new()
 var world_map: WorldMapView = null
 var dungeon_map: DungeonMapView = null
 ## Active status effects: Array of {effect_id: StringName, remaining: float, tick_timer: float}
 var active_effects: Array = []
+var xp: int = 0
+var level: int = 1
+var unlocked_passives: Array[StringName] = []
+var _pending_stat_points: int = 0
 
 
 ## Base stat value (no equipment bonuses).
 func get_stat(stat: StringName) -> int:
 	return int(stats.get(stat, 0))
+
+## Grant XP. Triggers level-up loop while threshold is met. No-op at cap (level 20).
+func gain_xp(amount: int) -> void:
+	if level >= 20:
+		return
+	xp += amount
+	while level < 20 and xp >= LevelingConfig.xp_to_next(level):
+		xp -= LevelingConfig.xp_to_next(level)
+		_level_up()
+
+## Apply a single level-up: +2 max HP, check milestone passive, add stat point, emit signal.
+func _level_up() -> void:
+	level += 1
+	max_health += 2
+	health = min(health + 2, max_health)
+	var passive: StringName = LevelingConfig.milestone_passive(level)
+	if passive != &"":
+		_unlock_passive(passive)
+	_pending_stat_points += 1
+	ActionParticles.flash_level_up(self)
+	leveled_up.emit(player_id, level)
+
+## Unlock a passive and apply its immediate effect.
+func _unlock_passive(key: StringName) -> void:
+	if key in unlocked_passives:
+		return
+	unlocked_passives.append(key)
+	match key:
+		&"hardy":
+			max_health += 4
+			health = min(health + 4, max_health)
+		&"hero":
+			for k: StringName in stats.keys():
+				stats[k] = int(stats[k]) + 2
+
+## Spend one pending stat point on the given stat. Called by LevelUpPanel.
+func spend_stat_point(stat: StringName) -> void:
+	if _pending_stat_points <= 0:
+		return
+	stats[stat] = int(stats.get(stat, 0)) + 1
+	_pending_stat_points -= 1
 
 
 ## Effective stat = base + equipment bonuses.
@@ -506,7 +552,10 @@ func _tick_auto_mine() -> void:
 	_play_action_vfx(best_cell, is_mineable, res)
 	if res.get("destroyed", false):
 		for d in res.get("drops", []):
-			inventory.add(d["id"], d["count"])
+			var cnt: int = d["count"]
+			if &"scavenger" in unlocked_passives and randf() < 0.25:
+				cnt *= 2
+			inventory.add(d["id"], cnt)
 	_attack_cooldown = ATTACK_COOLDOWN_SEC
 
 
@@ -610,6 +659,8 @@ func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 		return
 	var defense: int = _armor_defense()
 	var effective: int = max(1, damage - defense)
+	if &"iron_skin" in unlocked_passives:
+		effective = max(1, effective - 1)
 	health = max(0, health - effective)
 	ActionParticles.flash_hit(self)
 	if _damage_heart_vfx != null:
@@ -666,8 +717,16 @@ func _compute_mine_damage(target_cell: Vector2i) -> int:
 ## Records a kill in the TravelLog if [param entity] is now dead.
 func _try_record_kill(entity: Node) -> void:
 	var h: Variant = entity.get("health")
-	if h != null and int(h) <= 0 and caravan_data != null \
-			and caravan_data.travel_logs.size() > player_id:
+	if h == null or int(h) > 0:
+		return
+	# Grant XP for the kill. Monster uses "monster_kind", NPC uses "kind".
+	var kind_v: Variant = entity.get("monster_kind")
+	if kind_v == null or StringName(kind_v) == &"":
+		kind_v = entity.get("kind")
+	if kind_v != null and StringName(kind_v) != &"":
+		gain_xp(CreatureSpriteRegistry.get_xp_reward(StringName(kind_v)))
+	# Record kill in caravan travel log.
+	if caravan_data != null and caravan_data.travel_logs.size() > player_id:
 		caravan_data.travel_logs[player_id].record_kill()
 
 
@@ -702,7 +761,10 @@ func try_attack() -> Dictionary:
 		return res
 	if res.get("destroyed", false):
 		for d in res.get("drops", []):
-			inventory.add(d["id"], d["count"])
+			var cnt: int = d["count"]
+			if &"scavenger" in unlocked_passives and randf() < 0.25:
+				cnt *= 2
+			inventory.add(d["id"], cnt)
 	return res
 
 

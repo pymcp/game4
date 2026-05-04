@@ -76,12 +76,16 @@ func test_enter_interior_swaps_scene() -> void:
 	world = coord.get_player_world(0)
 	assert_true(world.is_in_interior(), "world should be in interior")
 	assert_not_null(world._interior)
-	# Player should be placed at the interior entry cell.
+	# Player should land at or very near the interior entry cell.
+	# find_safe_spawn_cell may shift by 1 tile to avoid obstacles.
 	var p1: PlayerController = coord.get_player(0)
 	var p1_tile: Vector2i = Vector2i(
 			int(floor(p1.position.x / float(WorldConst.TILE_PX))),
 			int(floor(p1.position.y / float(WorldConst.TILE_PX))))
-	assert_eq(p1_tile, interior.entry_cell)
+	var dist: int = abs(p1_tile.x - interior.entry_cell.x) + abs(p1_tile.y - interior.entry_cell.y)
+	assert_true(dist <= 2,
+			"player should land within 2 tiles of entry_cell, got %s vs %s" \
+			% [str(p1_tile), str(interior.entry_cell)])
 
 
 func test_enter_then_exit_restores_overworld() -> void:

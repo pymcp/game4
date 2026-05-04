@@ -70,7 +70,7 @@ func _ready() -> void:
 	_controls_p2 = _build_controls_hud(_container_p2, 1)
 	_hearts_p1 = _build_heart_display(_container_p1)
 	_hearts_p2 = _build_heart_display(_container_p2)
-	_math_death = MathDeathScreen.new()
+	_math_death = load("res://scenes/ui/MathDeathScreen.tscn").instantiate() as MathDeathScreen
 	_math_death.name = "MathDeathScreen"
 	_math_death.answered_correctly.connect(_on_math_answer_correct)
 	add_child(_math_death)
@@ -188,14 +188,16 @@ func _wire_hud_and_cameras() -> void:
 		_camera_p2 = _make_camera(p2, _vp_p2)
 	# Wire caravan menu for P1.
 	if _caravan_menu_p1 != null and p1 != null:
-		_caravan_menu_p1.setup(p1, p1.caravan_data)
+		_caravan_menu_p1.setup(p1, p1.caravan_data, _world)
+		_caravan_menu_p1.swap_pet_requested.connect(_world.swap_active_pet)
 		var caravan_p1: Caravan = _world.get_caravan(0)
 		if caravan_p1 != null:
 			caravan_p1.interacted.connect(
 					func(_by: PlayerController): _caravan_menu_p1.open())
 	# Wire caravan menu for P2.
 	if _caravan_menu_p2 != null and p2 != null:
-		_caravan_menu_p2.setup(p2, p2.caravan_data)
+		_caravan_menu_p2.setup(p2, p2.caravan_data, _world)
+		_caravan_menu_p2.swap_pet_requested.connect(_world.swap_active_pet)
 		var caravan_p2: Caravan = _world.get_caravan(1)
 		if caravan_p2 != null:
 			caravan_p2.interacted.connect(
@@ -268,7 +270,8 @@ func _build_dungeon_map_view(container: Control) -> DungeonMapView:
 
 
 func _build_floor_confirm_menu(container: Control) -> FloorConfirmMenu:
-	var menu := FloorConfirmMenu.new()
+	var scene := load("res://scenes/ui/FloorConfirmMenu.tscn") as PackedScene
+	var menu := scene.instantiate() as FloorConfirmMenu
 	menu.name = "FloorConfirmMenu"
 	container.add_child(menu)
 	return menu

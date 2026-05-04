@@ -46,6 +46,10 @@ var _instances: Dictionary = {}  ## key (StringName) -> WorldRoot
 var _next_instance_index: int = 0
 var _players: Array = []  ## index = player_id; PlayerController
 var _pets: Array = []  ## index = player_id; Pet
+## Per-player active species and full 6-species roster.
+## Initialized from GameSession in _ready(); overwritten by SaveGame.apply().
+var _active_species: Array[StringName] = [&"cat", &"dog"]
+var _pet_rosters: Array[Array] = [[], []]
 var _caravans: Array = []      ## index = player_id; Caravan node (null until placed)
 var _caravan_datas: Array = [] ## index = player_id; CaravanData (persistent)
 var _warriors: Array = []      ## index = player_id; Warrior node (null until recruited)
@@ -79,6 +83,13 @@ func _ready() -> void:
 		p.player_id = pid
 		p.name = "Player%d" % pid
 		_players[pid] = p
+	# Initialize pet rosters from GameSession (set by start_new_game or SaveGame.apply).
+	if not GameSession.p1_pet_roster.is_empty():
+		_pet_rosters[0] = GameSession.p1_pet_roster.duplicate()
+		_active_species[0] = GameSession.p1_active_pet
+	if not GameSession.p2_pet_roster.is_empty():
+		_pet_rosters[1] = GameSession.p2_pet_roster.duplicate()
+		_active_species[1] = GameSession.p2_active_pet
 	# Drop both players into the starting overworld region.
 	for pid in range(2):
 		_enter_view(pid, &"overworld",
@@ -168,13 +179,26 @@ func _enter_view(pid: int, view_kind: StringName, region: Region,
 		player.get_parent().remove_child(player)
 		inst.entities.add_child(player)
 	player.set_world(inst)
-	# Place the player.
+	# Place the player, avoiding cells already occupied by other players.
 	var spawn_cell: Vector2i = _pending_spawn[pid]
 	_pending_spawn[pid] = _NO_OVERRIDE
 	if spawn_cell == _NO_OVERRIDE:
 		spawn_cell = inst.default_spawn_cell(view_kind, resolved_region,
 				interior)
 	spawn_cell = inst.find_safe_spawn_cell(spawn_cell, 16, true)
+	# If another player already occupies this cell, nudge one tile right.
+	for other_pid in range(_players.size()):
+		if other_pid == pid:
+			continue
+		var other: PlayerController = _players[other_pid]
+		if other == null:
+			continue
+		var other_cell: Vector2i = Vector2i(
+			int(floor(other.position.x / float(WorldConst.TILE_PX))),
+			int(floor(other.position.y / float(WorldConst.TILE_PX))))
+		if other_cell == spawn_cell:
+			var alt: Vector2i = spawn_cell + Vector2i(1, 0)
+			spawn_cell = inst.find_safe_spawn_cell(alt, 8, true)
 	player.position = (Vector2(spawn_cell) + Vector2(0.5, 0.5)) \
 			* float(WorldConst.TILE_PX)
 	# Prime this instance's per-player door cache so we don't immediately
@@ -199,8 +223,8 @@ func _enter_view(pid: int, view_kind: StringName, region: Region,
 	var _cd: CaravanData = _caravan_datas[pid] if pid < _caravan_datas.size() else null
 	if _cd != null and _cd.travel_logs.size() > pid:
 		var tlog: TravelLog = _cd.travel_logs[pid]
-		var is_dungeon: bool = (view_kind == &"dungeon" or view_kind == &"labyrinth")
-		var was_dungeon: bool = (prev_view_kind == &"dungeon" or prev_view_kind == &"labyrinth")
+		var is_dungeon: bool = (view_kind == &"dungeon" or view_kind == &"maze")
+		var was_dungeon: bool = (prev_view_kind == &"dungeon" or prev_view_kind == &"maze")
 		var rid_str: String = "%d_%d" % [region.region_id.x, region.region_id.y] \
 				if region != null else "0_0"
 		if is_dungeon and not was_dungeon:
@@ -249,14 +273,13 @@ func _resolve_land_region(start: Region) -> Region:
 
 # ─── Pets ──────────────────────────────────────────────────────────────
 
-## Cat owned by player 0, dog owned by player 1. Same lifetime as the
-## [World]; re-parented (not re-spawned) on view change so HP/state
-## persists.
+## Re-parent (or create) the pet for [param pid] into [param inst].
+## Species is read from [member _active_species] so swap_active_pet takes effect.
 func _ensure_pet_for_player(pid: int, inst: WorldRoot) -> void:
 	var pet: Pet = _pets[pid]
 	if pet == null:
 		pet = _PetScene.instantiate() as Pet
-		pet.species = Pet.PET_SPECIES_CAT if pid == 0 else Pet.PET_SPECIES_DOG
+		pet.species = _active_species[pid]
 		pet.owner_player = _players[pid]
 		_pets[pid] = pet
 	if pet.get_parent() == null:
@@ -271,6 +294,49 @@ func _ensure_pet_for_player(pid: int, inst: WorldRoot) -> void:
 	var cell: Vector2i = inst.find_safe_spawn_cell(centre, 6, true)
 	pet.position = (Vector2(cell) + Vector2(0.5, 0.5)) \
 			* float(WorldConst.TILE_PX)
+
+
+## Returns the species of the currently active pet for [param pid].
+func get_active_pet_species(pid: int) -> StringName:
+	if pid < 0 or pid >= _active_species.size():
+		return &""
+	return _active_species[pid]
+
+
+## Returns the full 6-species roster for [param pid].
+func get_pet_roster(pid: int) -> Array[StringName]:
+	var result: Array[StringName] = []
+	if pid < 0 or pid >= _pet_rosters.size():
+		return result
+	for s: StringName in _pet_rosters[pid]:
+		result.append(s)
+	return result
+
+
+## Swap the active following pet for [param pid] to [param new_species].
+## Despawns the current pet and spawns the new one in the current view.
+func swap_active_pet(pid: int, new_species: StringName) -> void:
+	if _active_species[pid] == new_species:
+		return
+	if not PetRegistry.all_species().has(new_species):
+		push_error("swap_active_pet: unknown species '%s'" % new_species)
+		return
+	# Remove old pet from scene tree.
+	var old_pet: Pet = _pets[pid]
+	if old_pet != null and is_instance_valid(old_pet):
+		old_pet.get_parent().remove_child(old_pet)
+		old_pet.queue_free()
+	_pets[pid] = null
+	# Set new active species and spawn into current view.
+	_active_species[pid] = new_species
+	var current_inst: WorldRoot = get_player_world(pid)
+	if current_inst != null:
+		_ensure_pet_for_player(pid, current_inst)
+	# Mirror back to GameSession so save/load has current state.
+	if pid == 0:
+		GameSession.p1_active_pet = new_species
+	else:
+		GameSession.p2_active_pet = new_species
 
 
 ## Ensure the caravan for [param pid] exists and is parented to [param inst].
@@ -313,7 +379,7 @@ func _ensure_warrior_for_player(pid: int, inst: WorldRoot,
 	# Always update caravan reference in case it was set after warrior was created.
 	warrior.caravan = _caravans[pid]
 	# Update in-dungeon flag.
-	warrior.is_in_dungeon = (view_kind == &"dungeon" or view_kind == &"labyrinth")
+	warrior.is_in_dungeon = (view_kind == &"dungeon" or view_kind == &"maze")
 	# Re-parent to this instance.
 	if warrior.get_parent() == null:
 		inst.entities.add_child(warrior)

@@ -13,5 +13,5 @@ extends Resource
 @export var crafter_domain: StringName = &""
 ## Atlas cell [col, row] for portrait sprite. Set via SpritePicker.
 @export var portrait_cell: Vector2i = Vector2i.ZERO
-## If true, this member follows the player into dungeons/labyrinths.
+## If true, this member follows the player into dungeons/mazes.
 @export var can_follow: bool = false

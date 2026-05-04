@@ -21,3 +21,15 @@ extends Resource
 ## Serialized DungeonFogData for this player. Keys are map_id strings;
 ## values are PackedByteArray (2048 bytes per interior floor).
 @export var dungeon_fog_data: Dictionary = {}
+## Active pet species for this player. Empty = use roster[0] on load.
+@export var active_pet_species: StringName = &""
+## Ordered pet roster (6 species). Empty = use GameSession default on load.
+@export var pet_roster: Array[StringName] = []
+## XP accumulated toward next level.
+@export var xp: int = 0
+## Current level (1–20).
+@export var level: int = 1
+## Unlocked passive abilities (e.g. "hardy", "scavenger", "iron_skin", "hero").
+@export var unlocked_passives: Array[StringName] = []
+## Unspent level-up stat points waiting for player choice.
+@export var pending_stat_points: int = 0
