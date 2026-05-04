@@ -33,7 +33,7 @@ const _DEFAULT_SHEETS: Dictionary = {
 	&"labyrinth_wall_autotile": "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"labyrinth_floor_decor":   "res://assets/tiles/roguelike/dungeon_sheet.png",
 	&"dungeon_doorframe": "res://assets/tiles/roguelike/dungeon_sheet.png",
-	&"interior_terrain": "res://assets/tiles/roguelike/interior_sheet.png",
+	&"interior_door": "res://assets/tiles/roguelike/interior_sheet.png",
 }
 
 ## Convenience aliases kept for any code that still references the old consts.
@@ -83,7 +83,7 @@ static func _sheet_for_view(view: StringName) -> String:
 		&"dungeon":
 			return get_sheet_path(&"dungeon_terrain")
 		&"interior":
-			return get_sheet_path(&"interior_terrain")
+			return get_sheet_path(&"interior_door")
 	return OVERWORLD_PNG
 
 # ─── Custom-data layer names (added to every built TileSet) ─────────────
@@ -447,14 +447,10 @@ static var DUNGEON_DOORFRAME_RW:  Vector2i:
 static var DUNGEON_DOORFRAME_RW2: Vector2i:
 	get: return DUNGEON_DOORFRAME.get(&"RW2", Vector2i(8, 11))
 
-# Interior sheet: wood floor, wood wall.
-# Same `Array[Vector2i]` schema as `OVERWORLD_TERRAIN_CELLS`.
-const _DEFAULT_INTERIOR_TERRAIN: Dictionary = {
-	&"floor": [Vector2i(5, 13)],
-	&"wall":  [Vector2i(5, 1)],
-	&"door":  [Vector2i(20, 9)],
-}
-static var INTERIOR_TERRAIN_CELLS: Dictionary = _DEFAULT_INTERIOR_TERRAIN
+# Interior door: top atlas cell on interior_sheet.png.
+# Bottom cell is derived as top + Vector2i(0, 1) at paint time.
+const _DEFAULT_INTERIOR_DOOR_CELL: Vector2i = Vector2i(20, 8)
+static var INTERIOR_DOOR_CELL: Vector2i = _DEFAULT_INTERIOR_DOOR_CELL
 
 # ── Room-wall tiles (dungeon_sheet.png, source_id=1 inside interior TileSet) ──
 # Stone walls: cols 17-21, rows 1-4.  Wood walls: same cols, rows 6-9.
@@ -617,9 +613,14 @@ static func _ensure_loaded() -> void:
 		LABYRINTH_FLOOR_BORDER_3X3 = m.labyrinth_floor_border_3x3
 	if not m.dungeon_doorframe.is_empty():
 		DUNGEON_DOORFRAME = m.dungeon_doorframe
-	# Interior
-	if not m.interior_terrain.is_empty():
-		INTERIOR_TERRAIN_CELLS = m.interior_terrain
+	# Interior door (mineable convention: top cell stored, bottom derived)
+	if not m.interior_door.is_empty():
+		INTERIOR_DOOR_CELL = m.interior_door[0]
+	elif not m.interior_terrain.is_empty():
+		# Migration fallback: old interior_terrain stored the BOTTOM cell.
+		var old_door: Variant = m.interior_terrain.get(&"door", null)
+		if old_door is Array and not (old_door as Array).is_empty():
+			INTERIOR_DOOR_CELL = (old_door as Array)[0] + Vector2i(0, -1)
 	# House room-wall autotiles
 	var stone_at: Dictionary = m.build_house_wall_autotile_dict(&"stone")
 	if not stone_at.is_empty():
@@ -687,7 +688,12 @@ static func interior() -> TileSet:
 	_ensure_loaded()
 	if _interior_ts == null:
 		var sheet := _sheet_for_view(&"interior")
-		_interior_ts = _build(sheet, INTERIOR_TERRAIN_CELLS, false,
+		# Pass a minimal terrain dict so door cells get walkable=true tagging.
+		var door_bottom: Vector2i = INTERIOR_DOOR_CELL + Vector2i(0, 1)
+		var terrain_for_build: Dictionary = {
+			&"door": [INTERIOR_DOOR_CELL, door_bottom],
+		}
+		_interior_ts = _build(sheet, terrain_for_build, false,
 				SheetSpecReader.read(sheet))
 		# Add dungeon_sheet.png as source_id=1 for room walls and floors.
 		# Painters that use room-wall rendering write to source_id=1.
@@ -712,9 +718,10 @@ static func _add_dungeon_source_to(ts: TileSet) -> void:
 	var cols: int = (tex.get_width() + spec.margin_px) / spec.stride
 	var rows: int = (tex.get_height() + spec.margin_px) / spec.stride
 	# Wall rows (stone 1-4, wood 6-9) must be walkable=false so wall sprites
-	# painted on the Decoration layer block movement. All other rows default
-	# to walkable=true so house floor tiles are traversable.
-	const _WALL_ROWS: Array[int] = [1, 2, 3, 4, 6, 7, 8, 9]
+	# painted on the Decoration layer block movement. Row 5 holds the NW/NE
+	# corner tiles for wood walls and must also be blocked. All other rows
+	# default to walkable=true so house floor tiles are traversable.
+	const _WALL_ROWS: Array[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 	for y in rows:
 		var walkable: bool = not (y in _WALL_ROWS)
 		for x in cols:
@@ -903,7 +910,6 @@ static func cell_for(view_kind: StringName, terrain: StringName) -> Vector2i:
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
 		&"labyrinth": d = LABYRINTH_TERRAIN_CELLS
-		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
 	if v is Vector2i:
@@ -928,7 +934,6 @@ static func cell_for_variant(view_kind: StringName, terrain: StringName, hash32:
 		&"city": d = CITY_TERRAIN_CELLS
 		&"dungeon": d = DUNGEON_TERRAIN_CELLS
 		&"labyrinth": d = LABYRINTH_TERRAIN_CELLS
-		&"interior", &"house": d = INTERIOR_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
 	if v is Array and (v as Array).size() > 1:
