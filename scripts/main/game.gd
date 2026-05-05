@@ -253,6 +253,7 @@ func _make_camera(player: PlayerController, viewport: SubViewport) -> Camera2D:
 	cam.position_smoothing_enabled = false
 	player.add_child(cam)
 	cam.make_current()
+	cam.add_to_group(&"player_cameras")
 	return cam
 
 

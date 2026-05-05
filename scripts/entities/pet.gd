@@ -46,6 +46,7 @@ const _HOP_HEIGHT_PX: float = 4.0
 @export var owner_player: PlayerController = null
 @export var max_health: int = 3
 @export var health: int = 3
+var _last_hit_element: int = 0  ## Element that last dealt damage; used by DeathVFX.
 
 var hitbox_radius: float = 3.0  ## Gungeon-style body-core radius (native px).
 var state: int = PetState.State.IDLE  ## see [PetState.State]
@@ -355,11 +356,14 @@ func _do_hedgehog_sniff() -> void:
 	_ability_cooldown_remaining = PetRegistry.get_ability_cooldown(species)
 
 
-# Damage (forwarded from any future enemy that targets the pet). For v1
-# the pet can't actually die — `take_hit` just refreshes hp.
-func take_hit(damage: int, _attacker: Node = null) -> void:
-	health = max(1, health - damage)
+# Damage (forwarded from any future enemy that targets the pet).
+func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
+	_last_hit_element = element
+	health = max(0, health - damage)
 	ActionParticles.flash_hit(self)
+	if health <= 0:
+		set_physics_process(false)
+		DeathVFX.play(self, _sprite, 1, _last_hit_element)
 
 
 # ─── Heart particle texture ────────────────────────────────────────────
