@@ -41,6 +41,7 @@ var _attack_speed: float = 1.0
 var _attack_range_tiles: float = 1.25
 var _attack_style: StringName = &"slam"
 var _attack_element: int = 0
+var _last_hit_element: int = 0  ## Element that last dealt damage; used by DeathVFX.
 var _attack_cooldown: float = 0.0
 var _stagger_timer: float = 0.0
 const STAGGER_DURATION: float = 0.6
@@ -275,6 +276,7 @@ func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 		return
 	var effective: int = _apply_resistance(damage, element)
 	health = max(0, health - effective)
+	_last_hit_element = element
 	ActionParticles.flash_hit(self)
 	if element != 0:
 		_apply_status_from_element(element)
@@ -291,12 +293,14 @@ func _apply_resistance(damage: int, element: int) -> int:
 
 func _die() -> void:
 	set_process(false)
+	set_physics_process(false)
 	var loot: Array = drops.duplicate()
 	# Roll drops from loot table if no explicit drops were set.
 	if loot.is_empty():
 		loot = LootTableRegistry.roll_drops(monster_kind)
 	died.emit(position, loot)
-	queue_free()
+	var effective_tier: int = 4 if CreatureSpriteRegistry.is_boss(monster_kind) else tier
+	DeathVFX.play(self, _sprite, effective_tier, _last_hit_element)
 
 
 # --- Status effects -------------------------------------------------

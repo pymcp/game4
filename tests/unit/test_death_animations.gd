@@ -83,3 +83,26 @@ func test_play_does_not_crash_with_node2d() -> void:
     DeathVFX.play(entity, visual, 0, ItemDefinition.Element.NONE)
     # entity will be queue_freed by DeathVFX; autofree on test teardown is fine.
     assert_true(true, "play() did not crash")
+
+
+# ── Monster element tracking ─────────────────────────────────────────
+
+func test_monster_tracks_last_hit_element() -> void:
+    var m := Monster.new()
+    add_child_autofree(m)
+    m.take_hit(1, null, ItemDefinition.Element.FIRE)
+    assert_eq(m._last_hit_element, ItemDefinition.Element.FIRE)
+
+
+func test_monster_element_updates_on_repeated_hits() -> void:
+    var m := Monster.new()
+    add_child_autofree(m)
+    m.take_hit(1, null, ItemDefinition.Element.FIRE)
+    m.take_hit(1, null, ItemDefinition.Element.ICE)
+    assert_eq(m._last_hit_element, ItemDefinition.Element.ICE)
+
+
+func test_monster_element_defaults_to_physical() -> void:
+    var m := Monster.new()
+    add_child_autofree(m)
+    assert_eq(m._last_hit_element, ItemDefinition.Element.NONE)
