@@ -48,6 +48,7 @@ var _telegraph_timer: float = 0.0
 var _telegraph_duration: float = 0.5
 var _telegraph_target: PlayerController = null
 var _telegraph_indicator: Sprite2D = null
+var _base_modulate: Color = Color.WHITE
 var hitbox_radius: float = 5.0  ## Gungeon-style body-core radius (native px).
 var _heart_display: HeartDisplay = null
 var _action_vfx: ActionVFX = null
@@ -89,6 +90,9 @@ func _ready() -> void:
 		if _sprite != null:
 			_sprite.scale *= MonsterTier.SCALE_MULT[tier]
 			_sprite.modulate = MonsterTier.apply_color(_sprite.modulate, tier)
+	# Cache base modulate (includes tier tint) for telegraph restore.
+	if _sprite != null:
+		_base_modulate = _sprite.modulate
 	# Hitbox radius: explicit JSON override → auto-calc from sprite → default.
 	var explicit_hb: float = CreatureSpriteRegistry.get_hitbox_radius(monster_kind)
 	if explicit_hb >= 0.0:
@@ -184,6 +188,9 @@ func _process(delta: float) -> void:
 	if dist <= attack_range_px and _attack_style != &"none":
 		_tick_attack(target, to)
 		return
+	# Target left range — cancel any active telegraph.
+	if _telegraph_timer > 0.0:
+		_cancel_telegraph()
 	if dist <= 1.0:
 		return
 	var step: float = _MOVE_SPEED_PX_PER_S * _get_speed_multiplier() * delta
@@ -262,7 +269,14 @@ func _show_telegraph(_to_target: Vector2) -> void:
 ## Clear the telegraph visual.
 func _hide_telegraph() -> void:
 	if _sprite != null:
-		_sprite.modulate = Color.WHITE
+		_sprite.modulate = _base_modulate
+
+
+## Cancel an in-progress telegraph (target fled, got staggered, etc.).
+func _cancel_telegraph() -> void:
+	_telegraph_timer = 0.0
+	_telegraph_target = null
+	_hide_telegraph()
 
 
 func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
@@ -273,6 +287,9 @@ func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 	# Invincible while in a conversation.
 	if in_conversation:
 		return
+	# Interrupt any attack wind-up.
+	if _telegraph_timer > 0.0:
+		_cancel_telegraph()
 	var effective: int = _apply_resistance(damage, element)
 	health = max(0, health - effective)
 	ActionParticles.flash_hit(self)
@@ -357,6 +374,8 @@ func _is_stunned() -> bool:
 ## Called by player parry — freezes the monster for STAGGER_DURATION seconds.
 func stagger() -> void:
 	_stagger_timer = STAGGER_DURATION
+	if _telegraph_timer > 0.0:
+		_cancel_telegraph()
 	ActionParticles.flash_hit(self)
 
 
