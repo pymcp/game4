@@ -33,6 +33,8 @@ const _ENEMY_SCAN_INTERVAL: float = 0.3
 
 var health: int = 20
 var max_health: int = 20
+var _last_hit_element: int = 0  ## Element that last dealt damage; used by DeathVFX.
+var _dying: bool = false         ## Prevents _on_die() from firing twice.
 
 var _world: WorldRoot = null
 var _state: WarriorState.State = WarriorState.State.IDLE
@@ -142,8 +144,9 @@ func _tick_loot_collect() -> void:
 					lp.queue_free()
 
 
-func take_hit(damage: int, _attacker: Node = null) -> void:
+func take_hit(damage: int, _attacker: Node = null, element: int = 0) -> void:
 	health -= max(1, damage)
+	_last_hit_element = element
 	if _sprite != null:
 		ActionParticles.flash_hit(_sprite)
 	if health <= 0:
@@ -151,8 +154,12 @@ func take_hit(damage: int, _attacker: Node = null) -> void:
 
 
 func _on_die() -> void:
+	if _dying:
+		return
+	_dying = true
+	set_process(false)
 	warrior_died.emit(position)
-	queue_free()
+	DeathVFX.play(self, _sprite, 1, _last_hit_element)
 
 
 # ─── Movement helpers ───────────────────────────────────────────────
