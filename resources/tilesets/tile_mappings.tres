@@ -118,7 +118,7 @@ dungeon_floor_border_3x3 = Array[Vector2i]([Vector2i(9, 7), Vector2i(9, 7), Vect
 maze_floor_border_3x3 = Array[Vector2i]([Vector2i(9, 2), Vector2i(9, 2), Vector2i(9, 2), Vector2i(9, 2), Vector2i(9, 2), Vector2i(9, 2), Vector2i(9, 2), Vector2i(9, 2), Vector2i(9, 2)])
 dungeon_entrance_pair = Array[Vector2i]([Vector2i(24, 4), Vector2i(25, 4)])
 maze_entrance_pair = Array[Vector2i]([])
-maze_chest_pair = Array[Vector2i]([Vector2i(0, 19), Vector2i(1, 19), Vector2i(0, 18), Vector2i(1, 18)])
+maze_chest_pair = Array[Vector2i]([Vector2i(0, 18), Vector2i(1, 18)])
 maze_terrain = {
 "floor": [Vector2i(9, 7)]
 }
