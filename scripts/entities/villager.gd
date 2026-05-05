@@ -74,6 +74,7 @@ var _giver_quest_ids: Array[String] = []
 ## LOD / performance.
 var _lod_sleeping: bool = false
 var _lod_index: int = 0
+var _last_hit_element: int = 0  ## Element that last dealt damage; used by DeathVFX.
 
 
 # ---------- Pure helpers (testable without a scene) ----------
@@ -290,7 +291,7 @@ func _current_cell() -> Vector2i:
 
 # ---------- Combat ----------
 
-func take_hit(damage: int, attacker: Node = null, _element: int = 0) -> void:
+func take_hit(damage: int, attacker: Node = null, element: int = 0) -> void:
 	if health <= 0:
 		return
 	# Wake from LOD sleep so the villager can respond.
@@ -301,10 +302,11 @@ func take_hit(damage: int, attacker: Node = null, _element: int = 0) -> void:
 		return
 	var effective: int = max(1, damage)
 	health = max(0, health - effective)
+	_last_hit_element = element
 	ActionParticles.flash_hit(self)
 	if health <= 0:
 		set_physics_process(false)
-		queue_free()
+		DeathVFX.play(self, _sprite_root, 1, _last_hit_element)
 		return
 	# Acquire threat.
 	if attacker is Node2D:
