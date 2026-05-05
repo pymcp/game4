@@ -18,6 +18,7 @@ func _process(delta: float) -> void:
 	if _t < delay:
 		return
 	if _t >= delay + lifetime:
+		queue_redraw()
 		queue_free()
 		return
 	queue_redraw()
