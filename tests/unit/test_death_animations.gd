@@ -29,3 +29,57 @@ func test_death_ring_properties_settable() -> void:
     assert_almost_eq(ring.lifetime, 0.5, 0.01)
     assert_eq(ring.color, Color(1.0, 0.4, 0.0))
     assert_almost_eq(ring.delay, 0.06, 0.01)
+
+
+# ── DeathVFX ─────────────────────────────────────────────────────────
+
+func test_element_color_physical() -> void:
+    assert_eq(DeathVFX.ELEMENT_COLORS[ItemDefinition.Element.NONE],
+        Color("#dddddd"))
+
+
+func test_element_color_fire() -> void:
+    assert_eq(DeathVFX.ELEMENT_COLORS[ItemDefinition.Element.FIRE],
+        Color("#ff6600"))
+
+
+func test_element_color_ice() -> void:
+    assert_eq(DeathVFX.ELEMENT_COLORS[ItemDefinition.Element.ICE],
+        Color("#44ccff"))
+
+
+func test_element_color_lightning() -> void:
+    assert_eq(DeathVFX.ELEMENT_COLORS[ItemDefinition.Element.LIGHTNING],
+        Color("#ffee44"))
+
+
+func test_element_color_poison() -> void:
+    assert_eq(DeathVFX.ELEMENT_COLORS[ItemDefinition.Element.POISON],
+        Color("#88ff44"))
+
+
+func test_tier0_duration() -> void:
+    assert_almost_eq(float(DeathVFX.TIER_PARAMS[0][0]), 0.28, 0.001)
+
+
+func test_tier4_duration() -> void:
+    assert_almost_eq(float(DeathVFX.TIER_PARAMS[4][0]), 0.42, 0.001)
+
+
+func test_tier0_radius() -> void:
+    assert_almost_eq(float(DeathVFX.TIER_PARAMS[0][1]), 18.0, 0.01)
+
+
+func test_tier4_radius() -> void:
+    assert_almost_eq(float(DeathVFX.TIER_PARAMS[4][1]), 35.0, 0.01)
+
+
+func test_play_does_not_crash_with_node2d() -> void:
+    var entity := Node2D.new()
+    var visual := Node2D.new()
+    entity.add_child(visual)
+    add_child(entity)
+    # Tier 0, physical — no shake, one ring.
+    DeathVFX.play(entity, visual, 0, ItemDefinition.Element.NONE)
+    # entity will be queue_freed by DeathVFX; autofree on test teardown is fine.
+    assert_true(true, "play() did not crash")
