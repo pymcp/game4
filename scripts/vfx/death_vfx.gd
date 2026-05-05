@@ -40,7 +40,7 @@ static func play(entity: Node2D, visual: Node2D, tier: int, element: int) -> voi
 		_shake_all_cameras(entity, 2.0, 0.15)
 
 	var tw: Tween = entity.create_tween()
-	tw.tween_property(visual, "scale", Vector2(1.25, 1.25), dur * 0.2)
+	tw.tween_property(visual, "scale", Vector2(1.25, 1.25), dur * 0.2).from(Vector2.ONE)
 	tw.tween_property(visual, "scale", Vector2.ZERO, dur * 0.8) \
 			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_callback(entity.queue_free)
