@@ -39,6 +39,26 @@
 			1
 		]
 	},
+	"dungeon_entrance": {
+		"cell": [
+			0,
+			1
+		],
+		"size": [
+			2,
+			3
+		]
+	},
+	"maze_entrance": {
+		"cell": [
+			2,
+			1
+		],
+		"size": [
+			2,
+			3
+		]
+	},
 	"mine_entrance": {
 		"cell": [
 			4,

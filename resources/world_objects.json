@@ -30,5 +30,15 @@
 	"barrel": {
 		"display_name": "Barrel",
 		"description": "A sealed barrel. Contents unknown."
+	},
+	"dungeon_entrance": {
+		"display_name": "Dungeon Entrance",
+		"description": "A stone archway leading into an underground dungeon.",
+		"size": [2, 3]
+	},
+	"maze_entrance": {
+		"display_name": "Maze Entrance",
+		"description": "A glowing mystical portal leading into a labyrinthine maze.",
+		"size": [2, 3]
 	}
 }
