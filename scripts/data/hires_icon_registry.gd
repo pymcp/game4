@@ -96,6 +96,44 @@ static func _individual(id: StringName) -> Texture2D:
 	return tex
 
 
+## Return an AtlasTexture for a named world object, respecting its full
+## multi-cell size from world_objects_cells.json.
+## Returns null if the object_id is not found or the sheet cannot be loaded.
+## Result is NOT cached (cells.json is editor-editable; callers cache if needed).
+static func get_world_object_texture(object_id: String) -> AtlasTexture:
+	const CELLS_PATH: String = "res://assets/icons/hires/world_objects_cells.json"
+	var raw: String = FileAccess.get_file_as_string(CELLS_PATH)
+	if raw.is_empty():
+		return null
+	var cells: Variant = JSON.parse_string(raw)
+	if not cells is Dictionary:
+		return null
+	var info: Dictionary = (cells as Dictionary).get(object_id, {})
+	if info.is_empty():
+		return null
+	var cell_arr: Array = info.get("cell", [0, 0])
+	var size_arr: Array = info.get("size", [1, 1])
+	var col: int = int(cell_arr[0])
+	var row: int = int(cell_arr[1])
+	var size_w: int = int(size_arr[0])
+	var size_h: int = int(size_arr[1])
+	var sheet_tex: Texture2D = _load_sheet("world_objects")
+	if sheet_tex == null:
+		return null
+	var spec: SheetSpec = SheetSpecReader.read(HIRES_DIR + "world_objects.png")
+	# Full region: size_w tiles wide, size_h tiles tall, with 1px gutters between.
+	var region_w: float = float(size_w * spec.tile_px + (size_w - 1) * spec.margin_px)
+	var region_h: float = float(size_h * spec.tile_px + (size_h - 1) * spec.margin_px)
+	var atlas := AtlasTexture.new()
+	atlas.atlas = sheet_tex
+	atlas.region = Rect2(
+		float(col * spec.stride),
+		float(row * spec.stride),
+		region_w,
+		region_h)
+	return atlas
+
+
 ## Clear all caches (call after hot-reload or spritesheet swap).
 static func reset() -> void:
 	_sheets.clear()

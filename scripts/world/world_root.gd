@@ -986,13 +986,13 @@ func _ensure_dungeon_dim_layer(ts: TileSet) -> TileMapLayer:
 
 func _paint_overworld_entrance_markers(region: Region) -> void:
 	var root: Node2D = _ensure_entrance_marker_root()
+	var canopy_root: Node2D = _ensure_entrance_canopy_root()
 	for c in root.get_children():
 		c.queue_free()
-	var dungeon_tex: Texture2D = load(TilesetCatalog.DUNGEON_PNG) as Texture2D
+	for c in canopy_root.get_children():
+		c.queue_free()
 	var house_tex: Texture2D = load(TilesetCatalog.MEDIEVAL_RTS_PNG) as Texture2D
 	var tile_px: int = WorldConst.TILE_PX
-	var margin: int = WorldConst.TILESHEET_MARGIN
-	var cells: Array = TilesetCatalog.DUNGEON_OVERWORLD_ENTRANCE_CELLS
 	for entry in region.dungeon_entrances:
 		var base: Vector2i = entry["cell"]
 		var ek: StringName = entry.get("kind", &"dungeon")
@@ -1008,34 +1008,42 @@ func _paint_overworld_entrance_markers(region: Region) -> void:
 			spr.position = Vector2(float(base.x * tile_px), float(base.y * tile_px))
 			root.add_child(spr)
 			continue
-		if dungeon_tex == null:
+		# Dungeon and maze use hires world_objects sprites.
+		var obj_id: String = "dungeon_entrance" if ek != &"maze" else "maze_entrance"
+		var atlas_tex: AtlasTexture = HiresIconRegistry.get_world_object_texture(obj_id)
+		if atlas_tex == null:
 			continue
-		var tint: Color
-		var cells_to_use: Array
-		if ek == &"house":
-			tint = Color(1.4, 0.95, 0.6)  # warm yellow
-			cells_to_use = cells
-		elif ek == &"maze":
-			tint = Color(1.2, 0.6, 1.4)   # purple
-			cells_to_use = TilesetCatalog.MAZE_OVERWORLD_ENTRANCE_CELLS
-		else:
-			tint = Color.WHITE
-			cells_to_use = cells
-		for i in cells_to_use.size():
-			var atlas: Vector2i = cells_to_use[i]
-			var spr := Sprite2D.new()
-			spr.texture = dungeon_tex
-			spr.region_enabled = true
-			spr.region_rect = Rect2(
-				atlas.x * (tile_px + margin),
-				atlas.y * (tile_px + margin),
-				tile_px, tile_px)
-			spr.centered = false
-			spr.position = Vector2(
-				float((base.x + i) * tile_px),
-				float(base.y * tile_px))
-			spr.modulate = tint
-			root.add_child(spr)
+		# Source dimensions from the AtlasTexture region.
+		var src_w: float = atlas_tex.region.size.x
+		var src_h: float = atlas_tex.region.size.y
+		# Scale so the sprite is exactly 2 tiles wide in-game.
+		var scale_f: float = float(tile_px * 2) / src_w
+		var sprite_h_px: float = src_h * scale_f
+		# Bottom-align: position so the base of the sprite sits at base cell top.
+		var world_x: float = float(base.x * tile_px)
+		var world_y: float = float(base.y * tile_px) - sprite_h_px + float(tile_px)
+		# Body sprite — renders below entities (player walks in front, like tree trunk).
+		var spr_body := Sprite2D.new()
+		spr_body.texture = atlas_tex
+		spr_body.centered = false
+		spr_body.scale = Vector2(scale_f, scale_f)
+		spr_body.position = Vector2(world_x, world_y)
+		root.add_child(spr_body)
+		# Canopy sprite — top tile_px rows clipped, renders above entities (player walks behind).
+		var top_src_h: float = float(WorldConst.TILE_PX) / scale_f
+		var spr_top := Sprite2D.new()
+		var top_atlas := AtlasTexture.new()
+		top_atlas.atlas = atlas_tex.atlas
+		top_atlas.region = Rect2(
+			atlas_tex.region.position.x,
+			atlas_tex.region.position.y,
+			src_w,
+			top_src_h)
+		spr_top.texture = top_atlas
+		spr_top.centered = false
+		spr_top.scale = Vector2(scale_f, scale_f)
+		spr_top.position = Vector2(world_x, world_y)
+		canopy_root.add_child(spr_top)
 
 
 
@@ -1045,7 +1053,18 @@ func _ensure_entrance_marker_root() -> Node2D:
 		return existing as Node2D
 	var root := Node2D.new()
 	root.name = "EntranceMarkers"
-	root.z_index = 1
+	root.z_index = 0  # Behind entities — player walks in front of arch body.
+	add_child(root)
+	return root
+
+
+func _ensure_entrance_canopy_root() -> Node2D:
+	var existing: Node = get_node_or_null("EntranceCanopy")
+	if existing is Node2D:
+		return existing as Node2D
+	var root := Node2D.new()
+	root.name = "EntranceCanopy"
+	root.z_index = 3  # Above entities — player walks behind arch top.
 	add_child(root)
 	return root
 
