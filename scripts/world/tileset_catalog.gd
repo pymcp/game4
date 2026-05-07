@@ -640,6 +640,61 @@ static func _ensure_loaded() -> void:
 		INTERIOR_FURNITURE = m.interior_furniture
 	# Sheet overrides
 	_sheet_overrides = m.sheet_overrides.duplicate()
+	# Validate configured cells against blank tile detection
+	_validate_cells_on_load()
+
+## Dedup set for runtime blank-cell warnings (sheet_path + cell → true).
+static var _warned_cells: Dictionary = {}
+
+## One-time load validation: warns about any configured cell pointing at a
+## blank (transparent or solid single-color) region on the sheet.
+static func _validate_cells_on_load() -> void:
+	var field_dicts: Array = [
+		[&"overworld_terrain", OVERWORLD_TERRAIN_CELLS],
+		[&"overworld_decoration", OVERWORLD_DECORATION_CELLS],
+		[&"city_terrain", CITY_TERRAIN_CELLS],
+		[&"dungeon_terrain", DUNGEON_TERRAIN_CELLS],
+		[&"maze_terrain", MAZE_TERRAIN_CELLS],
+	]
+	for entry in field_dicts:
+		var field: StringName = entry[0]
+		var cells_dict: Dictionary = entry[1]
+		var sheet: String = get_sheet_path(field)
+		var blanks: Array = BlankCellDetector.get_blank_cells(sheet)
+		if blanks.is_empty():
+			continue
+		for terrain_name in cells_dict:
+			var v: Variant = cells_dict[terrain_name]
+			var arr: Array = []
+			if v is Array:
+				arr = v
+			elif v is Vector2i:
+				arr = [v]
+			for cell in arr:
+				if blanks.has(cell):
+					push_warning(
+						"BlankTile: field='%s' terrain='%s' cell=(%d,%d) sheet='%s'"
+						% [field, terrain_name, cell.x, cell.y, sheet])
+
+
+## Runtime blank-cell warning — fires once per unique (view, terrain, cell).
+static func _warn_if_blank(view_kind: StringName, terrain: StringName, cell: Vector2i) -> void:
+	var field: StringName
+	match view_kind:
+		&"overworld": field = &"overworld_terrain"
+		&"city": field = &"city_terrain"
+		&"dungeon", &"interior", &"house": field = &"dungeon_terrain"
+		&"maze": field = &"maze_terrain"
+		_: return
+	var sheet: String = get_sheet_path(field)
+	var key: String = "%s:%d,%d" % [sheet, cell.x, cell.y]
+	if _warned_cells.has(key):
+		return
+	if BlankCellDetector.is_blank(sheet, cell):
+		_warned_cells[key] = true
+		push_warning(
+			"BlankTile (runtime): view='%s' terrain='%s' cell=(%d,%d) sheet='%s'"
+			% [view_kind, terrain, cell.x, cell.y, sheet])
 
 # ─── Cached TileSets ────────────────────────────────────────────────────
 static var _overworld_ts: TileSet = null
@@ -912,11 +967,14 @@ static func cell_for(view_kind: StringName, terrain: StringName) -> Vector2i:
 		&"maze": d = MAZE_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
+	var result := Vector2i(-1, -1)
 	if v is Vector2i:
-		return v
-	if v is Array and not (v as Array).is_empty():
-		return (v as Array)[0]
-	return Vector2i(-1, -1)
+		result = v
+	elif v is Array and not (v as Array).is_empty():
+		result = (v as Array)[0]
+	if result != Vector2i(-1, -1):
+		_warn_if_blank(view_kind, terrain, result)
+	return result
 
 
 ## Returns a deterministic ground tile for `terrain` in `view_kind`. When
@@ -936,6 +994,7 @@ static func cell_for_variant(view_kind: StringName, terrain: StringName, hash32:
 		&"maze": d = MAZE_TERRAIN_CELLS
 		_: return Vector2i(-1, -1)
 	var v: Variant = d.get(terrain, null)
+	var result := Vector2i(-1, -1)
 	if v is Array and (v as Array).size() > 1:
 		var arr: Array = v
 		# Use the high bits to pick the variant index, low bits for the
@@ -946,13 +1005,16 @@ static func cell_for_variant(view_kind: StringName, terrain: StringName, hash32:
 			GROUND_VARIANT_CHANCE_BY_TERRAIN.get(terrain, GROUND_VARIANT_CHANCE))
 		if roll < chance:
 			var idx: int = (u >> 10) % (arr.size() - 1)
-			return arr[1 + idx]
-		return arr[0]
-	if v is Array and not (v as Array).is_empty():
-		return (v as Array)[0]
-	if v is Vector2i:
-		return v
-	return Vector2i(-1, -1)
+			result = arr[1 + idx]
+		else:
+			result = arr[0]
+	elif v is Array and not (v as Array).is_empty():
+		result = (v as Array)[0]
+	elif v is Vector2i:
+		result = v
+	if result != Vector2i(-1, -1):
+		_warn_if_blank(view_kind, terrain, result)
+	return result
 
 
 # ─── Multi-tile rendering helpers ───────────────────────────────────────

@@ -258,9 +258,14 @@ class SheetView extends Control:
 	var hovered: Vector2i = Vector2i(-1, -1)
 	# `marks` is an Array of Dictionaries: {cell: Vector2i, color: Color, width: float}.
 	var marks: Array = []
+	# Cached blank cells for the current sheet (computed on set_sheet).
+	var _blank_cells_for_sheet: Array = []
+	# Path of the current sheet (for blank detection cache key).
+	var _current_sheet_path: String = ""
 
-	func set_sheet(tex: Texture2D) -> void:
+	func set_sheet(tex: Texture2D, sheet_path: String = "") -> void:
 		texture = tex
+		_current_sheet_path = sheet_path
 		# Auto-detect gutter: Kenney roguelike sheets use 1-px gutter.
 		# Accepted patterns (step = tile_px + 1 = 17):
 		#   w = cols * step - 1  (no trailing gutter)  → (w+1) % step == 0
@@ -283,6 +288,11 @@ class SheetView extends Control:
 				gutter = 0
 			else:
 				gutter = 1  # default: Kenney roguelike sheets always use 1-px gutter
+		# Scan for blank cells
+		if not _current_sheet_path.is_empty():
+			_blank_cells_for_sheet = BlankCellDetector.get_blank_cells(_current_sheet_path)
+		else:
+			_blank_cells_for_sheet = []
 		_resize_to_texture()
 		queue_redraw()
 
@@ -350,6 +360,17 @@ class SheetView extends Control:
 		for y in range(max_row + 1):
 			var py: float = float(y) * step
 			draw_line(Vector2(0, py), Vector2(dest.size.x, py), grid_col, 1.0)
+		# Blank cell overlay — red tint + diagonal strike-through
+		if texture != null and _blank_cells_for_sheet.size() > 0:
+			var visible_px: float = float(tile_px) * float(zoom)
+			var blank_fill := Color(1, 0, 0, 0.25)
+			var blank_line := Color(1, 0, 0, 0.6)
+			for cell in _blank_cells_for_sheet:
+				var p := Vector2(float(cell.x) * step, float(cell.y) * step)
+				var sz := Vector2(visible_px, visible_px)
+				draw_rect(Rect2(p, sz), blank_fill, true)
+				draw_line(p, p + sz, blank_line, 2.0)
+				draw_line(p + Vector2(sz.x, 0), p + Vector2(0, sz.y), blank_line, 2.0)
 		for m in marks:
 			_draw_cell_outline(m["cell"], m["color"], float(m.get("width", 2.0)))
 		if hovered.x >= 0:
@@ -719,7 +740,7 @@ func _on_sheet_selected(idx: int) -> void:
 	var tex: Texture2D = load(new_sheet) as Texture2D
 	if tex != null:
 		_sync_views_from_spec(new_sheet)
-		_sheet_view.set_sheet(tex)
+		_sheet_view.set_sheet(tex, new_sheet)
 		_refresh_marks()
 		if _mineable_editor != null and _mineable_editor.visible:
 			_mineable_editor.sheet_path = new_sheet
@@ -926,7 +947,7 @@ func _select_mapping(entry: Dictionary) -> void:
 		_status_label.text = "ERROR: sheet not found at %s" % sheet_path
 		return
 	_sync_views_from_spec(sheet_path)
-	_sheet_view.set_sheet(tex)
+	_sheet_view.set_sheet(tex, sheet_path)
 
 	if kind == &"mineable":
 		_show_mineable_editor()
@@ -2160,7 +2181,7 @@ func _on_item_sheet_requested(path: String) -> void:
 	if tex == null:
 		return
 	_item_editor.sheet_path = path
-	_sheet_view.set_sheet(tex)
+	_sheet_view.set_sheet(tex, path)
 	# Update the sheet dropdown to reflect the new sheet.
 	for i in _available_sheets.size():
 		if _available_sheets[i] == path:
@@ -2231,7 +2252,7 @@ func _on_creature_sheet_requested(path: String) -> void:
 	# When the creature editor requests a sheet, switch the atlas view.
 	var tex: Texture2D = load(path) as Texture2D
 	if tex != null:
-		_sheet_view.set_sheet(tex)
+		_sheet_view.set_sheet(tex, path)
 		_creature_editor.gutter = _sheet_view.gutter
 		_sync_sheet_selector(path)
 
