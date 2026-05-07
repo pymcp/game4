@@ -65,6 +65,14 @@ var _cached_target: PlayerController = null
 var _cached_stunned: bool = false
 var _cached_speed_mult: float = 1.0
 
+# --- Creature identity mechanics (loaded from creature data in _ready) ---
+var _regen_hp_per_sec: float = 0.0     ## Troll: continuous HP regen.
+var _pack_bonus_damage: int = 0        ## Wolf: extra damage with pack nearby.
+var _pack_radius_tiles: float = 0.0    ## Wolf: pack scan radius.
+var _fake_telegraph_chance: float = 0.0 ## Goblin Jester: cancel telegraph without hitting.
+var _split_on_death: bool = false      ## Slime: spawn two baby_slimes on death.
+var _regen_accum: float = 0.0          ## Fractional HP accumulator for regen.
+
 
 func _ready() -> void:
 	_world = WorldRoot.find_from(self)
@@ -85,6 +93,12 @@ func _ready() -> void:
 	_attack_style = CreatureSpriteRegistry.get_attack_style(monster_kind)
 	_attack_element = CreatureSpriteRegistry.get_element(monster_kind)
 	_telegraph_duration = CreatureSpriteRegistry.get_telegraph_duration(monster_kind)
+	# Load identity mechanic fields.
+	_regen_hp_per_sec = CreatureSpriteRegistry.get_regen_hp_per_sec(monster_kind)
+	_pack_bonus_damage = CreatureSpriteRegistry.get_pack_bonus_damage(monster_kind)
+	_pack_radius_tiles = CreatureSpriteRegistry.get_pack_radius_tiles(monster_kind)
+	_fake_telegraph_chance = CreatureSpriteRegistry.get_fake_telegraph_chance(monster_kind)
+	_split_on_death = CreatureSpriteRegistry.get_split_on_death(monster_kind)
 	# Apply tier multipliers to combat stats.
 	if tier > 0:
 		_attack_damage = int(ceil(_attack_damage * MonsterTier.DMG_MULT[tier]))
@@ -162,6 +176,13 @@ func _process(delta: float) -> void:
 	_tick_effects(delta)
 	if health <= 0:
 		return
+	# Troll regen: heal continuously up to max_health.
+	if _regen_hp_per_sec > 0.0 and health < max_health:
+		_regen_accum += _regen_hp_per_sec * delta
+		var regen_int: int = int(floor(_regen_accum))
+		if regen_int > 0:
+			_regen_accum -= regen_int
+			health = mini(health + regen_int, max_health)
 	# Freeze while in a conversation.
 	if in_conversation:
 		return
@@ -238,6 +259,15 @@ func _tick_attack(target: PlayerController, to_target: Vector2) -> void:
 			_finish_attack(target, to_target)
 		return
 	# Start a new telegraph.
+	# Goblin Jester fake telegraph: show wind-up then cancel without hitting.
+	if _fake_telegraph_chance > 0.0 and randf() < _fake_telegraph_chance:
+		# Show the telegraph visual then clear it after the normal duration — no hit delivered.
+		_show_telegraph(to_target)
+		var tw: Tween = create_tween()
+		tw.tween_interval(_telegraph_duration)
+		tw.tween_callback(_hide_telegraph)
+		_attack_cooldown = _attack_speed * 0.5  # Short cooldown so it can attack again soon.
+		return
 	_telegraph_timer = _telegraph_duration
 	_telegraph_target = target
 	_show_telegraph(to_target)
@@ -250,8 +280,21 @@ func _finish_attack(target: PlayerController, to_target: Vector2) -> void:
 	_telegraph_target = null
 	if not is_instance_valid(target):
 		return
+	# Wolf pack bonus: extra damage if a pack-mate is nearby.
+	var effective_damage: int = _attack_damage
+	if _pack_bonus_damage > 0 and _pack_radius_tiles > 0.0:
+		var pack_px: float = _pack_radius_tiles * float(WorldConst.TILE_PX)
+		for node: Node in get_tree().get_nodes_in_group(&"monsters"):
+			var ally := node as Monster
+			if ally == null or ally == self:
+				continue
+			if ally.monster_kind != monster_kind or ally.health <= 0:
+				continue
+			if ally.position.distance_to(position) <= pack_px:
+				effective_damage += _pack_bonus_damage
+				break
 	if target.has_method("take_hit"):
-		target.call("take_hit", _attack_damage, self, _attack_element)
+		target.call("take_hit", effective_damage, self, _attack_element)
 	# Lunge + particle VFX.
 	if _action_vfx != null:
 		var to_norm: Vector2 = to_target.normalized() if to_target.length() > 0.01 else Vector2(1, 0)
@@ -318,6 +361,9 @@ func _die() -> void:
 	died.emit(position, loot)
 	var effective_tier: int = 4 if CreatureSpriteRegistry.is_boss(monster_kind) else tier
 	DeathVFX.play(self, _sprite, effective_tier, _last_hit_element)
+	# Slime split: notify WorldRoot to spawn two baby_slimes at this position.
+	if _split_on_death and _world != null:
+		_world.on_slime_split(position)
 
 
 # --- Status effects -------------------------------------------------

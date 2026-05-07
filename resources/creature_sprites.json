@@ -37,7 +37,7 @@
 			0.5,
 			0.95
 		],
-		"attack_damage": 4,
+		"attack_damage": 7,
 		"attack_range_tiles": 1.25,
 		"attack_speed": 1.5,
 		"attack_style": "slam",
@@ -124,7 +124,7 @@
 			0.5,
 			0.95
 		],
-		"attack_damage": 5,
+		"attack_damage": 14,
 		"attack_range_tiles": 1.5,
 		"attack_speed": 1.8,
 		"attack_style": "slam",
@@ -195,7 +195,7 @@
 			0.5,
 			0.95
 		],
-		"attack_damage": 8,
+		"attack_damage": 18,
 		"attack_range_tiles": 6.0,
 		"attack_speed": 2.0,
 		"attack_style": "projectile",
@@ -346,6 +346,7 @@
 		"attack_range_tiles": 1.25,
 		"attack_speed": 0.4,
 		"attack_style": "swing",
+		"fake_telegraph_chance": 0.4,
 		"facing_right": true,
 		"footprint": [
 			1,
@@ -545,7 +546,7 @@
 			0.5,
 			0.95
 		],
-		"attack_damage": 4,
+		"attack_damage": 8,
 		"attack_range_tiles": 1.5,
 		"attack_speed": 1.5,
 		"attack_style": "swing",
@@ -582,7 +583,7 @@
 			0.5,
 			0.95
 		],
-		"attack_damage": 3,
+		"attack_damage": 5,
 		"attack_range_tiles": 1.25,
 		"attack_speed": 1.2,
 		"attack_style": "swing",
@@ -712,6 +713,7 @@
 		"attack_range_tiles": 5.0,
 		"attack_speed": 1.5,
 		"attack_style": "projectile",
+		"element": "shock",
 		"facing_right": true,
 		"footprint": [
 			1,
@@ -745,6 +747,7 @@
 		"attack_range_tiles": 1.0,
 		"attack_speed": 1.2,
 		"attack_style": "slam",
+		"split_on_death": true,
 		"facing_right": true,
 		"footprint": [
 			1,
@@ -774,7 +777,7 @@
 			0.5,
 			0.95
 		],
-		"attack_damage": 6,
+		"attack_damage": 12,
 		"attack_range_tiles": 1.5,
 		"attack_speed": 2.0,
 		"attack_style": "slam",
@@ -813,12 +816,45 @@
 		],
 		"xp_reward": 150
 	},
+	"baby_slime": {
+		"anchor_ratio": [
+			0.5,
+			0.95
+		],
+		"attack_damage": 1,
+		"attack_range_tiles": 0.8,
+		"attack_speed": 1.0,
+		"attack_style": "slam",
+		"facing_right": true,
+		"footprint": [
+			1,
+			1
+		],
+		"scale": [
+			0.15,
+			0.15
+		],
+		"tint": [
+			0.4,
+			0.9,
+			0.3,
+			1
+		],
+		"sheet": "res://assets/icons/hires/creatures.png",
+		"region": [
+			455,
+			130,
+			64,
+			64
+		],
+		"xp_reward": 5
+	},
 	"snake": {
 		"anchor_ratio": [
 			0.5,
 			0.95
 		],
-		"attack_damage": 2,
+		"attack_damage": 3,
 		"attack_range_tiles": 1.0,
 		"attack_speed": 0.9,
 		"attack_style": "thrust",
@@ -855,6 +891,7 @@
 		"attack_range_tiles": 1.25,
 		"attack_speed": 0.8,
 		"attack_style": "thrust",
+		"element": "poison",
 		"facing_right": true,
 		"footprint": [
 			1,
@@ -884,10 +921,11 @@
 			0.5,
 			0.95
 		],
-		"attack_damage": 5,
+		"attack_damage": 10,
 		"attack_range_tiles": 1.5,
 		"attack_speed": 1.4,
 		"attack_style": "slam",
+		"regen_hp_per_sec": 1.5,
 		"facing_right": true,
 		"footprint": [
 			2,
@@ -925,6 +963,8 @@
 		"attack_range_tiles": 1.25,
 		"attack_speed": 0.7,
 		"attack_style": "thrust",
+		"pack_bonus_damage": 2,
+		"pack_radius_tiles": 5.0,
 		"facing_right": true,
 		"footprint": [
 			1,

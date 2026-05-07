@@ -58,7 +58,7 @@ func get_or_generate(map_id: StringName, region_id: Vector2i,
 	elif kind == &"maze":
 		m = MazeGenerator.generate(seed_val, size, size, floor_num, force_boss_kind)
 	else:
-		m = DungeonGenerator.generate(seed_val, size, size)
+		m = DungeonGenerator.generate(seed_val, size, size, floor_num)
 	m.map_id = map_id
 	m.origin_region_id = region_id
 	m.origin_cell = cell

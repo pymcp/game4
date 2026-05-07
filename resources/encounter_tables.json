@@ -127,7 +127,9 @@
 				{"creature": "goblin_jester","min_dist": 1, "max_dist": 5,  "weight": 6},
 				{"creature": "wolf",         "min_dist": 2, "max_dist": 99, "weight": 8},
 				{"creature": "goblin",       "min_dist": 2, "max_dist": 99, "weight": 7},
-				{"creature": "bear",         "min_dist": 4, "max_dist": 99, "weight": 4}
+				{"creature": "bear",         "min_dist": 4, "max_dist": 99, "weight": 4},
+				{"creature": "skeleton",     "min_dist": 5, "max_dist": 99, "weight": 5},
+				{"creature": "harpy",        "min_dist": 6, "max_dist": 99, "weight": 4}
 			],
 			"desert": [
 				{"creature": "rat",    "min_dist": 0, "max_dist": 99, "weight": 10},
@@ -164,5 +166,15 @@
 				{"creature": "troll",         "min_dist": 5, "max_dist": 99, "weight": 3}
 			]
 		}
+	},
+	"dungeon": {
+		"boss_interval": 5,
+		"enemy_tables": [
+			{"creature": "skeleton", "min_floor": 1, "max_floor": 99, "weight": 10},
+			{"creature": "zombie",   "min_floor": 1, "max_floor": 99, "weight": 8},
+			{"creature": "slime",    "min_floor": 1, "max_floor": 99, "weight": 6},
+			{"creature": "orc",      "min_floor": 4, "max_floor": 99, "weight": 8},
+			{"creature": "skeleton_mage", "min_floor": 5, "max_floor": 99, "weight": 6}
+		]
 	}
 }

@@ -20,8 +20,8 @@ const MIN_ROOM: int = 4
 
 
 ## Generate an [InteriorMap]. `width`/`height` are clamped to
-## [InteriorMap.MIN_SIZE..MAX_SIZE].
-static func generate(seed_val: int, width: int = 32, height: int = 32) -> InteriorMap:
+## [InteriorMap.MIN_SIZE..MAX_SIZE]. `floor_num` drives enemy difficulty scaling.
+static func generate(seed_val: int, width: int = 32, height: int = 32, floor_num: int = 1) -> InteriorMap:
 	width = clampi(width, InteriorMap.MIN_SIZE, InteriorMap.MAX_SIZE)
 	height = clampi(height, InteriorMap.MIN_SIZE, InteriorMap.MAX_SIZE)
 
@@ -75,8 +75,8 @@ static func generate(seed_val: int, width: int = 32, height: int = 32) -> Interi
 	# treasury near exit, one random library room in the middle).
 	_insert_special_chambers(rng, m, rooms, exit_room_idx)
 
-	# Light NPC scatter — slimes default; per-floor tuning is Phase 8b/9.
-	_scatter_npcs(rng, m, rooms)
+	# Light NPC scatter — floor-scaled via encounter tables.
+	_scatter_npcs(rng, m, rooms, floor_num)
 	# Phase 10a: scatter loot in the same rooms (post-entry).
 	_scatter_loot(rng, m, rooms)
 	return m
@@ -171,19 +171,35 @@ static func _center(r: Rect2i) -> Vector2i:
 # ─── Misc placement ───────────────────────────────────────────────────
 
 static func _scatter_npcs(rng: RandomNumberGenerator, m: InteriorMap,
-		rooms: Array) -> void:
+		rooms: Array, floor_num: int = 1) -> void:
 	# Skip the first room (entry) to keep the player safe on arrival.
 	for i in range(1, rooms.size()):
 		var room: Rect2i = rooms[i]
-		# 30% chance per room to spawn a slime in the room's center.
+		# 30% chance per room to spawn an enemy.
 		if rng.randf() < 0.3:
 			var c: Vector2i = _center(room)
 			# Avoid stairs cells.
 			if m.at(c) == TerrainCodes.INTERIOR_FLOOR:
+				var creature_list: Array = EncounterTableRegistry.get_weighted_list(&"dungeon", floor_num)
+				var creature: StringName = &"skeleton"
+				if not creature_list.is_empty():
+					var total: int = 0
+					for entry: Dictionary in creature_list:
+						total += int(entry.get("weight", 1))
+					var roll: int = rng.randi_range(0, maxi(total - 1, 0))
+					var accum: int = 0
+					for entry: Dictionary in creature_list:
+						accum += int(entry.get("weight", 1))
+						if roll < accum:
+							creature = StringName(entry.get("creature", "skeleton"))
+							break
+				var tier: int = MonsterTier.roll_tier(floor_num, rng)
 				m.npcs_scatter.append({
-					"kind": &"slime",
+					"kind": &"monster",
+					"monster_kind": creature,
 					"cell": c,
 					"variant": rng.randi(),
+					"tier": tier,
 				})
 
 

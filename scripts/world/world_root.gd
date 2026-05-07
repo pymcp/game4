@@ -1868,6 +1868,23 @@ func spawn_loot_at(world_pos: Vector2, item_id: StringName, count: int = 1) -> v
 	entities.add_child(pickup)
 
 
+## Called by a slime with split_on_death=true when it dies.
+## Spawns two baby_slimes at offset positions around [param world_pos].
+func on_slime_split(world_pos: Vector2) -> void:
+	var offsets: Array[Vector2] = [Vector2(-6, 4), Vector2(6, 4)]
+	for offset: Vector2 in offsets:
+		var spawn_cell := Vector2i(
+				int(floor((world_pos.x + offset.x) / float(WorldConst.TILE_PX))),
+				int(floor((world_pos.y + offset.y) / float(WorldConst.TILE_PX))))
+		_spawn_monster({
+			"kind": &"monster",
+			"monster_kind": &"baby_slime",
+			"cell": spawn_cell,
+			"variant": randi(),
+			"tier": 0,
+		})
+
+
 func _on_monster_died(world_position: Vector2, drops: Array) -> void:
 	# Record the kill so the monster stays dead for the rest of this visit.
 	if _interior == null and _region != null:

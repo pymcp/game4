@@ -120,7 +120,7 @@ func gain_xp(amount: int) -> void:
 func _level_up() -> void:
 	level += 1
 	max_health += 2
-	health = min(health + 2, max_health)
+	health = max_health  ## Full heal on level-up.
 	var passive: StringName = LevelingConfig.milestone_passive(level)
 	if passive != &"":
 		_unlock_passive(passive)
