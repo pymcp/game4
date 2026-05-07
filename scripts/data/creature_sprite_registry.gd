@@ -249,6 +249,33 @@ static func all_mount_kinds() -> Array:
 	return out
 
 
+## HP regen per second. 0.0 means no regen. Used by Troll identity mechanic.
+static func get_regen_hp_per_sec(kind: StringName) -> float:
+	return float(get_entry(kind).get("regen_hp_per_sec", 0.0))
+
+
+## Extra damage when at least one ally of the same kind is within pack_radius_tiles.
+## 0 means no pack bonus. Used by Wolf identity mechanic.
+static func get_pack_bonus_damage(kind: StringName) -> int:
+	return int(get_entry(kind).get("pack_bonus_damage", 0))
+
+
+## Tile radius for pack bonus ally scan. 0.0 = disabled.
+static func get_pack_radius_tiles(kind: StringName) -> float:
+	return float(get_entry(kind).get("pack_radius_tiles", 0.0))
+
+
+## Chance [0.0–1.0] to fake a telegraph without delivering the hit.
+## Used by Goblin Jester identity mechanic.
+static func get_fake_telegraph_chance(kind: StringName) -> float:
+	return float(get_entry(kind).get("fake_telegraph_chance", 0.0))
+
+
+## If true, the monster spawns two baby_slime entities on death.
+static func get_split_on_death(kind: StringName) -> bool:
+	return bool(get_entry(kind).get("split_on_death", false))
+
+
 # ─── Internal helpers ──────────────────────────────────────────────────
 
 ## Image width in pixels (from region or full texture). Cached sheets

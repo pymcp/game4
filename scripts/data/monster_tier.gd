@@ -49,6 +49,29 @@ static func roll_tier(floor_num: int, rng: RandomNumberGenerator) -> int:
 	return tier
 
 
+## Overworld-specific tier roll using region distance.
+## Uses a flatter curve than dungeon floors so lateral exploration
+## doesn't spike difficulty as fast as vertical dungeon descent.
+## Distances map to a scaled floor equivalent (distance / 3) then use the same bands.
+static func roll_overworld_tier(region_distance: int, rng: RandomNumberGenerator) -> int:
+	# dist 1-5 → Normal only, dist 6-12 → Tough 20%, dist 13-20 → +Hardened 15%, dist 21+ → +Veteran
+	var scaled: int = region_distance / 3
+	var band: int = _floor_band(scaled)
+	# Cap overworld at Hardened (2) except Elite promotion still applies.
+	var weights: Array = _FLOOR_WEIGHTS[band]
+	var capped_weights: Array = []
+	for i in weights.size():
+		if i < Tier.VETERAN:
+			capped_weights.append(weights[i])
+	if capped_weights.is_empty():
+		capped_weights = [100]
+	var tier: int = _weighted_pick(rng, capped_weights)
+	# 5% elite promotion regardless of distance.
+	if rng.randf() < ELITE_PROMOTION_CHANCE:
+		tier = mini(tier + 1, Tier.ELITE)
+	return tier
+
+
 ## Display name with tier prefix.  Normal tier returns the base name as-is.
 static func display_name(base_name: String, tier: int) -> String:
 	if tier <= 0 or tier >= TIER_NAMES.size():

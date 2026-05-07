@@ -1,4 +1,18 @@
 {
+	"baby_slime": {
+		"display_name": "Baby Slime",
+		"drop_chance": 0.3,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"max": 1,
+				"min": 1,
+				"weight": 60
+			}
+		],
+		"health": 1
+	},
 	"bat": {
 		"display_name": "Cave Bat",
 		"drop_chance": 0.4,
@@ -570,6 +584,6 @@
 				"weight": 20
 			}
 		],
-		"health": 5
+		"health": 10
 	}
 }

@@ -337,7 +337,7 @@ static func _scatter_npcs(region: Region) -> void:
 						String(region.biome), region_distance, rng)
 				var tier: int = 0
 				if region_distance > 1:
-					tier = MonsterTier.roll_tier(region_distance, rng)
+					tier = MonsterTier.roll_overworld_tier(region_distance, rng)
 				var entry: Dictionary = {
 					"kind": &"monster",
 					"monster_kind": creature,

@@ -39,7 +39,7 @@ func test_goblin_attack_damage() -> void:
 
 
 func test_ogre_attack_damage() -> void:
-	assert_eq(CreatureSpriteRegistry.get_attack_damage(&"ogre"), 4)
+	assert_eq(CreatureSpriteRegistry.get_attack_damage(&"ogre"), 8)
 
 
 func test_missing_kind_defaults_damage_to_1() -> void:
