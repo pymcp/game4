@@ -176,7 +176,7 @@ func test_healer_mara_tres_loads() -> void:
 	var root: DialogueNode = tree.root as DialogueNode
 	assert_eq(root.speaker, "Mara")
 	assert_true(root.text.length() > 0, "root text is non-empty")
-	assert_eq(root.choices.size(), 7, "Mara has 7 root choices (3 initial + 4 flag-gated)")
+	assert_eq(root.choices.size(), 6, "Mara has 6 root choices (3 initial + 3 flag-gated)")
 
 
 func test_healer_mara_root_choices_have_labels() -> void:

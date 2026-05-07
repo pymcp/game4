@@ -21,6 +21,10 @@ signal quest_completed(quest_id: String)
 ## Key: quest_id → { "branch": String, "objectives": { obj_id: int }, "complete": bool }
 var _active: Dictionary = {}
 
+## Objective world positions registered by WorldRoot.
+## Key: "quest_id:obj_id" → { "region_id": Vector2i, "cell": Vector2i, "quest_id": String, "obj_id": String }
+var _objective_positions: Dictionary = {}
+
 
 # ─── Public API ───────────────────────────────────────────────────────
 
@@ -51,7 +55,7 @@ func start_quest(quest_id: String, branch_id: String) -> void:
 
 
 ## Advance [param objective_id] by [param amount] (default 1).
-## Emits [signal objective_updated].
+## Emits [signal objective_updated]. Sets an auto-flag when the objective reaches its target.
 func advance_objective(quest_id: String, objective_id: String, amount: int = 1) -> void:
 	if not _active.has(quest_id):
 		return
@@ -61,7 +65,15 @@ func advance_objective(quest_id: String, objective_id: String, amount: int = 1) 
 	var objs: Dictionary = state["objectives"]
 	if not objs.has(objective_id):
 		return
+	var branch: Dictionary = QuestRegistry.get_branch(quest_id, state["branch"])
+	var target: int = 1
+	for obj in branch.get("objectives", []):
+		if obj.get("id", "") == objective_id:
+			target = obj.get("count", 1)
+			break
 	objs[objective_id] = objs[objective_id] + amount
+	if objs[objective_id] >= target:
+		GameState.set_flag("quest_%s_obj_%s_done" % [quest_id, objective_id])
 	objective_updated.emit(quest_id, objective_id, objs[objective_id])
 
 
@@ -183,6 +195,52 @@ func from_dict(d: Dictionary) -> void:
 
 func reset() -> void:
 	_active.clear()
+	_objective_positions.clear()
+
+
+## Register the world position of a quest objective so the map can display a marker.
+## Called by WorldRoot when placing quest-relevant entities.
+func register_objective_position(quest_id: String, obj_id: String,
+		region_id: Vector2i, cell: Vector2i) -> void:
+	var key: String = "%s:%s" % [quest_id, obj_id]
+	_objective_positions[key] = {
+		"quest_id": quest_id,
+		"obj_id": obj_id,
+		"region_id": region_id,
+		"cell": cell,
+	}
+
+
+## Returns all registered objective positions ordered so the first incomplete
+## objective of any active quest comes first. WorldMapView draws the first entry.
+func get_objective_markers() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for key in _objective_positions:
+		var entry: Dictionary = _objective_positions[key]
+		var qid: String = entry["quest_id"]
+		var oid: String = entry["obj_id"]
+		if not is_quest_active(qid):
+			continue
+		if get_objective_progress(qid, oid) > 0:
+			continue  # already done
+		result.append(entry)
+	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		# Order by the objective's position in the quest branch.
+		var qa: String = a["quest_id"]; var qb: String = b["quest_id"]
+		var branch_a: Dictionary = QuestRegistry.get_branch(qa, get_active_branch(qa))
+		var branch_b: Dictionary = QuestRegistry.get_branch(qb, get_active_branch(qb))
+		var objs_a: Array = branch_a.get("objectives", [])
+		var objs_b: Array = branch_b.get("objectives", [])
+		var idx_a: int = 999; var idx_b: int = 999
+		for i in objs_a.size():
+			if objs_a[i].get("id", "") == a["obj_id"]:
+				idx_a = i; break
+		for i in objs_b.size():
+			if objs_b[i].get("id", "") == b["obj_id"]:
+				idx_b = i; break
+		return idx_a < idx_b
+	)
+	return result
 
 
 # ─── Internals ────────────────────────────────────────────────────────

@@ -20,6 +20,8 @@ extends Node2D
 ## Optional item to give the player on interact.
 @export var give_item_id: StringName = &""
 @export var give_item_count: int = 1
+## When true the node is NOT removed after interaction (use for permanent fixtures).
+@export var persistent: bool = false
 
 var _used: bool = false
 
@@ -42,6 +44,9 @@ func interact(player: Node) -> void:
 	if wr != null and player is PlayerController:
 		var pc := player as PlayerController
 		(wr as WorldRoot).show_dialogue(pc.player_id, interact_speaker, interact_text, self)
+	if persistent:
+		_used = false  # Allow re-interaction on next visit
+		return
 	# Visual feedback — fade out and remove.
 	var tw := create_tween()
 	tw.tween_property(self, "modulate:a", 0.0, 0.5)

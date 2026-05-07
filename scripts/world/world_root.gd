@@ -1737,6 +1737,10 @@ func _maybe_inject_mara() -> void:
 	for entry in _region.npcs_scatter:
 		if typeof(entry) == TYPE_DICTIONARY \
 				and entry.get("dialogue", "") == "res://resources/dialogue/healer_mara.tres":
+			# Re-register her position even if already placed (handles reload).
+			var mara_cell: Vector2i = entry.get("cell", Vector2i.ZERO)
+			QuestTracker.register_objective_position("herbalist_remedy", "show_evidence", rid, mara_cell)
+			QuestTracker.register_objective_position("herbalist_remedy", "return_mara", rid, mara_cell)
 			return
 	# Place her near the first spawn point.
 	if _region.spawn_points.is_empty():
@@ -1750,6 +1754,8 @@ func _maybe_inject_mara() -> void:
 		"dialogue": "res://resources/dialogue/healer_mara.tres",
 		"quest_giver_name": "Mara",
 	})
+	QuestTracker.register_objective_position("herbalist_remedy", "show_evidence", rid, cell)
+	QuestTracker.register_objective_position("herbalist_remedy", "return_mara", rid, cell)
 
 
 const _QuestInteractableScene: PackedScene = preload("res://scenes/entities/QuestInteractable.tscn")
@@ -1769,6 +1775,10 @@ func _maybe_inject_quest_interactables() -> void:
 	_inject_spring(centre)
 	# Moonstone mine — labyrinth entrance east of spawn.
 	_inject_moonstone_mine(centre)
+	# Birch grove — landmark between village and mine.
+	_inject_birch_grove(centre)
+	# Village well — contaminated, flavour only.
+	_inject_village_well(centre)
 
 
 func _inject_spring(centre: Vector2i) -> void:
@@ -1785,19 +1795,32 @@ func _inject_spring(centre: Vector2i) -> void:
 	qi.give_item_id = &"clean_spring_water"
 	qi.give_item_count = 1
 	qi.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
-	# Visual: use a water-coloured placeholder sprite.
+	# Visual: world_objects sheet cell [6, 0] = spring.
 	var spr: Sprite2D = qi.get_node("Sprite2D") as Sprite2D
 	if spr != null:
-		var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
-		img.fill(Color(0.3, 0.6, 0.9, 0.8))
-		spr.texture = ImageTexture.create_from_image(img)
+		var tex: Texture2D = HiresIconRegistry._from_cell("world_objects", 6, 0)
+		if tex != null:
+			spr.texture = tex
+			spr.scale = Vector2(0.25, 0.25)
+		else:
+			# Fallback placeholder.
+			var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+			img.fill(Color(0.3, 0.6, 0.9, 0.8))
+			spr.texture = ImageTexture.create_from_image(img)
 	entities.add_child(qi)
+	# Register map marker position.
+	var rid: Vector2i = _region.region_id if _region != null else Vector2i.ZERO
+	QuestTracker.register_objective_position("herbalist_remedy", "get_water", rid, cell)
 
 
 func _inject_moonstone_mine(centre: Vector2i) -> void:
 	# Check if already placed.
 	for entry in _region.dungeon_entrances:
 		if entry.get("quest_mine", false):
+			# Re-register position for map marker (handles reload).
+			var mine_cell: Vector2i = entry.get("cell", Vector2i.ZERO)
+			var rid2: Vector2i = _region.region_id
+			QuestTracker.register_objective_position("herbalist_remedy", "enter_mine", rid2, mine_cell)
 			return
 	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(12, 0), 6, true)
 	_region.dungeon_entrances.append({
@@ -1808,6 +1831,73 @@ func _inject_moonstone_mine(centre: Vector2i) -> void:
 	# Register the door and repaint entrance markers so the sprite is visible.
 	_doors[cell] = {"kind": &"maze_enter", "cell": cell, "quest_mine": true}
 	_paint_overworld_entrance_markers(_region)
+	# Register map marker position.
+	var rid: Vector2i = _region.region_id
+	QuestTracker.register_objective_position("herbalist_remedy", "enter_mine", rid, cell)
+	# Scatter sick wolves and rats near the mine entrance (flavour + threat).
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(rid.x) * 7919 + int(rid.y) * 3571 + 0xB10F
+	const SICK_WOLF_COUNT: int = 3
+	const RAT_COUNT: int = 2
+	for i in SICK_WOLF_COUNT:
+		var offset := Vector2i(rng.randi_range(-3, 3), rng.randi_range(-3, 3))
+		var monstercell: Vector2i = find_safe_spawn_cell(cell + offset, 2, true)
+		_spawn_monster({"cell": monstercell, "monster_kind": &"sick_wolf", "tier": 0})
+	for i in RAT_COUNT:
+		var offset := Vector2i(rng.randi_range(-4, 4), rng.randi_range(-4, 4))
+		var monstercell: Vector2i = find_safe_spawn_cell(cell + offset, 2, true)
+		_spawn_monster({"cell": monstercell, "monster_kind": &"rat", "tier": 0})
+
+
+func _inject_birch_grove(centre: Vector2i) -> void:
+	# Paint ~8 tree tiles east of spawn, between the village and the mine.
+	# Uses the same "tree" mineable kind so they're choppable.
+	const TREE_CELLS: Array[Vector2i] = [
+		Vector2i(14, 10), Vector2i(15, 10), Vector2i(16, 10),
+		Vector2i(13, 10), Vector2i(17, 10),
+	]
+	const GROVE_OFFSETS: Array[Vector2i] = [
+		Vector2i(7, -2), Vector2i(7, -1), Vector2i(7, 0), Vector2i(7, 1),
+		Vector2i(8, -2), Vector2i(8, 0), Vector2i(9, -1), Vector2i(9, 1),
+	]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 0xB1C432
+	for i in GROVE_OFFSETS.size():
+		var cell: Vector2i = centre + GROVE_OFFSETS[i]
+		# Skip if a tile is already there or is water.
+		if _mineable.has(cell):
+			continue
+		var atlas: Vector2i = TREE_CELLS[i % TREE_CELLS.size()]
+		decoration.set_cell(cell, 0, atlas, 0)
+		_region.decorations.append({"kind": &"tree", "cell": cell, "variant": i % TREE_CELLS.size()})
+		_mineable[cell] = {"kind": &"tree", "hp": int(MINEABLE_HP.get(&"tree", 3))}
+
+
+func _inject_village_well(centre: Vector2i) -> void:
+	# Check if already placed.
+	for child in entities.get_children():
+		if child is QuestInteractable and child.objective_id == "village_well_flavour":
+			return
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(1, -3), 3, true)
+	var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
+	qi.quest_id = ""
+	qi.objective_id = "village_well_flavour"
+	qi.interact_speaker = ""
+	qi.interact_text = "The well water looks murky and smells faintly of minerals. Don't drink this."
+	qi.persistent = true
+	qi.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+	# Visual: world_objects sheet cell [7, 0] = village_well.
+	var spr: Sprite2D = qi.get_node("Sprite2D") as Sprite2D
+	if spr != null:
+		var tex: Texture2D = HiresIconRegistry._from_cell("world_objects", 7, 0)
+		if tex != null:
+			spr.texture = tex
+			spr.scale = Vector2(0.25, 0.25)
+		else:
+			var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+			img.fill(Color(0.5, 0.4, 0.3, 0.9))
+			spr.texture = ImageTexture.create_from_image(img)
+	entities.add_child(qi)
 
 
 func _spawn_villager(entry: Dictionary) -> void:

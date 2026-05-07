@@ -474,8 +474,10 @@ func _tick_indicator_bob(delta: float) -> void:
 	_quest_indicator.position.y = -32.0 + sin(_indicator_bob_t * TAU * 1.5) * 3.0
 
 
-## Mark any "talk" objectives targeting this NPC in active quests, then
-## auto-complete quests that become ready.
+## Mark the FIRST incomplete "talk" objective targeting this NPC in each active
+## quest, then auto-complete quests that become ready.
+## Only one talk objective is advanced per visit so sequential objectives
+## (e.g. show_evidence then return_mara) resolve in the correct order.
 func _try_quest_turn_in(_player: PlayerController) -> void:
 	if quest_giver_name.is_empty():
 		return
@@ -489,7 +491,10 @@ func _try_quest_turn_in(_player: PlayerController) -> void:
 				continue
 			if obj.get("npc", "") != quest_giver_name:
 				continue
+			if QuestTracker.get_objective_progress(qid, obj["id"]) > 0:
+				continue  # already done — skip to next
 			QuestTracker.mark_objective_done(qid, obj["id"])
+			break  # only advance the first incomplete talk objective per visit
 		# Auto-complete if all objectives now met.
 		if QuestTracker.is_quest_ready_to_complete(qid):
 			QuestTracker.complete_quest(qid)
