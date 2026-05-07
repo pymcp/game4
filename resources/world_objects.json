@@ -1,0 +1,34 @@
+{
+	"spring": {
+		"display_name": "Natural Spring",
+		"description": "A clean water source. Used for Mara's remedy."
+	},
+	"village_well": {
+		"display_name": "Village Well",
+		"description": "The contaminated well at the heart of the starting village."
+	},
+	"mine_entrance": {
+		"display_name": "Mine Entrance",
+		"description": "The sealed entrance to the old moonstone mine."
+	},
+	"notice_board": {
+		"display_name": "Notice Board",
+		"description": "A board where villagers post news and requests."
+	},
+	"altar": {
+		"display_name": "Stone Altar",
+		"description": "An ancient altar. Its purpose is unknown."
+	},
+	"campfire": {
+		"display_name": "Campfire",
+		"description": "A smouldering campfire. Someone was here recently."
+	},
+	"crate": {
+		"display_name": "Wooden Crate",
+		"description": "A sturdy wooden crate. Might contain supplies."
+	},
+	"barrel": {
+		"display_name": "Barrel",
+		"description": "A sealed barrel. Contents unknown."
+	}
+}

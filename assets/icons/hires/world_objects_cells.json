@@ -1,0 +1,82 @@
+{
+	"altar": {
+		"cell": [
+			0,
+			0
+		],
+		"size": [
+			1,
+			1
+		]
+	},
+	"barrel": {
+		"cell": [
+			1,
+			0
+		],
+		"size": [
+			1,
+			1
+		]
+	},
+	"campfire": {
+		"cell": [
+			2,
+			0
+		],
+		"size": [
+			1,
+			1
+		]
+	},
+	"crate": {
+		"cell": [
+			3,
+			0
+		],
+		"size": [
+			1,
+			1
+		]
+	},
+	"mine_entrance": {
+		"cell": [
+			4,
+			0
+		],
+		"size": [
+			1,
+			1
+		]
+	},
+	"notice_board": {
+		"cell": [
+			5,
+			0
+		],
+		"size": [
+			1,
+			1
+		]
+	},
+	"spring": {
+		"cell": [
+			6,
+			0
+		],
+		"size": [
+			1,
+			1
+		]
+	},
+	"village_well": {
+		"cell": [
+			7,
+			0
+		],
+		"size": [
+			1,
+			1
+		]
+	}
+}

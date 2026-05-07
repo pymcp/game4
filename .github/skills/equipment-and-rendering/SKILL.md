@@ -1,3 +1,8 @@
+---
+name: equipment-and-rendering
+description: Use when working on equipping/unequipping items, armor defense calculations, weapon/armor sprite rendering on the player, inventory UI equip/drop flow, atlas mapping systems, or world/tile layer rendering order.
+---
+
 # Skill: Equipment & Player Rendering
 
 Use this skill when working on equipping/unequipping items, armor defense calculations, weapon/armor sprite rendering on the player, the inventory UI equip/drop flow, the atlas mapping systems, or world/tile layer rendering order.

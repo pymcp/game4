@@ -1,3 +1,8 @@
+---
+name: character-atlas
+description: Use when working with the Kenney roguelike character sprite sheet — looking up atlas cells, adding new sprite mappings, understanding the sheet layout, or building character appearances.
+---
+
 # Skill: Character Atlas & Sprite Sheet
 
 Use this skill when working with the Kenney roguelike character sprite sheet — looking up atlas cells, adding new sprite mappings, understanding the sheet layout, or building character appearances.

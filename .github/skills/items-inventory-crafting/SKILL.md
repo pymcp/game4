@@ -1,3 +1,8 @@
+---
+name: items-inventory-crafting
+description: Use when working on item definitions, the inventory system, crafting recipes, loot pickups, or save/load of player belongings.
+---
+
 # Skill: Items, Inventory & Crafting
 
 Use this skill when working on item definitions, the inventory system, crafting recipes, loot pickups, or save/load of player belongings.

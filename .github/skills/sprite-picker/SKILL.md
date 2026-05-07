@@ -1,3 +1,8 @@
+---
+name: sprite-picker
+description: Use when visually rebinding atlas tile cells, editing TileMappings, selecting sprite cells for terrain or decorations, or running the SpritePicker editor tool.
+---
+
 # Skill: SpritePicker Tool
 
 ## What It Is

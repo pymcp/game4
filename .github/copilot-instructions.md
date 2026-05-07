@@ -292,6 +292,39 @@ Starting region (0,0) subdivided by impassable barriers:
 - **create-questline** — full quest JSON + dialogue seed + tests
 - **create-npc** — Villager with dialogue, world spawning, quest integration
 - **import-sprite** — Gemini PNG → processed icon + `.tres` override + quest status update
+
+<skills>
+<skill>
+<name>sprite-sheet-generation</name>
+<description>Use when adding new entity types, migrating sprites to hires, generating placeholder sprite sheets, or onboarding new art assets for items, weapons, armor, creatures, or world objects.</description>
+<file>/home/mpatterson/repos/game4/.github/skills/sprite-sheet-generation/SKILL.md</file>
+</skill>
+<skill>
+<name>world-objects-sprite-sheet</name>
+<description>Use when adding new quest interactables, world decorations, or interactive environment objects (wells, springs, altars, notice boards) that need a hires sprite. These are NOT items and NOT creatures — they go on the world_objects sheet.</description>
+<file>/home/mpatterson/repos/game4/.github/skills/world-objects-sprite-sheet/SKILL.md</file>
+</skill>
+<skill>
+<name>sprite-picker</name>
+<description>Use when visually rebinding atlas tile cells, editing TileMappings, selecting sprite cells for terrain or decorations, or running the SpritePicker editor tool.</description>
+<file>/home/mpatterson/repos/game4/.github/skills/sprite-picker/SKILL.md</file>
+</skill>
+<skill>
+<name>character-atlas</name>
+<description>Use when working with the Kenney roguelike character sprite sheet — looking up atlas cells, adding new sprite mappings, understanding the sheet layout, or building character appearances.</description>
+<file>/home/mpatterson/repos/game4/.github/skills/character-atlas/SKILL.md</file>
+</skill>
+<skill>
+<name>equipment-and-rendering</name>
+<description>Use when working on equipping/unequipping items, armor defense calculations, weapon/armor sprite rendering on the player, inventory UI equip/drop flow, atlas mapping systems, or world/tile layer rendering order.</description>
+<file>/home/mpatterson/repos/game4/.github/skills/equipment-and-rendering/SKILL.md</file>
+</skill>
+<skill>
+<name>items-inventory-crafting</name>
+<description>Use when working on item definitions, the inventory system, crafting recipes, loot pickups, or save/load of player belongings.</description>
+<file>/home/mpatterson/repos/game4/.github/skills/items-inventory-crafting/SKILL.md</file>
+</skill>
+</skills>
 ## Overview
 A 2D fantasy sandbox game with local split-screen co-op for two players. Built in **Godot 4.3 stable** using **GDScript** as the primary language UNLESS performance-critical systems require C#/GDExtension (chunked terrain, block grids). All art assets come from the **Kenney All-in-One** asset pack (CC0 license).
 

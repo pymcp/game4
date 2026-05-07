@@ -66,10 +66,11 @@ except ImportError:
     raise SystemExit("Pillow is required:  pip install Pillow")
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-REPO           = Path(__file__).resolve().parents[1]
-HIRES_DIR      = REPO / "assets" / "icons" / "hires"
-ITEMS_JSON     = REPO / "resources" / "items.json"
-CREATURES_JSON = REPO / "resources" / "creature_sprites.json"
+REPO              = Path(__file__).resolve().parents[1]
+HIRES_DIR         = REPO / "assets" / "icons" / "hires"
+ITEMS_JSON        = REPO / "resources" / "items.json"
+CREATURES_JSON    = REPO / "resources" / "creature_sprites.json"
+WORLD_OBJECTS_JSON = REPO / "resources" / "world_objects.json"
 
 # ── Sheet geometry ────────────────────────────────────────────────────────────
 TILE   = 64          # px per tile
@@ -80,11 +81,12 @@ COLS   = 8
 # ── Stub sentinel colours (RGB) ───────────────────────────────────────────────
 # Unique per category so stub detection works across category re-runs.
 SENTINEL = {
-    "items":     (45,  95,  55),   # forest green
-    "weapons":   (100, 45,  45),   # dark crimson
-    "armor":     (40,  65, 110),   # steel blue
-    "creatures": (70,  30, 100),   # deep purple
-    "pets":      (60, 100,  60),   # olive green
+    "items":         (45,  95,  55),   # forest green
+    "weapons":       (100, 45,  45),   # dark crimson
+    "armor":         (40,  65, 110),   # steel blue
+    "creatures":     (70,  30, 100),   # deep purple
+    "pets":          (60, 100,  60),   # olive green
+    "world_objects": (110, 60,  30),   # burnt orange
 }
 
 ARMOR_SLOTS = {"head", "body", "feet", "off_hand"}
@@ -418,20 +420,49 @@ def _ensure_global_spec():
         spec_path.write_text(target, encoding="utf-8")
         print("  updated _spec.json  (tile_px=64, margin_px=1)")
 
+def _run_world_objects():
+    """Build / refresh world_objects.png from resources/world_objects.json.
+
+    Each entry: { "<id>": { "display_name": "...", "size": [w, h] } }
+    size defaults to [1, 1].  No game JSON patching — callers read
+    world_objects_cells.json directly or use HiresIconRegistry.
+    """
+    if not WORLD_OBJECTS_JSON.exists():
+        print("  world_objects.json not found — skipping world_objects category")
+        return
+    objects = json.loads(WORLD_OBJECTS_JSON.read_text(encoding="utf-8"))
+    entity_sizes = {
+        eid: data.get("size", [1, 1])
+        for eid, data in objects.items()
+    }
+
+    cells = _load_cells("world_objects")
+    png_path = HIRES_DIR / "world_objects.png"
+    existing = Image.open(str(png_path)).convert("RGBA") if png_path.exists() else None
+
+    sheet = _build_sheet(entity_sizes, cells, SENTINEL["world_objects"], existing)
+    sheet.save(str(png_path))
+    _save_cells("world_objects", cells)
+
+    print(f"  world_objects.png  ({sheet.width}\u00d7{sheet.height} px)  "
+          f"{len(objects)} objects")
+
+
 # ── Dispatch table ────────────────────────────────────────────────────────────
 
 CATEGORIES = {
-    "items":     lambda: _run_item_category(
-                     "items",
-                     lambda s: s not in ({"weapon"} | ARMOR_SLOTS)),
-    "weapons":   lambda: _run_item_category(
-                     "weapons",
-                     lambda s: s == "weapon"),
-    "armor":     lambda: _run_item_category(
-                     "armor",
-                     lambda s: s in ARMOR_SLOTS),
-    "creatures": _run_creatures,
-    "pets":      _run_pets,
+    "items":         lambda: _run_item_category(
+                         "items",
+                         lambda s: s not in ({"weapon"} | ARMOR_SLOTS)),
+    "weapons":       lambda: _run_item_category(
+                         "weapons",
+                         lambda s: s == "weapon"),
+    "armor":         lambda: _run_item_category(
+                         "armor",
+                         lambda s: s in ARMOR_SLOTS),
+    "creatures":     _run_creatures,
+    "pets":          _run_pets,
+    "world_objects": _run_world_objects,
 }
 
 # ── Entry point ───────────────────────────────────────────────────────────────

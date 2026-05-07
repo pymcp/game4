@@ -1785,12 +1785,13 @@ func _inject_spring(centre: Vector2i) -> void:
 	qi.give_item_id = &"clean_spring_water"
 	qi.give_item_count = 1
 	qi.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
-	# Visual: use a water-coloured placeholder sprite.
+	# Visual: world_objects sheet, "spring" cell [6, 0].
 	var spr: Sprite2D = qi.get_node("Sprite2D") as Sprite2D
 	if spr != null:
-		var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
-		img.fill(Color(0.3, 0.6, 0.9, 0.8))
-		spr.texture = ImageTexture.create_from_image(img)
+		var tex: Texture2D = HiresIconRegistry._from_cell("world_objects", 6, 0)
+		if tex != null:
+			spr.texture = tex
+			spr.scale = Vector2(0.25, 0.25)
 	entities.add_child(qi)
 
 
