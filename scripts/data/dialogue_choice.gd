@@ -33,5 +33,8 @@ extends Resource
 ## Choice is only visible when this [GameState] flag is true. Empty = always visible.
 @export var require_flag: String = ""
 
+## Choice is hidden when this [GameState] flag is true. Empty = no gate.
+@export var require_flag_false: String = ""
+
 ## Flag set in [GameState] when the player picks this choice. Empty = no flag set.
 @export var set_flag: String = ""

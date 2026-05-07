@@ -8,7 +8,7 @@ func test_version_is_6() -> void:
 	assert_eq(SaveGame.VERSION, 6)
 
 func test_quest_tracker_data_saved_and_restored() -> void:
-	QuestTracker.start_quest("herbalist_remedy", "herbs")
+	QuestTracker.start_quest("herbalist_remedy", "main")
 	QuestTracker.advance_objective("herbalist_remedy", "get_fennel", 2)
 	var save := SaveGame.new()
 	# Snapshot calls QuestTracker.to_dict() — no world needed for unit test.

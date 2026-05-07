@@ -25,6 +25,7 @@ const SKY_COLOR: Color = Color(0.04, 0.10, 0.25, 1.0)
 ## a visited region with an unknown biome reads as "something is here".
 const VOID_COLOR: Color = Color(0.06, 0.14, 0.32, 1.0)
 const LANDMARK_COLOR: Color = Color(0.8, 0.3, 0.3)
+const OBJECTIVE_STAR_COLOR: Color = Color(1.0, 0.85, 0.1, 1.0)
 ## Opacity of the black fog overlay on unexplored tiles (0=clear, 1=solid black).
 const FOG_ALPHA: float = 0.65
 
@@ -176,6 +177,8 @@ func _draw() -> void:
 				continue
 			var spos: Vector2 = map_origin + Vector2(rid.x * 128 + cell.x, rid.y * 128 + cell.y) * tile_px
 			draw_circle(spos, 3.0, LANDMARK_COLOR)
+	# Draw quest objective star markers (on top of fog — always visible).
+	_draw_objective_markers(map_origin, tile_px)
 	# Draw player marker (pulsing white dot) — always at screen centre.
 	if _player._world != null and _player._world._region != null:
 		var pulse: float = sin(Time.get_ticks_msec() * 0.004) * 0.25 + 0.75
@@ -234,3 +237,26 @@ func _compute_tile_px(bbox: Rect2i) -> float:
 	var px_wide: float = avail / float(bbox.size.x * 128)
 	var px_tall: float = avail / float(bbox.size.y * 128)
 	return clampf(minf(px_wide, px_tall), 1.0, 6.0)
+
+
+func _draw_objective_markers(map_origin: Vector2, tile_px: float) -> void:
+	var markers: Array[Dictionary] = QuestTracker.get_objective_markers()
+	for m in markers:
+		var quest_id: String = m["quest_id"]
+		var obj_id: String = m["obj_id"]
+		if QuestTracker.get_objective_progress(quest_id, obj_id) > 0:
+			continue  # already completed
+		var rid: Vector2i = m["region_id"]
+		var cell: Vector2i = m["cell"]
+		var spos: Vector2 = map_origin + Vector2(rid.x * 128 + cell.x, rid.y * 128 + cell.y) * tile_px
+		_draw_star(spos, 6.0, OBJECTIVE_STAR_COLOR)
+		break  # only the first incomplete marker
+
+
+func _draw_star(center: Vector2, radius: float, color: Color) -> void:
+	var points: PackedVector2Array = PackedVector2Array()
+	for i in 10:
+		var angle: float = float(i) * PI / 5.0 - PI / 2.0
+		var r: float = radius if i % 2 == 0 else radius * 0.45
+		points.append(center + Vector2(cos(angle), sin(angle)) * r)
+	draw_polygon(points, PackedColorArray([color]))

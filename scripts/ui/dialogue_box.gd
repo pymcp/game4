@@ -137,8 +137,10 @@ func _build_choices(raw_choices: Array) -> void:
 		var choice: DialogueChoice = res as DialogueChoice
 		if choice == null:
 			continue
-		# Flag gating: skip choices whose required flag isn't set.
+		# Flag gating: skip choices whose required flag isn't set or exclusion flag is set.
 		if choice.require_flag != "" and not GameState.get_flag(choice.require_flag):
+			continue
+		if choice.require_flag_false != "" and GameState.get_flag(choice.require_flag_false):
 			continue
 		_visible_choices.append(choice)
 		var lbl := Label.new()
