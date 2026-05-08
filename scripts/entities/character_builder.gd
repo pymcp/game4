@@ -17,7 +17,7 @@
 class_name CharacterBuilder
 extends RefCounted
 
-const _SHEET: Texture2D = preload("res://assets/characters/roguelike/characters_sheet.png")
+const _SHEET: Texture2D = preload("res://assets/characters/hires/characters_sheet.png")
 
 ## Cached SheetSpec so we only read the sidecar file once.
 static var _spec: SheetSpec = null
@@ -105,6 +105,7 @@ static func _make_sprite(name: String, cell: Vector2i, height_tiles: int) -> Spr
 		spec.tile_px * height_tiles + spec.margin_px * (height_tiles - 1),
 	)
 	spr.centered = true
+	spr.offset = Vector2(0, -float(spec.tile_px) / 2.0)
 	var sf: float = spec.scale_factor()
 	if sf != 1.0:
 		spr.scale = Vector2(sf, sf)

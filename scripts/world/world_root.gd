@@ -1567,8 +1567,9 @@ func _handle_enter_interior(player: PlayerController, cell: Vector2i,
 	var floor1: InteriorMap = MapManager.get_or_generate(mid, rid, cell, 1, lsize, kind)
 	if quest_mine and floor1.max_floor == 0:
 		floor1.max_floor = 2
-	if quest_mine and floor1.display_name == "":
+	if quest_mine:
 		floor1.display_name = "Moonstone Mine"
+		floor1.boss_kind = &"corrupted_golem"
 	var pid_e: int = player.player_id
 	var deepest: InteriorMap = MapManager.get_deepest_cached_interior(rid, cell, kind)
 	if deepest != null and deepest.floor_num > 1:

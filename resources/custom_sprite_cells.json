@@ -5,21 +5,21 @@
         6,
         0
       ],
-      "sheet": "res://assets/characters/roguelike/characters_sheet.png"
+      "sheet": "res://assets/characters/hires/characters_sheet.png"
     },
     "boots": {
       "cell": [
         4,
         5
       ],
-      "sheet": "res://assets/characters/roguelike/characters_sheet.png"
+      "sheet": "res://assets/characters/hires/characters_sheet.png"
     },
     "bow": {
       "cell": [
         52,
         0
       ],
-      "sheet": "res://assets/characters/roguelike/characters_sheet.png"
+      "sheet": "res://assets/characters/hires/characters_sheet.png"
     },
     "copper_ore": {
       "cell": [
@@ -54,7 +54,7 @@
         28,
         8
       ],
-      "sheet": "res://assets/characters/roguelike/characters_sheet.png"
+      "sheet": "res://assets/characters/hires/characters_sheet.png"
     },
     "iron_ore": {
       "cell": [
@@ -82,7 +82,7 @@
         44,
         6
       ],
-      "sheet": "res://assets/characters/roguelike/characters_sheet.png"
+      "sheet": "res://assets/characters/hires/characters_sheet.png"
     },
     "wood": {
       "cell": [

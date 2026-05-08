@@ -32,8 +32,8 @@ func test_empty_id_returns_no_cell() -> void:
 func test_region_for_armor() -> void:
 	var r: Rect2 = ArmorAtlas.region_for(&"armor")
 	assert_gt(r.size.x, 0.0, "armor region should have positive width")
-	assert_eq(int(r.size.x), 16, "armor region should be 16px wide")
-	assert_eq(int(r.size.y), 16, "armor region should be 16px tall")
+	assert_eq(int(r.size.x), CharacterAtlas.TILE, "armor region width should match tile size")
+	assert_eq(int(r.size.y), CharacterAtlas.TILE, "armor region height should match tile size")
 
 
 func test_region_for_unknown() -> void:

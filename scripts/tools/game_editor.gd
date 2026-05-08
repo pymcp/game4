@@ -648,6 +648,7 @@ func _discover_sheets() -> void:
 		"res://assets/tiles/roguelike",
 		"res://assets/tiles/runes",
 		"res://assets/characters/roguelike",
+		"res://assets/characters/hires",
 		"res://assets/characters/monsters",
 		"res://assets/characters/mounts",
 		"res://assets/characters/pets",

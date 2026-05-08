@@ -261,7 +261,8 @@ func _update_weapon_sprite() -> void:
 		return
 	_weapon_sprite.texture = load(CharacterAtlas.SHEET_PATH) as Texture2D
 	_weapon_sprite.region_enabled = true
-	_weapon_sprite.scale = Vector2.ONE
+	var sf: float = float(WorldConst.TILE_PX) / float(CharacterAtlas.TILE)
+	_weapon_sprite.scale = Vector2(sf, sf)
 	_weapon_sprite.region_rect = region
 	_weapon_sprite.visible = true
 
