@@ -332,7 +332,7 @@ house_floor_stone = Array[Vector2i]([Vector2i(16, 11), Vector2i(17, 11), Vector2
 house_floor_wood = Array[Vector2i]([Vector2i(16, 13), Vector2i(17, 13), Vector2i(18, 13), Vector2i(19, 13), Vector2i(20, 13)])
 interior_furniture = {}
 sheet_overrides = {
-"_item_editor": "res://assets/characters/roguelike/characters_sheet.png",
+"_item_editor": "res://assets/characters/hires/characters_sheet.png",
 "caravan_wagon": "res://assets/icons/hires/items.png",
 "interior_door": "res://assets/tiles/roguelike/dungeon_sheet.png",
 "interior_terrain": "res://assets/tiles/roguelike/dungeon_sheet.png"

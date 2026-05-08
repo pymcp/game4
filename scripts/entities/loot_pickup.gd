@@ -129,7 +129,7 @@ static func _try_equipment_sprite(def: ItemDefinition) -> Texture2D:
 		cell = def.shield_sprite
 	if cell == Vector2i(-1, -1):
 		return null
-	var sheet_path: String = "res://assets/characters/roguelike/characters_sheet.png"
+	var sheet_path: String = CharacterAtlas.SHEET_PATH
 	if not ResourceLoader.exists(sheet_path):
 		return null
 	var atlas := AtlasTexture.new()

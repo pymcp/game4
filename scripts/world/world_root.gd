@@ -1567,8 +1567,9 @@ func _handle_enter_interior(player: PlayerController, cell: Vector2i,
 	var floor1: InteriorMap = MapManager.get_or_generate(mid, rid, cell, 1, lsize, kind)
 	if quest_mine and floor1.max_floor == 0:
 		floor1.max_floor = 2
-	if quest_mine and floor1.display_name == "":
+	if quest_mine:
 		floor1.display_name = "Moonstone Mine"
+		floor1.boss_kind = &"corrupted_golem"
 	var pid_e: int = player.player_id
 	var deepest: InteriorMap = MapManager.get_deepest_cached_interior(rid, cell, kind)
 	if deepest != null and deepest.floor_num > 1:
@@ -1883,8 +1884,11 @@ func _inject_birch_grove(centre: Vector2i) -> void:
 	rng.seed = 0xB1C432
 	for i in GROVE_OFFSETS.size():
 		var cell: Vector2i = centre + GROVE_OFFSETS[i]
-		# Skip if a tile is already there or is water.
+		# Skip if a tile is already there or the terrain is not walkable (water, cliff, etc.).
 		if _mineable.has(cell):
+			continue
+		var terrain_code: int = _region.at(cell)
+		if not TerrainCodes.is_walkable(terrain_code) or _is_water_code(terrain_code):
 			continue
 		var atlas: Vector2i = TREE_CELLS[i % TREE_CELLS.size()]
 		decoration.set_cell(cell, 0, atlas, 0)

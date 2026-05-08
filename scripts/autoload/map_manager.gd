@@ -91,7 +91,8 @@ func descend_from(current: InteriorMap, size: int = -1) -> InteriorMap:
 			resolved_size = rng.randi_range(LABYRINTH_SIZE_MIN, LABYRINTH_SIZE_MAX)
 		else:
 			resolved_size = DEFAULT_FLOOR_SIZE
-	var m: InteriorMap = get_or_generate(new_id, rid, origin, next_floor, resolved_size, kind)
+	var m: InteriorMap = get_or_generate(new_id, rid, origin, next_floor, resolved_size, kind,
+			&"wood", current.boss_kind)
 	if m.parent_map_id == &"":
 		m.parent_map_id = current.map_id
 		m.parent_entrance_cell = current.exit_cell

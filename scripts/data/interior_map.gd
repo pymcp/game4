@@ -64,6 +64,10 @@ const MAX_SIZE: int = 96
 ## Visual style for room-wall rendering: &"wood" (default) or &"stone".
 ## Drives which dungeon_sheet.png row set the renderer uses for walls/floors.
 @export var style: StringName = &"wood"
+## When non-empty, the next floor down is generated with this forced boss kind.
+## Propagated automatically by MapManager.descend_from so quest-specific boss
+## floors survive if the player enters through the normal entrance path.
+@export var boss_kind: StringName = &""
 ## Furniture placed inside rooms. Each entry: {cell: Vector2i, type: StringName}.
 ## WorldRoot reads `TileMappings.interior_furniture[type]` to resolve the atlas cell.
 @export var furniture_scatter: Array = []

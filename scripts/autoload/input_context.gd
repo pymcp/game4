@@ -52,6 +52,10 @@ func get_active_actions(player_id: int) -> Array[StringName]:
 			]
 		Context.INVENTORY:
 			return [
+				PlayerActions.action(player_id, PlayerActions.UP),
+				PlayerActions.action(player_id, PlayerActions.DOWN),
+				PlayerActions.action(player_id, PlayerActions.LEFT),
+				PlayerActions.action(player_id, PlayerActions.RIGHT),
 				PlayerActions.action(player_id, PlayerActions.INTERACT),
 				PlayerActions.action(player_id, PlayerActions.BACK),
 				PlayerActions.action(player_id, PlayerActions.TAB_PREV),

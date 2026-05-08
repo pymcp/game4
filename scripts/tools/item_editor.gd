@@ -15,7 +15,7 @@ signal sheet_requested(path: String)
 
 const TILE_PX := 16
 const TILE_GUTTER := 1
-const CHARACTER_SHEET := "res://assets/characters/roguelike/characters_sheet.png"
+const CHARACTER_SHEET := "res://assets/characters/hires/characters_sheet.png"
 
 var sheet_path: String = "res://assets/tiles/roguelike/overworld_sheet.png"
 

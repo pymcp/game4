@@ -1,7 +1,7 @@
 ## CharacterAtlas
 ##
-## Maps the Roguelike Characters spritesheet (16x16 tiles, 1px margin,
-## 17px stride) into named "paper-doll" pieces. The sheet is 54 cols
+## Maps the hires Roguelike Characters spritesheet (64x64 tiles, 1px margin,
+## 65px stride) into named "paper-doll" pieces. The sheet is 54 cols
 ## x 12 rows and is divided into 7 sections separated by empty spacer
 ## columns (cols 2, 5, 18, 27, 32, 41).
 ##
@@ -17,14 +17,14 @@
 ##   8. shield     (held opposite arm)
 ##
 ## All cells are Vector2i(col, row) in tile units; Sprite2D should use
-## a region_rect of Rect2(col*17, row*17, 16, 16). Weapons are 2 tiles
-## tall: Rect2(col*17, row*17, 16, 33).
+## a region_rect of Rect2(col*65, row*65, 64, 64). Weapons are 2 tiles
+## tall: Rect2(col*65, row*65, 64, 129).
 extends RefCounted
 class_name CharacterAtlas
 
-const TILE: int = 16
-const STRIDE: int = 17  ## 16px tile + 1px margin
-const SHEET_PATH: String = "res://assets/characters/roguelike/characters_sheet.png"
+const TILE: int = 64
+const STRIDE: int = 65  ## 64px tile + 1px margin
+const SHEET_PATH: String = "res://assets/characters/hires/characters_sheet.png"
 
 # --- Section 1: pre-assembled examples (cols 0-1) ----------------
 # Bare body color samples on rows 0-3, fully assembled NPC examples on
