@@ -25,6 +25,13 @@ var _active: Dictionary = {}
 ## Key: "quest_id:obj_id" → { "region_id": Vector2i, "cell": Vector2i, "quest_id": String, "obj_id": String }
 var _objective_positions: Dictionary = {}
 
+## Chronological log of world events (location reached, item collected, objective
+## directly marked done). Replayed against each quest when it starts so that
+## objectives completed before quest acceptance are still credited.
+## Entries: { "type": StringName, ...payload }
+## Persisted in save data so pre-quest actions survive a reload.
+var _event_buffer: Array = []
+
 
 # ─── Public API ───────────────────────────────────────────────────────
 
@@ -51,6 +58,8 @@ func start_quest(quest_id: String, branch_id: String) -> void:
 	if trigger != "":
 		GameState.set_flag(trigger)
 	GameState.set_flag("quest_%s_started" % quest_id)
+	# Credit any objectives the player already completed before accepting the quest.
+	_replay_buffer_for(quest_id)
 	quest_started.emit(quest_id, branch_id)
 
 
@@ -79,7 +88,9 @@ func advance_objective(quest_id: String, objective_id: String, amount: int = 1) 
 
 ## Called when a player picks up an item.  Scans all active quests for
 ## "collect" objectives matching [param item_id] and advances them.
+## Also buffers the event so quests accepted later can still credit it.
 func notify_item_collected(item_id: StringName, count: int = 1) -> void:
+	_event_buffer.append({"type": &"collect", "item": String(item_id), "count": count})
 	for quest_id in _active:
 		var state: Dictionary = _active[quest_id]
 		if state["complete"]:
@@ -98,13 +109,17 @@ func notify_item_collected(item_id: StringName, count: int = 1) -> void:
 
 
 ## Mark a talk / reach / interact objective as done (sets progress to 1).
+## Also buffers the event so it is credited if the quest starts later.
 func mark_objective_done(quest_id: String, objective_id: String) -> void:
+	_event_buffer.append({"type": &"done", "quest_id": quest_id, "obj_id": objective_id})
 	advance_objective(quest_id, objective_id, 1)
 
 
 ## Called when a player reaches a location (e.g. enters a labyrinth).
 ## Scans active quests for "reach" objectives matching [param location_id].
+## Also buffers the event so quests accepted later can still credit it.
 func notify_location_reached(location_id: String) -> void:
+	_event_buffer.append({"type": &"reach", "location": location_id})
 	for quest_id in _active:
 		var state: Dictionary = _active[quest_id]
 		if state["complete"]:
@@ -183,18 +198,60 @@ func get_active_branch(quest_id: String) -> String:
 	return _active[quest_id]["branch"]
 
 
+# ─── Private helpers ──────────────────────────────────────────────────
+
+## Replay the event buffer against [param quest_id] (which must already be in
+## _active). Called immediately after a quest is initialised so any objectives
+## completed before the quest was accepted are retroactively credited.
+func _replay_buffer_for(quest_id: String) -> void:
+	var state: Dictionary = _active[quest_id]
+	var branch: Dictionary = QuestRegistry.get_branch(quest_id, state["branch"])
+	var objectives: Array = branch.get("objectives", [])
+	for event in _event_buffer:
+		match event["type"]:
+			&"reach":
+				for obj in objectives:
+					if obj.get("type") == "reach" and obj.get("location", "") == event["location"]:
+						advance_objective(quest_id, obj["id"])
+			&"collect":
+				var ev_item: StringName = StringName(event.get("item", ""))
+				var ev_count: int = event.get("count", 1)
+				for obj in objectives:
+					if obj.get("type") != "collect":
+						continue
+					if StringName(obj.get("item", "")) != ev_item:
+						continue
+					var target: int = obj.get("count", 1)
+					var current: int = state["objectives"].get(obj["id"], 0)
+					if current < target:
+						advance_objective(quest_id, obj["id"], mini(ev_count, target - current))
+			&"done":
+				if event.get("quest_id", "") == quest_id:
+					advance_objective(quest_id, event.get("obj_id", ""))
+
+
 # ─── Serialization ────────────────────────────────────────────────────
 
 func to_dict() -> Dictionary:
-	return _active.duplicate(true)
+	return {
+		"active": _active.duplicate(true),
+		"event_buffer": _event_buffer.duplicate(true),
+	}
 
 
 func from_dict(d: Dictionary) -> void:
-	_active = d.duplicate(true)
+	# Support old saves that stored _active directly (no "active" key).
+	if d.has("active"):
+		_active = d["active"].duplicate(true)
+		_event_buffer = d.get("event_buffer", []).duplicate(true)
+	else:
+		_active = d.duplicate(true)
+		_event_buffer = []
 
 
 func reset() -> void:
 	_active.clear()
+	_event_buffer.clear()
 	_objective_positions.clear()
 
 
