@@ -1884,8 +1884,11 @@ func _inject_birch_grove(centre: Vector2i) -> void:
 	rng.seed = 0xB1C432
 	for i in GROVE_OFFSETS.size():
 		var cell: Vector2i = centre + GROVE_OFFSETS[i]
-		# Skip if a tile is already there or is water.
+		# Skip if a tile is already there or the terrain is not walkable (water, cliff, etc.).
 		if _mineable.has(cell):
+			continue
+		var terrain_code: int = _region.at(cell)
+		if not TerrainCodes.is_walkable(terrain_code) or _is_water_code(terrain_code):
 			continue
 		var atlas: Vector2i = TREE_CELLS[i % TREE_CELLS.size()]
 		decoration.set_cell(cell, 0, atlas, 0)
