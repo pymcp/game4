@@ -446,15 +446,6 @@ func debug_spawn_interactables() -> void:
 			inst.debug_spawn_interactables_for(_players[pid])
 
 
-## Debug: teleport both players into the moonstone mine (Mara's quest cave).
-## Triggered by F4 (see pause_manager.gd).
-func debug_teleport_to_mara_cave() -> void:
-	for pid in range(2):
-		var inst: WorldRoot = get_player_world(pid)
-		if inst != null:
-			inst.debug_teleport_to_mara_cave_for(_players[pid])
-
-
 func debug_toggle_tile_labels() -> void:
 	for inst in _instances.values():
 		if inst.has_method("debug_toggle_tile_labels"):
@@ -468,7 +459,6 @@ func debug_toggle_hitbox_overlay() -> void:
 
 
 ## Debug: add all party member types to both players' caravans.
-## Triggered by F8 (see pause_manager.gd).
 func debug_add_all_party_members() -> void:
 	for pid in range(2):
 		var cd: CaravanData = _caravan_datas[pid]
@@ -485,7 +475,6 @@ func debug_add_all_party_members() -> void:
 
 
 ## Debug: give one of every registered item to both players' inventories.
-## Triggered by F9 (see pause_manager.gd).
 func debug_give_all_items() -> void:
 	var all_ids: Array = ItemRegistry.all_ids()
 	for pid in range(2):
@@ -494,7 +483,36 @@ func debug_give_all_items() -> void:
 			continue
 		for item_id in all_ids:
 			player.inventory.add(item_id, 1)
-		print("[F9] gave %d items to P%d" % [all_ids.size(), pid + 1])
+		print("[DEBUG] gave %d items to P%d" % [all_ids.size(), pid + 1])
+
+
+## Debug: boost both players' max_health and current health to [param amount].
+## Called from DebugScreen after spawning monsters.
+func debug_boost_player_health(amount: int) -> void:
+	for pid in range(2):
+		var p: PlayerController = _players[pid] as PlayerController
+		if p != null:
+			p.max_health = amount
+			p.health = amount
+			print("[DEBUG] P%d health boosted to %d" % [pid + 1, amount])
+
+
+## Debug: spawn a dungeon entrance and a maze entrance near each player.
+## Called from DebugScreen.
+func debug_spawn_dungeon_and_maze() -> void:
+	for pid in range(2):
+		var inst: WorldRoot = get_player_world(pid)
+		if inst != null:
+			inst.debug_spawn_dungeon_and_maze_for(_players[pid])
+
+
+## Debug: teleport both players to the given overworld region + cell.
+## Called from DebugScreen when the player selects a quest objective.
+func debug_teleport_to_objective(region_id: Vector2i, cell: Vector2i) -> void:
+	var region: Region = WorldManager.get_or_generate(region_id)
+	for pid in range(2):
+		transition_player(pid, &"overworld", region, null, cell)
+	print("[DEBUG] teleported both players to region %s cell %s" % [str(region_id), str(cell)])
 
 
 ## Begin house placement for [param pid]. Creates a HousePlacer in the

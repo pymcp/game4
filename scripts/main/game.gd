@@ -21,6 +21,7 @@ static func instance() -> Game:
 
 
 const _MathDeathScene: PackedScene = preload("res://scenes/ui/MathDeathScreen.tscn")
+const _DebugScreenScene: PackedScene = preload("res://scenes/ui/DebugScreen.tscn")
 const _FloorConfirmMenuScene: PackedScene = preload("res://scenes/ui/FloorConfirmMenu.tscn")
 const _CaravanMenuScene: PackedScene = preload("res://scenes/ui/CaravanMenu.tscn")
 
@@ -59,6 +60,7 @@ var _toast_tween_p2: Tween = null
 var _player_p1: PlayerController = null
 var _player_p2: PlayerController = null
 var _math_death: MathDeathScreen = null
+var _debug_screen: DebugScreen = null
 var _dying_players: Dictionary = {}  ## Tracks pids currently in death countdown.
 var _map_p1: WorldMapView = null
 var _map_p2: WorldMapView = null
@@ -99,6 +101,9 @@ func _ready() -> void:
 	_math_death.name = "MathDeathScreen"
 	_math_death.answered_correctly.connect(_on_math_answer_correct)
 	add_child(_math_death)
+	_debug_screen = _DebugScreenScene.instantiate() as DebugScreen
+	_debug_screen.name = "DebugScreen"
+	add_child(_debug_screen)
 	_map_p1 = _build_worldmap_view(_container_p1)
 	_map_p2 = _build_worldmap_view(_container_p2)
 	_dungeon_map_p1 = _build_dungeon_map_view(_container_p1)

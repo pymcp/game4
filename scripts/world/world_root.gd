@@ -2350,8 +2350,28 @@ func debug_spawn_interactables_for(player: PlayerController) -> void:
 	_debug_refresh_labels()
 
 
+## Debug: spawn only a dungeon entrance and a maze entrance near [param player].
+## Called from DebugScreen "Spawn Dungeon + Maze Entrances".
+func debug_spawn_dungeon_and_maze_for(player: PlayerController) -> void:
+	if player == null or not is_instance_valid(player):
+		push_warning("[DEBUG] no player to spawn near")
+		return
+	if _interior != null:
+		print("[DEBUG] skipped — currently inside an interior")
+		return
+	if _region == null:
+		return
+	var centre: Vector2i = Vector2i(
+		int(floor(player.position.x / float(WorldConst.TILE_PX))),
+		int(floor(player.position.y / float(WorldConst.TILE_PX))))
+	_debug_place_entrance(&"dungeon", &"dungeon_enter",
+			centre, Vector2i(-2, 0), "cave entrance")
+	_debug_place_entrance(&"maze", &"maze_enter",
+			centre, Vector2i(4, 0), "maze entrance")
+	_debug_refresh_labels()
+
+
 ## Drop one LootPickup per item in ItemRegistry in a grid below the player.
-## Items are arranged in rows of 10, starting 4 tiles south of the player.
 func debug_drop_all_items_for(player: PlayerController) -> void:
 	if player == null or not is_instance_valid(player):
 		return

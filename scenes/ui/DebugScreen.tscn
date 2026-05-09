@@ -1,0 +1,100 @@
+[gd_scene load_steps=2 format=3 uid="uid://debugscreen001"]
+
+[ext_resource type="Script" path="res://scripts/ui/debug_screen.gd" id="1_debug"]
+
+[node name="DebugScreen" type="CanvasLayer"]
+layer = 60
+script = ExtResource("1_debug")
+
+[node name="Dim" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.03, 0.10, 0.90)
+mouse_filter = 0
+
+[node name="Center" type="CenterContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(460, 0)
+theme_type_variation = &"WoodPanel"
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Center/Panel/Margin/VBox"]
+theme_type_variation = &"TitleLabel"
+text = "[ DEBUG ]"
+horizontal_alignment = 1
+
+[node name="MainButtons" type="VBoxContainer" parent="Center/Panel/Margin/VBox"]
+theme_override_constants/separation = 8
+
+[node name="Teleport" type="Button" parent="Center/Panel/Margin/VBox/MainButtons"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Teleport to Quest Objective >"
+
+[node name="Items" type="Button" parent="Center/Panel/Margin/VBox/MainButtons"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Spawn Every Item"
+
+[node name="Monsters" type="Button" parent="Center/Panel/Margin/VBox/MainButtons"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Spawn Every Monster + 1000 HP"
+
+[node name="Caravan" type="Button" parent="Center/Panel/Margin/VBox/MainButtons"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Populate Caravan (All Members)"
+
+[node name="Dungeon" type="Button" parent="Center/Panel/Margin/VBox/MainButtons"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Spawn Dungeon + Maze Entrances"
+
+[node name="DebugMode" type="Button" parent="Center/Panel/Margin/VBox/MainButtons"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Debug Mode: OFF"
+
+[node name="HitboxOverlay" type="Button" parent="Center/Panel/Margin/VBox/MainButtons"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Toggle Hitbox Overlay"
+
+[node name="TileLabels" type="Button" parent="Center/Panel/Margin/VBox/MainButtons"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Toggle Tile Labels"
+
+[node name="Close" type="Button" parent="Center/Panel/Margin/VBox/MainButtons"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Close"
+
+[node name="SubPanel" type="VBoxContainer" parent="Center/Panel/Margin/VBox"]
+visible = false
+theme_override_constants/separation = 8
+
+[node name="SubTitle" type="Label" parent="Center/Panel/Margin/VBox/SubPanel"]
+theme_type_variation = &"TitleLabel"
+text = "Teleport to Objective:"
+horizontal_alignment = 1
+
+[node name="SubList" type="VBoxContainer" parent="Center/Panel/Margin/VBox/SubPanel"]
+theme_override_constants/separation = 6
+
+[node name="BackHint" type="Label" parent="Center/Panel/Margin/VBox/SubPanel"]
+text = "(Back / F4 = return to menu)"
+horizontal_alignment = 1

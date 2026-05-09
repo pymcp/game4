@@ -29,37 +29,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
 		toggle_pause()
 		get_viewport().set_input_as_handled()
-		return
-	# Debug hotkeys (always available; no Input action so they can't be
-	# rebound or accidentally pressed in normal play).
-	if event is InputEventKey and event.pressed and not event.echo:
-		var key := event as InputEventKey
-		match key.keycode:
-			KEY_F4:
-				_dispatch_debug(&"debug_teleport_to_mara_cave")
-				get_viewport().set_input_as_handled()
-			KEY_F8:
-				_dispatch_debug(&"debug_spawn_villager")
-				_dispatch_debug(&"debug_spawn_monster")
-				_dispatch_debug(&"debug_spawn_mount")
-				_dispatch_debug(&"debug_god_mode")
-				_dispatch_debug(&"debug_add_all_party_members")
-				get_viewport().set_input_as_handled()
-			KEY_F9:
-				_dispatch_debug(&"debug_spawn_interactables")
-				_dispatch_debug(&"debug_spawn_shop_villager")
-				_dispatch_debug(&"debug_give_all_items")
-				get_viewport().set_input_as_handled()
-			KEY_F10:
-				_dispatch_debug(&"debug_toggle_hitbox_overlay")
-				get_viewport().set_input_as_handled()
-
-
-func _dispatch_debug(method: StringName) -> void:
-	# Forward to the single [World] coordinator, which fans out per-player.
-	var world: World = World.instance()
-	if world != null and world.has_method(method):
-		world.call(method)
 
 
 func is_paused() -> bool:
