@@ -1,0 +1,32 @@
+[gd_scene load_steps=2 format=3 uid="uid://debugtileinsp001"]
+
+[ext_resource type="Script" path="res://scripts/ui/debug_tile_inspector.gd" id="1_dti"]
+
+[node name="DebugTileInspector" type="CanvasLayer"]
+layer = 55
+script = ExtResource("1_dti")
+
+[node name="HoverLabel" type="Label" parent="."]
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(1, 1, 0.4, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+visible = false
+
+[node name="DetailPanel" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(320, 0)
+visible = false
+mouse_filter = 0
+
+[node name="Margin" type="MarginContainer" parent="DetailPanel"]
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="DetailLabel" type="Label" parent="DetailPanel/Margin"]
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3

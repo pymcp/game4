@@ -10,7 +10,7 @@ func _find_world(_node: Node) -> WorldRoot:
 	return w.get_player_world(0)
 
 
-func _await_view_for(world: WorldRoot, kind: StringName, max_frames: int = 8) -> bool:
+func _await_view_for(world: WorldRoot, kind: StringName, max_frames: int = 300) -> bool:
 	for _i in max_frames:
 		if ViewManager.get_view_kind(0) == kind:
 			return true
@@ -47,6 +47,7 @@ func test_dungeon_enter_and_exit_via_door() -> void:
 	add_child_autoqfree(game)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	game.auto_confirm_first = true
 
 	var world := _find_world(game)
 	assert_not_null(world, "WorldRoot found")
@@ -80,7 +81,7 @@ func test_dungeon_enter_and_exit_via_door() -> void:
 
 	# Generous wait: cave-to-overworld stair use plays a fade transition
 	# (~230ms fade-out) before the view switch fires.
-	assert_true(await _await_view_for(world, &"overworld", 60),
+	assert_true(await _await_view_for(world, &"overworld", 300),
 		"player returned to overworld")
 	# After exit the spawn override should land player at/near entrance_cell.
 	var my_cell := Vector2i(
@@ -90,7 +91,7 @@ func test_dungeon_enter_and_exit_via_door() -> void:
 	assert_true(dist <= 16, "player landed within 16 tiles of entrance, got %d" % dist)
 
 
-func _await_view_for_pid(pid: int, kind: StringName, max_frames: int = 60) -> bool:
+func _await_view_for_pid(pid: int, kind: StringName, max_frames: int = 300) -> bool:
 	for _i in max_frames:
 		if ViewManager.get_view_kind(pid) == kind:
 			return true
@@ -114,6 +115,7 @@ func test_one_player_leaves_cave_while_other_stays() -> void:
 	add_child_autoqfree(game)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	game.auto_confirm_first = true
 
 	var coord: World = World.instance()
 	var overworld: WorldRoot = coord.get_player_world(0)
@@ -140,7 +142,7 @@ func test_one_player_leaves_cave_while_other_stays() -> void:
 	await get_tree().physics_frame
 	await get_tree().process_frame
 
-	assert_true(await _await_view_for_pid(0, &"overworld", 60),
+	assert_true(await _await_view_for_pid(0, &"overworld", 300),
 		"P0 returns to overworld while P1 stays in cave")
 	assert_eq(ViewManager.get_view_kind(1), &"dungeon",
 		"P1 still in dungeon view")

@@ -116,21 +116,22 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Open the debug modal.  Pauses the game tree directly (without triggering
-## PauseManager, so the pause menu does not appear).
+## Open the debug modal.  Pauses the game tree via PauseManager.set_paused_silent()
+## so internal state stays consistent but the PauseMenu overlay is not triggered.
 func open() -> void:
 	if _is_open:
 		return
 	_is_open = true
 	visible = true
-	_caused_pause = not get_tree().paused
+	_caused_pause = not PauseManager.is_paused()
 	if _caused_pause:
-		get_tree().paused = true
+		PauseManager.set_paused_silent(true)
 	_show_main_list()
 	_refresh_debug_mode_label()
 
 
-## Close the debug modal.  Unpauses the game tree only if this modal caused it.
+## Close the debug modal.  Unpauses via PauseManager.set_paused_silent() only if
+## this modal caused the pause.
 func close() -> void:
 	if not _is_open:
 		return
@@ -138,7 +139,7 @@ func close() -> void:
 	visible = false
 	if _caused_pause:
 		_caused_pause = false
-		get_tree().paused = false
+		PauseManager.set_paused_silent(false)
 
 
 # ─── List transitions ─────────────────────────────────────────────────────────

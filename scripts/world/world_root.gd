@@ -28,6 +28,7 @@ class_name WorldRoot
 
 const _MAX_LAND_SEARCH_RADIUS: int = 8
 const _BoatScene: PackedScene = preload("res://scenes/entities/Boat.tscn")
+const _PierScene: PackedScene = preload("res://scenes/world/Pier.tscn")
 
 
 ## Walk up the scene tree from [param node] and return the nearest WorldRoot,
@@ -55,6 +56,7 @@ static func find_from(node: Node) -> WorldRoot:
 var _region: Region = null
 var _interior: InteriorMap = null
 var _boat: Boat = null
+var _pier: Pier = null
 var _doors: Dictionary = {}  ## Vector2i -> Dictionary{kind, ...}
 var _last_view_kind: StringName = &"overworld"
 ## Per-player door-tile cache so each player triggers a door at most
@@ -1243,6 +1245,12 @@ func find_safe_spawn_cell(centre: Vector2i, max_radius: int = 16,
 	var c2: Variant = _scan_for(centre, max_radius, false)
 	if c2 != null:
 		return c2
+	# Nothing valid near centre — fall back to a known-safe spawn point so we
+	# never return a water or out-of-bounds cell.
+	if _region != null and not _region.spawn_points.is_empty():
+		var sp: Vector2i = _region.spawn_points[0]
+		if is_walkable(sp):
+			return sp
 	return centre
 
 
@@ -1295,6 +1303,12 @@ func _ensure_boat() -> void:
 	_boat.dock_cell = dock
 	_boat.position = (Vector2(dock) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
 	entities.add_child(_boat)
+	# Spawn a Pier at the recorded pier_position if the region has one.
+	if _region != null and _region.pier_position != Vector2i(-1, -1):
+		if _pier == null or not is_instance_valid(_pier):
+			_pier = _PierScene.instantiate() as Pier
+			_pier.position = (Vector2(_region.pier_position) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+			entities.add_child(_pier)
 
 
 func _find_dock_cell() -> Vector2i:
@@ -1766,7 +1780,7 @@ func _maybe_inject_mara() -> void:
 	if _region.spawn_points.is_empty():
 		return
 	var centre: Vector2i = _region.spawn_points[0]
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(3, 2), 4, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(3, 2), 32, true)
 	_region.npcs_scatter.append({
 		"kind": &"villager",
 		"cell": cell,
@@ -1806,7 +1820,7 @@ func _inject_spring(centre: Vector2i) -> void:
 	for child in entities.get_children():
 		if child is QuestInteractable and child.objective_id == "get_water":
 			return
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(-5, 4), 4, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(-5, 4), 32, true)
 	var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
 	qi.quest_id = "herbalist_remedy"
 	qi.objective_id = "get_water"
@@ -1842,7 +1856,7 @@ func _inject_moonstone_mine(centre: Vector2i) -> void:
 			var rid2: Vector2i = _region.region_id
 			QuestTracker.register_objective_position("herbalist_remedy", "enter_mine", rid2, mine_cell)
 			return
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(12, 0), 6, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(12, 0), 32, true)
 	_region.dungeon_entrances.append({
 		"kind": &"maze",
 		"cell": cell,
@@ -1901,7 +1915,7 @@ func _inject_village_well(centre: Vector2i) -> void:
 	for child in entities.get_children():
 		if child is QuestInteractable and child.objective_id == "village_well_flavour":
 			return
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(1, -3), 3, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(1, -3), 32, true)
 	var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
 	qi.quest_id = ""
 	qi.objective_id = "village_well_flavour"

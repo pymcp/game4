@@ -330,8 +330,15 @@ func _build_caravan_menu(container: Control) -> CaravanMenu:
 ## Show a [FloorConfirmMenu] in [param pid]'s pane with [param title],
 ## [param options] (Array[String]), and [param callback] receiving the
 ## chosen index (0-based). Called by [WorldRoot] on stair/entrance events.
+## When true, [show_floor_confirm_menu] auto-selects option 0 without showing UI.
+## Intended for headless integration tests that cannot interact with menus.
+var auto_confirm_first: bool = false
+
 func show_floor_confirm_menu(pid: int, title: String, options: Array,
 		callback: Callable) -> void:
+	if auto_confirm_first:
+		callback.call(0)
+		return
 	var menu: FloorConfirmMenu = _confirm_menu_p1 if pid == 0 else _confirm_menu_p2
 	if menu != null:
 		menu.show_menu(pid, title, options, callback)

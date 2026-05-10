@@ -65,6 +65,17 @@ func set_paused(value: bool) -> void:
 	pause_state_changed.emit(value)
 
 
+## Pause or unpause the game tree and update internal state, but do NOT emit
+## [signal pause_state_changed] and do NOT touch InputContext.  Used by overlays
+## (e.g. DebugScreen) that manage their own input handling and must not trigger
+## the PauseMenu UI.
+func set_paused_silent(value: bool) -> void:
+	if _is_paused == value:
+		return
+	_is_paused = value
+	get_tree().paused = value
+
+
 func _any_player_enabled() -> bool:
 	for enabled in _player_enabled:
 		if enabled:
