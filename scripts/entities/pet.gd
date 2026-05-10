@@ -38,8 +38,6 @@ const BARK_RANGE_TILES: float = 5.0
 const BARK_DAMAGE: int = 5
 const BARK_COOLDOWN_SEC: float = 2.0
 const _BARK_VISUAL_DURATION_SEC: float = 0.35
-const _BOB_HZ: float = 4.0
-const _BOB_AMPLITUDE_PX: float = 1.0
 const _HOP_HEIGHT_PX: float = 4.0
 
 @export var species: StringName = PET_SPECIES_CAT
@@ -55,7 +53,7 @@ var _sprite: Sprite2D = null
 var _heart: Sprite2D = null
 var _attack_cooldown: float = 0.0
 var _happy_remaining: float = 0.0
-var _bob_t: float = 0.0
+var _bob: BobAnimator = BobAnimator.new()
 var _facing_left: bool = false
 var _last_owner_x: float = NAN
 var _attack_target: Node2D = null
@@ -177,21 +175,19 @@ func _process(delta: float) -> void:
 			_teleport_to_owner()
 			state = PetState.State.IDLE  # resume normal logic next frame
 		PetState.State.FOLLOW:
-			_bob_t += delta
 			_step_toward(owner_pos, delta)
-			_sprite.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMPLITUDE_PX
+			_sprite.position.y = _bob.tick(delta)
 		PetState.State.ATTACK:
-			_bob_t += delta
 			_do_attack(delta)
-			_sprite.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMPLITUDE_PX
+			_sprite.position.y = _bob.tick(delta)
 		PetState.State.HAPPY:
-			_bob_t = 0.0
+			_bob.reset()
 			# Small hop driven by _happy_remaining.
 			var t: float = 1.0 - (_happy_remaining / PetState.HAPPY_DURATION_SEC)
 			_sprite.position.y = -sin(t * PI) * _HOP_HEIGHT_PX
 			_heart.visible = true
 		PetState.State.IDLE, _:
-			_bob_t = 0.0
+			_bob.reset()
 			_sprite.position.y = 0.0
 
 	if state != PetState.State.HAPPY:

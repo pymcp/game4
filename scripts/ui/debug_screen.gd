@@ -26,10 +26,12 @@ class_name DebugScreen
 var _is_open:      bool  = false
 var _caused_pause: bool  = false
 
-## Keyboard/controller cursor index for the main button list.
-var _cursor:     int  = 0
+## MenuNavigator for main button list.
+var _nav: MenuNavigator = MenuNavigator.new()
+## MenuNavigator for the objective sub-list (rebuilt each time the sub-list opens).
+var _sub_nav: MenuNavigator = MenuNavigator.new()
 ## Keyboard/controller cursor index for the objective sub-list.
-var _sub_cursor: int  = 0
+var _sub_cursor: int = 0
 ## True while the quest objective sub-list is showing.
 var _in_sub_list: bool = false
 ## Dynamically created objective buttons (populated each time the sub-list opens).
@@ -61,7 +63,7 @@ func _ready() -> void:
 
 	_main_nav = [_btn_teleport, _btn_items, _btn_monsters, _btn_caravan,
 			_btn_dungeon, _btn_debug_mode, _btn_hitbox, _btn_tiles, _btn_close]
-
+	_nav.setup(_main_nav)
 	_refresh_debug_mode_label()
 
 
@@ -92,44 +94,43 @@ func _input(event: InputEvent) -> void:
 		if _in_sub_list:
 			if _sub_buttons.is_empty():
 				return
-			_sub_cursor = wrapi(_sub_cursor - 1, 0, _sub_buttons.size())
+			_sub_nav.move(-1)
+			_sub_cursor = _sub_nav.cursor
 		else:
-			_cursor = wrapi(_cursor - 1, 0, _main_nav.size())
-		_refresh_cursor()
+			_nav.move(-1)
 		get_viewport().set_input_as_handled()
 	elif PlayerActions.either_just_pressed(event, PlayerActions.DOWN):
 		if _in_sub_list:
 			if _sub_buttons.is_empty():
 				return
-			_sub_cursor = wrapi(_sub_cursor + 1, 0, _sub_buttons.size())
+			_sub_nav.move(1)
+			_sub_cursor = _sub_nav.cursor
 		else:
-			_cursor = wrapi(_cursor + 1, 0, _main_nav.size())
-		_refresh_cursor()
+			_nav.move(1)
 		get_viewport().set_input_as_handled()
 	elif PlayerActions.either_just_pressed(event, PlayerActions.INTERACT):
 		if _in_sub_list:
-			if _sub_cursor < _sub_buttons.size():
-				_sub_buttons[_sub_cursor].pressed.emit()
+			_sub_nav.confirm()
 		else:
-			if _cursor < _main_nav.size():
-				_main_nav[_cursor].pressed.emit()
+			_nav.confirm()
 		get_viewport().set_input_as_handled()
 
 
-## Open the debug modal.  Pauses the game if it is not already paused.
+## Open the debug modal.  Pauses the game tree directly (without triggering
+## PauseManager, so the pause menu does not appear).
 func open() -> void:
 	if _is_open:
 		return
 	_is_open = true
 	visible = true
-	_caused_pause = not PauseManager.is_paused()
+	_caused_pause = not get_tree().paused
 	if _caused_pause:
-		PauseManager.set_paused(true)
+		get_tree().paused = true
 	_show_main_list()
 	_refresh_debug_mode_label()
 
 
-## Close the debug modal.  Unpauses the game only if this modal caused the pause.
+## Close the debug modal.  Unpauses the game tree only if this modal caused it.
 func close() -> void:
 	if not _is_open:
 		return
@@ -137,7 +138,7 @@ func close() -> void:
 	visible = false
 	if _caused_pause:
 		_caused_pause = false
-		PauseManager.set_paused(false)
+		get_tree().paused = false
 
 
 # ─── List transitions ─────────────────────────────────────────────────────────
@@ -146,8 +147,7 @@ func _show_main_list() -> void:
 	_in_sub_list = false
 	_sub_panel.visible = false
 	_main_buttons_box.visible = true
-	_cursor = 0
-	_refresh_cursor()
+	_nav.reset()
 
 
 func _show_sub_list() -> void:
@@ -156,7 +156,7 @@ func _show_sub_list() -> void:
 	_sub_panel.visible = true
 	_populate_sub_list()
 	_sub_cursor = 0
-	_refresh_cursor()
+	_sub_nav.reset()
 
 
 func _populate_sub_list() -> void:
@@ -197,25 +197,18 @@ func _populate_sub_list() -> void:
 		btn.pressed.connect(_on_objective_selected.bind(region_id, cell))
 		_sub_list.add_child(btn)
 		_sub_buttons.append(btn)
+	# Rebuild sub-navigator after populating.
+	_sub_nav.setup(_sub_buttons)
+	_sub_cursor = _sub_nav.cursor
 
 
 # ─── Cursor highlight ─────────────────────────────────────────────────────────
 
 func _refresh_cursor() -> void:
 	if _in_sub_list:
-		for i: int in _sub_buttons.size():
-			var btn: Button = _sub_buttons[i]
-			if i == _sub_cursor:
-				btn.add_theme_color_override("font_color", Color.YELLOW)
-			else:
-				btn.remove_theme_color_override("font_color")
+		_sub_nav.refresh()
 	else:
-		for i: int in _main_nav.size():
-			var btn: Button = _main_nav[i]
-			if i == _cursor:
-				btn.add_theme_color_override("font_color", Color.YELLOW)
-			else:
-				btn.remove_theme_color_override("font_color")
+		_nav.refresh()
 
 
 func _refresh_debug_mode_label() -> void:

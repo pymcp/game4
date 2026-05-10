@@ -19,8 +19,7 @@ const GameScene: PackedScene = preload("res://scenes/main/Game.tscn")
 @onready var _btn_continue: Button = $Center/Panel/Margin/VBox/Continue
 @onready var _btn_quit: Button = $Center/Panel/Margin/VBox/Quit
 
-var _nav_buttons: Array[Button] = []
-var _cursor: int = 0
+var _nav: MenuNavigator = MenuNavigator.new()
 
 
 # ---------- Pure helpers ----------
@@ -50,8 +49,7 @@ func _ready() -> void:
 	_btn_new_p2.pressed.connect(_on_new_game_p2)
 	_btn_continue.pressed.connect(_on_continue)
 	_btn_quit.pressed.connect(_on_quit)
-	_nav_buttons = [_btn_new_2p, _btn_new_p1, _btn_new_p2, _btn_continue, _btn_quit]
-	_cursor = 0
+	_nav.setup([_btn_new_2p, _btn_new_p1, _btn_new_p2, _btn_continue, _btn_quit])
 	_refresh_continue_state()
 
 
@@ -60,20 +58,15 @@ func _input(event: InputEvent) -> void:
 		return
 	var vp := get_viewport()
 	if PlayerActions.either_just_pressed(event, PlayerActions.UP):
-		_cursor = wrapi(_cursor - 1, 0, _nav_buttons.size())
-		_skip_disabled(-1)
-		_refresh_cursor()
+		_nav.move(-1)
 		if vp != null:
 			vp.set_input_as_handled()
 	elif PlayerActions.either_just_pressed(event, PlayerActions.DOWN):
-		_cursor = wrapi(_cursor + 1, 0, _nav_buttons.size())
-		_skip_disabled(1)
-		_refresh_cursor()
+		_nav.move(1)
 		if vp != null:
 			vp.set_input_as_handled()
 	elif PlayerActions.either_just_pressed(event, PlayerActions.INTERACT):
-		if _cursor < _nav_buttons.size() and not _nav_buttons[_cursor].disabled:
-			_nav_buttons[_cursor].pressed.emit()
+		_nav.confirm()
 		if vp != null:
 			vp.set_input_as_handled()
 
@@ -81,28 +74,8 @@ func _input(event: InputEvent) -> void:
 func _refresh_continue_state() -> void:
 	if _btn_continue != null:
 		_btn_continue.disabled = not has_save(SaveManager.DEFAULT_SLOT)
-	if not _nav_buttons.is_empty():
-		_skip_disabled(1)
-		_refresh_cursor()
-
-
-# ---------- Cursor helpers ----------
-
-func _skip_disabled(direction: int) -> void:
-	var n := _nav_buttons.size()
-	var tries := 0
-	while tries < n and _nav_buttons[_cursor].disabled:
-		_cursor = wrapi(_cursor + direction, 0, n)
-		tries += 1
-
-
-func _refresh_cursor() -> void:
-	for i in _nav_buttons.size():
-		var btn: Button = _nav_buttons[i]
-		if i == _cursor and not btn.disabled:
-			btn.add_theme_color_override("font_color", UITheme.COL_CURSOR)
-		else:
-			btn.remove_theme_color_override("font_color")
+	_nav.skip_disabled(1)
+	_nav.refresh()
 
 
 # ---------- Button handlers ----------

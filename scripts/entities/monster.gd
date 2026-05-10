@@ -16,8 +16,7 @@ signal died(world_position: Vector2, drops: Array)
 
 const SIGHT_RADIUS_TILES: float = 8.0
 const _MOVE_SPEED_PX_PER_S: float = 32.0  ## native pixels (pre-zoom)
-const _BOB_HZ: float = 4.0
-const _BOB_AMP_PX: float = 1.0
+var _bob: BobAnimator = BobAnimator.new()
 
 @export var max_health: int = 3
 @export var health: int = 3
@@ -32,7 +31,6 @@ var active_effects: Array[Dictionary] = []  ## [{effect_id, remaining, tick_time
 var _world: WorldRoot = null
 var _sprite: Sprite2D = null
 var _facing_right: bool = false
-var _bob_t: float = 0.0
 var _last_position: Vector2 = Vector2.ZERO
 
 # --- Combat stats (loaded from creature data in _ready) ---
@@ -236,10 +234,9 @@ func _process(delta: float) -> void:
 	if _action_vfx != null and _action_vfx.is_playing():
 		pass  # Skip bob during lunge.
 	elif moved:
-		_bob_t += delta
-		_sprite.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
+		_sprite.position.y = _bob.tick(delta)
 	else:
-		_bob_t = 0.0
+		_bob.reset()
 		_sprite.position.y = 0.0
 
 

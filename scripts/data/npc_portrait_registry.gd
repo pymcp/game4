@@ -47,26 +47,14 @@ static func _ensure_loaded() -> void:
 	if _loaded:
 		return
 	_loaded = true
-	if not FileAccess.file_exists(_JSON_PATH):
-		push_warning("[NpcPortraitRegistry] %s not found" % _JSON_PATH)
-		return
-	var f := FileAccess.open(_JSON_PATH, FileAccess.READ)
-	if f == null:
-		push_warning("[NpcPortraitRegistry] cannot open %s" % _JSON_PATH)
-		return
-	var text: String = f.get_as_text()
-	f.close()
-	var parsed: Variant = JSON.parse_string(text)
-	if parsed == null or not parsed is Dictionary:
-		push_warning("[NpcPortraitRegistry] failed to parse %s" % _JSON_PATH)
-		return
-	var portraits: Variant = (parsed as Dictionary).get("portraits", null)
+	var raw: Dictionary = JsonLoader.load_dict(_JSON_PATH)
+	var portraits: Variant = raw.get("portraits", null)
 	if portraits == null or not portraits is Dictionary:
 		push_warning("[NpcPortraitRegistry] missing 'portraits' key in %s" % _JSON_PATH)
 		return
 	for speaker: String in (portraits as Dictionary):
-		var raw: Variant = (portraits as Dictionary)[speaker]
-		if raw is Array and (raw as Array).size() >= 2:
-			_map[speaker] = Vector2i(int((raw as Array)[0]), int((raw as Array)[1]))
+		var cell: Variant = (portraits as Dictionary)[speaker]
+		if cell is Array and (cell as Array).size() >= 2:
+			_map[speaker] = Vector2i(int((cell as Array)[0]), int((cell as Array)[1]))
 		else:
 			push_warning("[NpcPortraitRegistry] bad cell for '%s'" % speaker)

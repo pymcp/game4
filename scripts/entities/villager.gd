@@ -29,8 +29,6 @@ const MOVE_SPEED: float = 32.0  ## native px/sec
 const PATH_REPATH_SEC: float = 0.75
 const STUCK_EPSILON: float = 0.5
 const STUCK_TIMEOUT_SEC: float = 0.8
-const _BOB_HZ: float = 4.0
-const _BOB_AMP_PX: float = 1.0
 const _DEFEND_ATTACK_DAMAGE: int = 1
 const _DEFEND_COOLDOWN_SEC: float = 1.0
 const _THREAT_FORGET_TILES: float = 8.0
@@ -62,7 +60,7 @@ var _path_target_cell: Vector2i = Vector2i.ZERO
 var _path_repath_timer: float = 0.0
 var _last_pos: Vector2 = Vector2.ZERO
 var _stuck_timer: float = 0.0
-var _bob_t: float = 0.0
+var _bob: BobAnimator = BobAnimator.new()
 var _threat_target: Node2D = null
 var _attack_cooldown: float = 0.0
 var _heart_display: HeartDisplay = null
@@ -219,10 +217,9 @@ func _physics_process(delta: float) -> void:
 	if _action_vfx != null and _action_vfx.is_playing():
 		pass  # Skip bob during lunge.
 	elif state in [State.WANDER, State.FLEE] and _sprite_root != null:
-		_bob_t += delta
-		_sprite_root.position.y = -sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
+		_sprite_root.position.y = _bob.tick(delta)
 	elif _sprite_root != null:
-		_bob_t = 0.0
+		_bob.reset()
 		_sprite_root.position.y = 0.0
 
 

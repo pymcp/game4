@@ -24,19 +24,7 @@ static func _ensure_loaded() -> void:
 	if _loaded:
 		return
 	_loaded = true
-	if not FileAccess.file_exists(_JSON_PATH):
-		push_warning("[CreatureSpriteRegistry] %s not found" % _JSON_PATH)
-		return
-	var f := FileAccess.open(_JSON_PATH, FileAccess.READ)
-	if f == null:
-		push_warning("[CreatureSpriteRegistry] failed to open %s" % _JSON_PATH)
-		return
-	var json := JSON.new()
-	if json.parse(f.get_as_text()) != OK:
-		push_warning("[CreatureSpriteRegistry] JSON parse error: %s" % json.get_error_message())
-		return
-	if json.data is Dictionary:
-		_data = json.data
+	_data = JsonLoader.load_dict(_JSON_PATH)
 
 
 static func reset() -> void:
@@ -55,13 +43,7 @@ static func get_raw_data() -> Dictionary:
 static func save_data(data: Dictionary) -> void:
 	_data = data
 	_loaded = true
-	var text: String = JSON.stringify(data, "\t")
-	var f := FileAccess.open(_JSON_PATH, FileAccess.WRITE)
-	if f == null:
-		push_error("CreatureSpriteRegistry: cannot write %s" % _JSON_PATH)
-		return
-	f.store_string(text)
-	f.close()
+	JsonLoader.save_dict(_JSON_PATH, data)
 
 
 ## Returns true if a sprite entry exists for the given creature kind.

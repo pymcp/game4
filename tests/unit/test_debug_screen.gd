@@ -62,15 +62,15 @@ func test_open_does_not_double_pause() -> void:
 func test_cursor_wraps_up_from_zero() -> void:
 	_screen.open()
 	var last: int = _screen._main_nav.size() - 1
-	_screen._cursor = wrapi(_screen._cursor - 1, 0, _screen._main_nav.size())
-	assert_eq(_screen._cursor, last, "cursor should wrap to last button")
+	_screen._nav.move(-1)
+	assert_eq(_screen._nav.cursor, last, "cursor should wrap to last button")
 
 
 func test_cursor_wraps_down_from_last() -> void:
 	_screen.open()
-	_screen._cursor = _screen._main_nav.size() - 1
-	_screen._cursor = wrapi(_screen._cursor + 1, 0, _screen._main_nav.size())
-	assert_eq(_screen._cursor, 0, "cursor should wrap to first button")
+	_screen._nav.reset(_screen._main_nav.size() - 1)
+	_screen._nav.move(1)
+	assert_eq(_screen._nav.cursor, 0, "cursor should wrap to first button")
 
 
 func test_debug_mode_flag_toggles_on() -> void:

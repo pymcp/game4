@@ -25,19 +25,7 @@ static func _ensure_loaded() -> void:
 	if _loaded:
 		return
 	_loaded = true
-	if not FileAccess.file_exists(_JSON_PATH):
-		push_warning("[LootTableRegistry] %s not found" % _JSON_PATH)
-		return
-	var f := FileAccess.open(_JSON_PATH, FileAccess.READ)
-	if f == null:
-		push_warning("[LootTableRegistry] failed to open %s" % _JSON_PATH)
-		return
-	var json := JSON.new()
-	if json.parse(f.get_as_text()) != OK:
-		push_warning("[LootTableRegistry] JSON parse error: %s" % json.get_error_message())
-		return
-	if json.data is Dictionary:
-		_data = json.data
+	_data = JsonLoader.load_dict(_JSON_PATH)
 
 
 static func reset() -> void:
@@ -56,14 +44,8 @@ static func get_raw_data() -> Dictionary:
 ## Replace in-memory data, write to disk, and mark loaded.
 static func save_data(data: Dictionary) -> void:
 	_data = data.duplicate(true)
-	var text: String = JSON.stringify(_data, "\t")
-	var f := FileAccess.open(_JSON_PATH, FileAccess.WRITE)
-	if f == null:
-		push_error("[LootTableRegistry] cannot write %s" % _JSON_PATH)
-		return
-	f.store_string(text)
-	f.close()
 	_loaded = true
+	JsonLoader.save_dict(_JSON_PATH, _data)
 
 
 ## Returns true if a loot table exists for the given creature kind.

@@ -14,23 +14,11 @@ static var _loaded: bool = false
 static func _ensure_loaded() -> void:
 	if _loaded:
 		return
-	_load_json()
-	_loaded = true
-
-
-static func _load_json() -> void:
 	_data = {}
-	var f: FileAccess = FileAccess.open(_PATH, FileAccess.READ)
-	if f == null:
-		return
-	var parser := JSON.new()
-	if parser.parse(f.get_as_text()) != OK:
-		push_error("StatusEffectRegistry: JSON parse error: %s" % parser.get_error_message())
-		return
-	var raw: Variant = parser.data
-	if raw is Dictionary:
-		for key: String in raw:
-			_data[StringName(key)] = _build_effect(StringName(key), raw[key])
+	var raw: Dictionary = JsonLoader.load_dict(_PATH)
+	for key: String in raw:
+		_data[StringName(key)] = _build_effect(StringName(key), raw[key])
+	_loaded = true
 
 
 static func _build_effect(id: StringName, d: Dictionary) -> StatusEffect:

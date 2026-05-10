@@ -17,19 +17,7 @@ static func _ensure_loaded() -> void:
 	if _loaded:
 		return
 	_loaded = true
-	if not FileAccess.file_exists(_JSON_PATH):
-		push_warning("[ChestLootRegistry] %s not found" % _JSON_PATH)
-		return
-	var f := FileAccess.open(_JSON_PATH, FileAccess.READ)
-	if f == null:
-		push_warning("[ChestLootRegistry] failed to open %s" % _JSON_PATH)
-		return
-	var json := JSON.new()
-	if json.parse(f.get_as_text()) != OK:
-		push_warning("[ChestLootRegistry] parse error: %s" % json.get_error_message())
-		return
-	if json.data is Dictionary:
-		_tiers = json.data.get("tiers", [])
+	_tiers = JsonLoader.load_array(_JSON_PATH, "tiers")
 
 
 static func reset() -> void:
@@ -47,12 +35,7 @@ static func get_raw_tiers() -> Array:
 static func save_data(tiers: Array) -> void:
 	_tiers = tiers
 	_loaded = true
-	var f := FileAccess.open(_JSON_PATH, FileAccess.WRITE)
-	if f == null:
-		push_error("[ChestLootRegistry] cannot write %s" % _JSON_PATH)
-		return
-	f.store_string(JSON.stringify({"tiers": tiers}, "\t"))
-	f.close()
+	JsonLoader.save_array_under_key(_JSON_PATH, "tiers", tiers)
 
 
 ## Returns the tier dict covering `floor_num`. Falls back to last tier.
