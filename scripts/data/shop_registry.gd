@@ -15,22 +15,8 @@ static var _loaded: bool = false
 static func _ensure_loaded() -> void:
 	if _loaded:
 		return
-	_load_json()
 	_loaded = true
-
-
-static func _load_json() -> void:
-	_data = {}
-	var f: FileAccess = FileAccess.open(_PATH, FileAccess.READ)
-	if f == null:
-		return
-	var parser := JSON.new()
-	if parser.parse(f.get_as_text()) != OK:
-		push_error("ShopRegistry: JSON parse error: %s" % parser.get_error_message())
-		return
-	var result: Variant = parser.data
-	if result is Dictionary:
-		_data = result
+	_data = JsonLoader.load_dict(_PATH)
 
 
 static func reset() -> void:
@@ -46,11 +32,7 @@ static func get_raw_data() -> Dictionary:
 static func save_data(data: Dictionary) -> void:
 	_data = data.duplicate(true)
 	_loaded = true
-	var f: FileAccess = FileAccess.open(_PATH, FileAccess.WRITE)
-	if f == null:
-		push_error("ShopRegistry: cannot write %s" % _PATH)
-		return
-	f.store_string(JSON.stringify(_data, "\t"))
+	JsonLoader.save_dict(_PATH, _data)
 
 
 static func all_ids() -> Array:

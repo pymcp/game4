@@ -20,8 +20,6 @@ signal player_died(player_id: int)
 signal leveled_up(player_id: int, new_level: int)
 
 const _MOVE_SPEED_NATIVE: float = 60.0  ## native px/sec (≈3.75 tiles/s)
-const _BOB_AMP_PX: float = 1.0
-const _BOB_HZ: float = 6.0
 
 @export var player_id: int = 0
 
@@ -38,7 +36,7 @@ var _action_vfx: ActionVFX = null
 var _damage_heart_vfx: DamageHeartVFX = null
 var _default_torso_region: Rect2
 var _default_hair_region: Rect2
-var _bob_t: float = 0.0
+var _bob: BobAnimator = BobAnimator.new(6.0, 1.0)
 var _facing_x: int = 1
 var _facing_dir: Vector2i = Vector2i(1, 0)
 var _attack_cooldown: float = 0.0
@@ -383,7 +381,7 @@ func _physics_process(delta: float) -> void:
 			_sprite_root.visible = true
 	# Freeze this player while they are in a conversation.
 	if in_conversation:
-		_bob_t = 0.0
+		_bob.reset()
 		_sprite_root.position = Vector2.ZERO
 		# Don't read dialogue keys while the feedback overlay is open.
 		var _db: DialogueBox = _world.get_dialogue_box()
@@ -397,11 +395,11 @@ func _physics_process(delta: float) -> void:
 	# Skip all gameplay input when this player isn't in GAMEPLAY context
 	# (inventory open, disabled by pause menu, etc.).
 	if InputContext.get_context(player_id) != InputContext.Context.GAMEPLAY:
-		_bob_t = 0.0
+		_bob.reset()
 		_sprite_root.position = Vector2.ZERO
 		return
 	if is_stunned():
-		_bob_t = 0.0
+		_bob.reset()
 		_sprite_root.position = Vector2.ZERO
 		return
 	_attack_cooldown = max(0.0, _attack_cooldown - delta)
@@ -498,13 +496,10 @@ func _physics_process(delta: float) -> void:
 		_facing_dir = Vector2i(signi(input.x), signi(input.y))
 		_sprite_root.scale = Vector2(_facing_x, 1)
 		if _action_vfx == null or not _action_vfx.is_playing():
-			_bob_t += delta
-			var bob: float = sin(_bob_t * TAU * _BOB_HZ) * _BOB_AMP_PX
-			_sprite_root.position = Vector2(0, -bob)
-	else:
-		if _action_vfx == null or not _action_vfx.is_playing():
-			_bob_t = 0.0
-			_sprite_root.position = Vector2.ZERO
+				_sprite_root.position = Vector2(0, _bob.tick(delta))
+		else:
+			if _action_vfx == null or not _action_vfx.is_playing():
+				_bob.reset()
 
 
 # ── Dodge roll ────────────────────────────────────────────────────────
@@ -904,7 +899,7 @@ func die() -> void:
 	is_dead = true
 	health = 0
 	InputContext.set_context(player_id, InputContext.Context.DISABLED)
-	_bob_t = 0.0
+	_bob.reset()
 	if _sprite_root != null:
 		_sprite_root.position = Vector2.ZERO
 		# Tween sprite root to 90 degrees (lying on side).

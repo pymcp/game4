@@ -22,15 +22,7 @@ static var _species_list: Array[StringName] = []
 static func _ensure_loaded() -> void:
 	if _loaded:
 		return
-	var f := FileAccess.open(_PATH, FileAccess.READ)
-	if f == null:
-		push_error("PetRegistry: cannot open %s" % _PATH)
-		_loaded = true
-		return
-	var parsed: Variant = JSON.parse_string(f.get_as_text())
-	f.close()
-	if parsed is Dictionary:
-		_data = parsed as Dictionary
+	_data = JsonLoader.load_dict(_PATH)
 	_species_list.clear()
 	for k: String in _data.keys():
 		_species_list.append(StringName(k))

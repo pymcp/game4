@@ -28,20 +28,7 @@ static func _ensure_loaded() -> void:
 	if _loaded:
 		return
 	_loaded = true
-	if not FileAccess.file_exists(_PATH):
-		push_warning("[ArmorSetRegistry] %s not found" % _PATH)
-		return
-	var f := FileAccess.open(_PATH, FileAccess.READ)
-	if f == null:
-		push_warning("[ArmorSetRegistry] cannot open %s" % _PATH)
-		return
-	var text: String = f.get_as_text()
-	f.close()
-	var parsed: Variant = JSON.parse_string(text)
-	if parsed is Dictionary:
-		_data = parsed
-	else:
-		push_error("[ArmorSetRegistry] Failed to parse %s" % _PATH)
+	_data = JsonLoader.load_dict(_PATH)
 
 
 ## Return the full set definition dict, or empty dict if not found.
@@ -67,14 +54,8 @@ static func get_raw_data() -> Dictionary:
 ## Replace in-memory data, write to disk.
 static func save_data(data: Dictionary) -> void:
 	_data = data.duplicate(true)
-	var text: String = JSON.stringify(_data, "\t")
-	var f := FileAccess.open(_PATH, FileAccess.WRITE)
-	if f == null:
-		push_error("[ArmorSetRegistry] cannot write %s" % _PATH)
-		return
-	f.store_string(text)
-	f.close()
 	_loaded = true
+	JsonLoader.save_dict(_PATH, _data)
 
 
 ## Calculate cumulative stat bonuses for a set given equipped piece count.
