@@ -170,11 +170,13 @@ func set_player(p: PlayerController) -> void:
 func _input(event: InputEvent) -> void:
 	if _player == null:
 		return
-	# Toggle open/close — always check this action.
-	if Input.is_action_just_pressed(PlayerActions.action(_player.player_id, PlayerActions.INVENTORY)):
-		toggle()
-		get_viewport().set_input_as_handled()
-		return
+	# Toggle open/close — only in GAMEPLAY or INVENTORY context (not MENU/DISABLED).
+	var ctx: InputContext.Context = InputContext.get_context(_player.player_id)
+	if ctx == InputContext.Context.GAMEPLAY or ctx == InputContext.Context.INVENTORY:
+		if Input.is_action_just_pressed(PlayerActions.action(_player.player_id, PlayerActions.INVENTORY)):
+			toggle()
+			get_viewport().set_input_as_handled()
+			return
 
 	# When open, consume input events for THIS player so nothing leaks to
 	# gameplay — but don't eat the other player's inputs.

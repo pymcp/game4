@@ -2115,7 +2115,8 @@ func show_dialogue_tree(player: PlayerController, tree: DialogueTree, npc: Node2
 	if box.choice_selected.is_connected(_on_choice_selected):
 		box.choice_selected.disconnect(_on_choice_selected)
 	box.choice_selected.connect(_on_choice_selected)
-	box.show_node(tree.root as DialogueNode, player.stats)
+	var npc_name: String = npc.name if npc != null else ""
+	box.begin_conversation(tree, player.stats, npc_name)
 
 
 func _on_choice_selected(choice: DialogueChoice, passed: bool) -> void:
@@ -2522,6 +2523,104 @@ func debug_toggle_tile_labels() -> void:
 	overlay_node.name = "DebugTileLabels"
 	add_child(overlay_node)
 	print("[F10] tile labels ON")
+
+
+## Return debug information about all tile layers at [param cell].
+##
+## Result shape:
+##   {
+##     "cell":              Vector2i,
+##     "region_tile_index": int,   # -1 if unknown / out of bounds
+##     "biome":             StringName,
+##     "layers":            Array[Dictionary],  # one entry per non-empty layer
+##   }
+## Each layer dict:
+##   {
+##     "layer":       String,      # "Ground" | "Patch" | "Decoration" | "Overlay" | "Canopy"
+##     "atlas":       Vector2i,
+##     "terrain":     StringName,  # "" if no custom data
+##     "sheet_field": StringName,  # e.g. &"overworld_decoration"
+##     "sheet_path":  String,      # resolved PNG path
+##     "mineable":    Variant,     # Dictionary or null
+##   }
+func get_tile_info_at_cell(cell: Vector2i) -> Dictionary:
+	var layer_nodes: Array[TileMapLayer] = [ground, patch, decoration, overlay, canopy]
+	var layer_names: Array[String] = ["Ground", "Patch", "Decoration", "Overlay", "Canopy"]
+
+	var layers_out: Array[Dictionary] = []
+	for i: int in layer_nodes.size():
+		var lyr: TileMapLayer = layer_nodes[i]
+		if lyr == null:
+			continue
+		var atlas: Vector2i = lyr.get_cell_atlas_coords(cell)
+		if atlas == Vector2i(-1, -1):
+			continue  # layer is empty at this cell
+		var terrain: StringName = &""
+		var tile_data: TileData = lyr.get_cell_tile_data(cell)
+		if tile_data != null and lyr.tile_set != null:
+			var ci: int = lyr.tile_set.get_custom_data_layer_by_name(TilesetCatalog.CUSTOM_TERRAIN)
+			if ci >= 0:
+				var v: Variant = tile_data.get_custom_data(TilesetCatalog.CUSTOM_TERRAIN)
+				if v is StringName:
+					terrain = v as StringName
+		var sheet_field: StringName = _resolve_tile_sheet_field(layer_names[i])
+		var sheet_path: String = TilesetCatalog.get_sheet_path(sheet_field)
+		# Reverse-lookup mineable for Decoration and Canopy layers.
+		var mineable: Variant = null
+		if layer_names[i] == "Decoration" or layer_names[i] == "Canopy":
+			var deco_cells: Dictionary = MineableRegistry.build_decoration_cells()
+			for rid: StringName in deco_cells:
+				var cells: Array[Vector2i] = deco_cells[rid]
+				if atlas in cells:
+					mineable = MineableRegistry.get_resource(rid)
+					break
+		layers_out.append({
+			"layer":       layer_names[i],
+			"atlas":       atlas,
+			"terrain":     terrain,
+			"sheet_field": sheet_field,
+			"sheet_path":  sheet_path,
+			"mineable":    mineable,
+		})
+
+	# Region-level data.
+	var region_tile_index: int = -1
+	var biome: StringName = &""
+	if _region != null:
+		biome = _region.biome
+		if cell.x >= 0 and cell.y >= 0 and cell.x < Region.SIZE and cell.y < Region.SIZE:
+			region_tile_index = _region.tiles[cell.y * Region.SIZE + cell.x]
+
+	return {
+		"cell":              cell,
+		"region_tile_index": region_tile_index,
+		"biome":             biome,
+		"layers":            layers_out,
+	}
+
+
+## Map a layer name + current view kind to a TilesetCatalog sheet-field name.
+func _resolve_tile_sheet_field(layer_name: String) -> StringName:
+	match _last_view_kind:
+		&"overworld":
+			match layer_name:
+				"Ground":     return &"overworld_terrain"
+				"Patch":      return &"overworld_terrain"
+				"Decoration": return &"overworld_decoration"
+				"Canopy":     return &"overworld_decoration"
+				_:            return &"overworld_terrain"
+		&"city":
+			return &"city_terrain"
+		&"dungeon":
+			match layer_name:
+				"Decoration": return &"dungeon_floor_decor"
+				_:            return &"dungeon_terrain"
+		&"maze":
+			match layer_name:
+				"Decoration": return &"maze_floor_decor"
+				_:            return &"maze_terrain"
+		_:
+			return &"interior_door"
 
 
 func debug_toggle_hitbox_overlay() -> void:

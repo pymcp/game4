@@ -49,3 +49,51 @@ theme_override_font_sizes/font_size = 13
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
 text = "[E] close"
 horizontal_alignment = 2
+
+[node name="FeedbackButton" type="Button" parent="Outer/Panel"]
+layout_mode = 2
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+grow_horizontal = 0
+offset_left = -100
+offset_right = 0
+offset_bottom = 24
+focus_mode = 0
+text = "✏ Feedback"
+visible = false
+
+[node name="FeedbackOverlay" type="PanelContainer" parent="Outer"]
+visible = false
+
+[node name="Margin" type="MarginContainer" parent="Outer/FeedbackOverlay"]
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="Outer/FeedbackOverlay/Margin"]
+theme_override_constants/separation = 8
+
+[node name="PromptLabel" type="Label" parent="Outer/FeedbackOverlay/Margin/VBox"]
+text = "Feedback on this dialogue:"
+theme_override_colors/font_color = Color(1, 0.92, 0.6, 1)
+
+[node name="FeedbackInput" type="TextEdit" parent="Outer/FeedbackOverlay/Margin/VBox"]
+custom_minimum_size = Vector2(0, 80)
+placeholder_text = "Type your notes here..."
+
+[node name="Buttons" type="HBoxContainer" parent="Outer/FeedbackOverlay/Margin/VBox"]
+
+[node name="Submit" type="Button" parent="Outer/FeedbackOverlay/Margin/VBox/Buttons"]
+size_flags_horizontal = 3
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Submit"
+
+[node name="Cancel" type="Button" parent="Outer/FeedbackOverlay/Margin/VBox/Buttons"]
+size_flags_horizontal = 3
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Cancel"

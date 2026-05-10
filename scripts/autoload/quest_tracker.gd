@@ -184,6 +184,15 @@ func is_quest_active(quest_id: String) -> bool:
 	return not _active[quest_id]["complete"]
 
 
+## Returns all quest IDs that are currently active (started but not complete).
+func get_all_active_quest_ids() -> Array[String]:
+	var result: Array[String] = []
+	for qid: String in _active:
+		if not _active[qid]["complete"]:
+			result.append(qid)
+	return result
+
+
 ## Returns true if the quest has been completed.
 func is_quest_complete(quest_id: String) -> bool:
 	if not _active.has(quest_id):

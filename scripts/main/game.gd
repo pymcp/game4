@@ -22,6 +22,7 @@ static func instance() -> Game:
 
 const _MathDeathScene: PackedScene = preload("res://scenes/ui/MathDeathScreen.tscn")
 const _DebugScreenScene: PackedScene = preload("res://scenes/ui/DebugScreen.tscn")
+const _DebugTileInspectorScene: PackedScene = preload("res://scenes/ui/DebugTileInspector.tscn")
 const _FloorConfirmMenuScene: PackedScene = preload("res://scenes/ui/FloorConfirmMenu.tscn")
 const _CaravanMenuScene: PackedScene = preload("res://scenes/ui/CaravanMenu.tscn")
 
@@ -61,6 +62,7 @@ var _player_p1: PlayerController = null
 var _player_p2: PlayerController = null
 var _math_death: MathDeathScreen = null
 var _debug_screen: DebugScreen = null
+var _tile_inspector: DebugTileInspector = null
 var _dying_players: Dictionary = {}  ## Tracks pids currently in death countdown.
 var _map_p1: WorldMapView = null
 var _map_p2: WorldMapView = null
@@ -104,6 +106,9 @@ func _ready() -> void:
 	_debug_screen = _DebugScreenScene.instantiate() as DebugScreen
 	_debug_screen.name = "DebugScreen"
 	add_child(_debug_screen)
+	_tile_inspector = _DebugTileInspectorScene.instantiate() as DebugTileInspector
+	_tile_inspector.name = "DebugTileInspector"
+	add_child(_tile_inspector)
 	_map_p1 = _build_worldmap_view(_container_p1)
 	_map_p2 = _build_worldmap_view(_container_p2)
 	_dungeon_map_p1 = _build_dungeon_map_view(_container_p1)
@@ -219,6 +224,9 @@ func _wire_hud_and_cameras() -> void:
 			_dungeon_map_p2.set_player(p2)
 			p2.dungeon_map = _dungeon_map_p2
 		_camera_p2 = _make_camera(p2, _vp_p2)
+	# Wire tile inspector cameras once both cameras are ready.
+	if _tile_inspector != null:
+		_tile_inspector.setup(_camera_p1, _camera_p2, _container_p1, _container_p2, _vp_p1, _vp_p2)
 	# Wire caravan menu for P1.
 	if _caravan_menu_p1 != null and p1 != null:
 		_caravan_menu_p1.setup(p1, p1.caravan_data, _world)

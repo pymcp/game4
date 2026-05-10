@@ -385,11 +385,14 @@ func _physics_process(delta: float) -> void:
 	if in_conversation:
 		_bob_t = 0.0
 		_sprite_root.position = Vector2.ZERO
-		# Still allow the interact key to dismiss / advance dialogue.
-		if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.INTERACT)):
-			_try_interact()
-		elif Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.BACK)):
-			_world.hide_dialogue()
+		# Don't read dialogue keys while the feedback overlay is open.
+		var _db: DialogueBox = _world.get_dialogue_box()
+		if _db == null or not _db.is_feedback_open():
+			# Still allow the interact key to dismiss / advance dialogue.
+			if Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.INTERACT)):
+				_try_interact()
+			elif Input.is_action_just_pressed(PlayerActions.action(player_id, PlayerActions.BACK)):
+				_world.hide_dialogue()
 		return
 	# Skip all gameplay input when this player isn't in GAMEPLAY context
 	# (inventory open, disabled by pause menu, etc.).
@@ -703,15 +706,27 @@ func _try_interact() -> void:
 		else:
 			_world.hide_dialogue()
 		return
+	# Two-pass priority: non-Caravan interactables first, Caravan as fallback.
 	var best: Node = null
 	var best_d2: float = INF
+	var best_caravan: Node = null
+	var best_caravan_d2: float = INF
 	for n in _world.entities.get_children():
 		if n == self or not n.has_method("interact"):
 			continue
 		var d2: float = position.distance_squared_to((n as Node2D).position)
-		if d2 < best_d2 and d2 < _INTERACT_RADIUS_PX * _INTERACT_RADIUS_PX:
-			best_d2 = d2
-			best = n
+		if d2 >= _INTERACT_RADIUS_PX * _INTERACT_RADIUS_PX:
+			continue
+		if n is Caravan:
+			if d2 < best_caravan_d2:
+				best_caravan_d2 = d2
+				best_caravan = n
+		else:
+			if d2 < best_d2:
+				best_d2 = d2
+				best = n
+	if best == null:
+		best = best_caravan
 	if best != null:
 		best.call("interact", self)
 
