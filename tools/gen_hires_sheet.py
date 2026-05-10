@@ -228,6 +228,7 @@ def _build_sheet(entity_sizes, cells, sentinel, existing_img):
                 used.add((col + dc, row + dr))
 
     # Assign cells for new entities in row-major order.
+    new_eids: set = set()
     for eid in sorted(entity_sizes.keys()):
         if eid in cells:
             continue
@@ -241,6 +242,7 @@ def _build_sheet(entity_sizes, cells, sentinel, existing_img):
             if all(c not in used for c in block):
                 cells[eid] = {"cell": [col, row], "size": [size_w, size_h]}
                 used.update(block)
+                new_eids.add(eid)
                 break
 
     if not cells:
@@ -260,8 +262,9 @@ def _build_sheet(entity_sizes, cells, sentinel, existing_img):
         stub_w = size_w * TILE + (size_w - 1) * MARGIN   # e.g. 2×64+1 = 129
         stub_h = size_h * TILE + (size_h - 1) * MARGIN
 
-        # Copy real art from existing sheet if the top-left cell is not a stub.
-        if existing_img is not None:
+        # Copy real art from existing sheet if the entity was pre-existing and
+        # the cell doesn't look like a stub.
+        if existing_img is not None and eid not in new_eids:
             ex_w, ex_h = existing_img.size
             if (px + stub_w <= ex_w) and (py + stub_h <= ex_h):
                 if not _is_stub_cell(existing_img, col, row, sentinel):

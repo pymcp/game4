@@ -1,180 +1,398 @@
 {
-	"maze": {
-		"boss_interval": 2,
-		"enemy_tables": [
-			{
-				"creature": "goblin",
-				"min_floor": 1,
-				"max_floor": 4,
-				"weight": 10
-			},
-			{
-				"creature": "bat",
-				"min_floor": 1,
-				"max_floor": 8,
-				"weight": 8
-			},
-			{
-				"creature": "slime",
-				"min_floor": 1,
-				"max_floor": 10,
-				"weight": 6
-			},
-			{
-				"creature": "skeleton",
-				"min_floor": 3,
-				"max_floor": 99,
-				"weight": 10
-			},
-			{
-				"creature": "goblin",
-				"min_floor": 5,
-				"max_floor": 99,
-				"weight": 14
-			},
-			{
-				"creature": "ogre",
-				"min_floor": 8,
-				"max_floor": 99,
-				"weight": 8
-			},
-			{
-				"creature": "fire_elemental",
-				"min_floor": 12,
-				"max_floor": 99,
-				"weight": 6
-			},
-			{
-				"creature": "ice_elemental",
-				"min_floor": 15,
-				"max_floor": 99,
-				"weight": 6
-			},
-			{
-				"creature": "rat",
-				"min_floor": 1,
-				"max_floor": 5,
-				"weight": 8
-			},
-			{
-				"creature": "spider",
-				"min_floor": 1,
-				"max_floor": 8,
-				"weight": 9
-			},
-			{
-				"creature": "goblin_jester",
-				"min_floor": 1,
-				"max_floor": 6,
-				"weight": 6
-			},
-			{
-				"creature": "snake",
-				"min_floor": 1,
-				"max_floor": 8,
-				"weight": 7
-			},
-			{
-				"creature": "zombie",
-				"min_floor": 2,
-				"max_floor": 12,
-				"weight": 8
-			},
-			{
-				"creature": "bear",
-				"min_floor": 2,
-				"max_floor": 10,
-				"weight": 5
-			},
-			{
-				"creature": "orc",
-				"min_floor": 4,
-				"max_floor": 99,
-				"weight": 10
-			},
-			{
-				"creature": "skeleton_mage",
-				"min_floor": 5,
-				"max_floor": 99,
-				"weight": 8
-			},
-			{
-				"creature": "harpy",
-				"min_floor": 6,
-				"max_floor": 99,
-				"weight": 6
-			},
-			{
-				"creature": "troll",
-				"min_floor": 10,
-				"max_floor": 99,
-				"weight": 4
-			},
-			{
-				"creature": "imp",
-				"min_floor": 10,
-				"max_floor": 99,
-				"weight": 6
-			}
-		]
-	},
-	"overworld": {
-		"biome_tables": {
-			"grass": [
-				{"creature": "slime",        "min_dist": 0, "max_dist": 99, "weight": 10},
-				{"creature": "snake",        "min_dist": 0, "max_dist": 7,  "weight": 7},
-				{"creature": "rat",          "min_dist": 0, "max_dist": 6,  "weight": 6},
-				{"creature": "goblin_jester","min_dist": 1, "max_dist": 5,  "weight": 6},
-				{"creature": "wolf",         "min_dist": 2, "max_dist": 99, "weight": 8},
-				{"creature": "goblin",       "min_dist": 2, "max_dist": 99, "weight": 7},
-				{"creature": "bear",         "min_dist": 4, "max_dist": 99, "weight": 4},
-				{"creature": "skeleton",     "min_dist": 5, "max_dist": 99, "weight": 5},
-				{"creature": "harpy",        "min_dist": 6, "max_dist": 99, "weight": 4}
-			],
-			"desert": [
-				{"creature": "rat",    "min_dist": 0, "max_dist": 99, "weight": 10},
-				{"creature": "snake",  "min_dist": 0, "max_dist": 99, "weight": 10},
-				{"creature": "spider", "min_dist": 0, "max_dist": 7,  "weight": 7},
-				{"creature": "bat",    "min_dist": 1, "max_dist": 5,  "weight": 5},
-				{"creature": "harpy",  "min_dist": 3, "max_dist": 99, "weight": 6}
-			],
-			"rocky": [
-				{"creature": "bat",      "min_dist": 0, "max_dist": 8,  "weight": 8},
-				{"creature": "spider",   "min_dist": 0, "max_dist": 7,  "weight": 7},
-				{"creature": "skeleton", "min_dist": 1, "max_dist": 99, "weight": 8},
-				{"creature": "wolf",     "min_dist": 1, "max_dist": 8,  "weight": 8},
-				{"creature": "bear",     "min_dist": 2, "max_dist": 6,  "weight": 6},
-				{"creature": "orc",      "min_dist": 4, "max_dist": 99, "weight": 5},
-				{"creature": "troll",    "min_dist": 6, "max_dist": 99, "weight": 3}
-			],
-			"snow": [
-				{"creature": "wolf",          "min_dist": 0, "max_dist": 99, "weight": 10},
-				{"creature": "bat",           "min_dist": 0, "max_dist": 8,  "weight": 8},
-				{"creature": "spider",        "min_dist": 1, "max_dist": 5,  "weight": 5},
-				{"creature": "zombie",        "min_dist": 2, "max_dist": 7,  "weight": 7},
-				{"creature": "skeleton",      "min_dist": 2, "max_dist": 7,  "weight": 7},
-				{"creature": "ice_elemental", "min_dist": 5, "max_dist": 99, "weight": 4}
-			],
-			"swamp": [
-				{"creature": "snake",         "min_dist": 0, "max_dist": 99, "weight": 10},
-				{"creature": "spider",        "min_dist": 0, "max_dist": 9,  "weight": 9},
-				{"creature": "bat",           "min_dist": 0, "max_dist": 7,  "weight": 7},
-				{"creature": "slime",         "min_dist": 0, "max_dist": 5,  "weight": 5},
-				{"creature": "zombie",        "min_dist": 1, "max_dist": 8,  "weight": 8},
-				{"creature": "skeleton",      "min_dist": 2, "max_dist": 6,  "weight": 6},
-				{"creature": "skeleton_mage", "min_dist": 4, "max_dist": 99, "weight": 4},
-				{"creature": "troll",         "min_dist": 5, "max_dist": 99, "weight": 3}
-			]
-		}
-	},
-	"dungeon": {
-		"boss_interval": 5,
-		"enemy_tables": [
-			{"creature": "skeleton", "min_floor": 1, "max_floor": 99, "weight": 10},
-			{"creature": "zombie",   "min_floor": 1, "max_floor": 99, "weight": 8},
-			{"creature": "slime",    "min_floor": 1, "max_floor": 99, "weight": 6},
-			{"creature": "orc",      "min_floor": 4, "max_floor": 99, "weight": 8},
-			{"creature": "skeleton_mage", "min_floor": 5, "max_floor": 99, "weight": 6}
-		]
-	}
+  "maze": {
+    "boss_interval": 2,
+    "enemy_tables": [
+      {
+        "creature": "goblin",
+        "min_floor": 1,
+        "max_floor": 4,
+        "weight": 10
+      },
+      {
+        "creature": "bat",
+        "min_floor": 1,
+        "max_floor": 8,
+        "weight": 8
+      },
+      {
+        "creature": "slime",
+        "min_floor": 1,
+        "max_floor": 10,
+        "weight": 6
+      },
+      {
+        "creature": "skeleton",
+        "min_floor": 3,
+        "max_floor": 99,
+        "weight": 10
+      },
+      {
+        "creature": "goblin",
+        "min_floor": 5,
+        "max_floor": 99,
+        "weight": 14
+      },
+      {
+        "creature": "ogre",
+        "min_floor": 8,
+        "max_floor": 99,
+        "weight": 8
+      },
+      {
+        "creature": "fire_elemental",
+        "min_floor": 12,
+        "max_floor": 99,
+        "weight": 6
+      },
+      {
+        "creature": "ice_elemental",
+        "min_floor": 15,
+        "max_floor": 99,
+        "weight": 6
+      },
+      {
+        "creature": "rat",
+        "min_floor": 1,
+        "max_floor": 5,
+        "weight": 8
+      },
+      {
+        "creature": "spider",
+        "min_floor": 1,
+        "max_floor": 8,
+        "weight": 9
+      },
+      {
+        "creature": "goblin_jester",
+        "min_floor": 1,
+        "max_floor": 6,
+        "weight": 6
+      },
+      {
+        "creature": "snake",
+        "min_floor": 1,
+        "max_floor": 8,
+        "weight": 7
+      },
+      {
+        "creature": "zombie",
+        "min_floor": 2,
+        "max_floor": 12,
+        "weight": 8
+      },
+      {
+        "creature": "bear",
+        "min_floor": 2,
+        "max_floor": 10,
+        "weight": 5
+      },
+      {
+        "creature": "orc",
+        "min_floor": 4,
+        "max_floor": 99,
+        "weight": 10
+      },
+      {
+        "creature": "skeleton_mage",
+        "min_floor": 5,
+        "max_floor": 99,
+        "weight": 8
+      },
+      {
+        "creature": "harpy",
+        "min_floor": 6,
+        "max_floor": 99,
+        "weight": 6
+      },
+      {
+        "creature": "troll",
+        "min_floor": 10,
+        "max_floor": 99,
+        "weight": 4
+      },
+      {
+        "creature": "imp",
+        "min_floor": 10,
+        "max_floor": 99,
+        "weight": 6
+      },
+      {
+        "creature": "sick_rat",
+        "min_floor": 1,
+        "max_floor": 4,
+        "weight": 6
+      },
+      {
+        "creature": "sick_deer",
+        "min_floor": 2,
+        "max_floor": 6,
+        "weight": 5
+      },
+      {
+        "creature": "sick_boar",
+        "min_floor": 4,
+        "max_floor": 99,
+        "weight": 6
+      }
+    ]
+  },
+  "overworld": {
+    "biome_tables": {
+      "grass": [
+        {
+          "creature": "slime",
+          "min_dist": 0,
+          "max_dist": 99,
+          "weight": 10
+        },
+        {
+          "creature": "snake",
+          "min_dist": 0,
+          "max_dist": 7,
+          "weight": 7
+        },
+        {
+          "creature": "rat",
+          "min_dist": 0,
+          "max_dist": 6,
+          "weight": 6
+        },
+        {
+          "creature": "goblin_jester",
+          "min_dist": 1,
+          "max_dist": 5,
+          "weight": 6
+        },
+        {
+          "creature": "wolf",
+          "min_dist": 2,
+          "max_dist": 99,
+          "weight": 8
+        },
+        {
+          "creature": "goblin",
+          "min_dist": 2,
+          "max_dist": 99,
+          "weight": 7
+        },
+        {
+          "creature": "bear",
+          "min_dist": 4,
+          "max_dist": 99,
+          "weight": 4
+        },
+        {
+          "creature": "skeleton",
+          "min_dist": 5,
+          "max_dist": 99,
+          "weight": 5
+        },
+        {
+          "creature": "harpy",
+          "min_dist": 6,
+          "max_dist": 99,
+          "weight": 4
+        }
+      ],
+      "desert": [
+        {
+          "creature": "rat",
+          "min_dist": 0,
+          "max_dist": 99,
+          "weight": 10
+        },
+        {
+          "creature": "snake",
+          "min_dist": 0,
+          "max_dist": 99,
+          "weight": 10
+        },
+        {
+          "creature": "spider",
+          "min_dist": 0,
+          "max_dist": 7,
+          "weight": 7
+        },
+        {
+          "creature": "bat",
+          "min_dist": 1,
+          "max_dist": 5,
+          "weight": 5
+        },
+        {
+          "creature": "harpy",
+          "min_dist": 3,
+          "max_dist": 99,
+          "weight": 6
+        }
+      ],
+      "rocky": [
+        {
+          "creature": "bat",
+          "min_dist": 0,
+          "max_dist": 8,
+          "weight": 8
+        },
+        {
+          "creature": "spider",
+          "min_dist": 0,
+          "max_dist": 7,
+          "weight": 7
+        },
+        {
+          "creature": "skeleton",
+          "min_dist": 1,
+          "max_dist": 99,
+          "weight": 8
+        },
+        {
+          "creature": "wolf",
+          "min_dist": 1,
+          "max_dist": 8,
+          "weight": 8
+        },
+        {
+          "creature": "bear",
+          "min_dist": 2,
+          "max_dist": 6,
+          "weight": 6
+        },
+        {
+          "creature": "orc",
+          "min_dist": 4,
+          "max_dist": 99,
+          "weight": 5
+        },
+        {
+          "creature": "troll",
+          "min_dist": 6,
+          "max_dist": 99,
+          "weight": 3
+        }
+      ],
+      "snow": [
+        {
+          "creature": "wolf",
+          "min_dist": 0,
+          "max_dist": 99,
+          "weight": 10
+        },
+        {
+          "creature": "bat",
+          "min_dist": 0,
+          "max_dist": 8,
+          "weight": 8
+        },
+        {
+          "creature": "spider",
+          "min_dist": 1,
+          "max_dist": 5,
+          "weight": 5
+        },
+        {
+          "creature": "zombie",
+          "min_dist": 2,
+          "max_dist": 7,
+          "weight": 7
+        },
+        {
+          "creature": "skeleton",
+          "min_dist": 2,
+          "max_dist": 7,
+          "weight": 7
+        },
+        {
+          "creature": "ice_elemental",
+          "min_dist": 5,
+          "max_dist": 99,
+          "weight": 4
+        }
+      ],
+      "swamp": [
+        {
+          "creature": "snake",
+          "min_dist": 0,
+          "max_dist": 99,
+          "weight": 10
+        },
+        {
+          "creature": "spider",
+          "min_dist": 0,
+          "max_dist": 9,
+          "weight": 9
+        },
+        {
+          "creature": "bat",
+          "min_dist": 0,
+          "max_dist": 7,
+          "weight": 7
+        },
+        {
+          "creature": "slime",
+          "min_dist": 0,
+          "max_dist": 5,
+          "weight": 5
+        },
+        {
+          "creature": "zombie",
+          "min_dist": 1,
+          "max_dist": 8,
+          "weight": 8
+        },
+        {
+          "creature": "skeleton",
+          "min_dist": 2,
+          "max_dist": 6,
+          "weight": 6
+        },
+        {
+          "creature": "skeleton_mage",
+          "min_dist": 4,
+          "max_dist": 99,
+          "weight": 4
+        },
+        {
+          "creature": "troll",
+          "min_dist": 5,
+          "max_dist": 99,
+          "weight": 3
+        }
+      ]
+    }
+  },
+  "dungeon": {
+    "boss_interval": 5,
+    "enemy_tables": [
+      {
+        "creature": "skeleton",
+        "min_floor": 1,
+        "max_floor": 99,
+        "weight": 10
+      },
+      {
+        "creature": "zombie",
+        "min_floor": 1,
+        "max_floor": 99,
+        "weight": 8
+      },
+      {
+        "creature": "slime",
+        "min_floor": 1,
+        "max_floor": 99,
+        "weight": 6
+      },
+      {
+        "creature": "orc",
+        "min_floor": 4,
+        "max_floor": 99,
+        "weight": 8
+      },
+      {
+        "creature": "skeleton_mage",
+        "min_floor": 5,
+        "max_floor": 99,
+        "weight": 6
+      }
+    ]
+  }
 }

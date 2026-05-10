@@ -59,6 +59,46 @@
 		],
 		"health": 8
 	},
+	"boar": {
+		"display_name": "Boar",
+		"drop_chance": 0.6,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"max": 4,
+				"min": 2,
+				"weight": 70
+			},
+			{
+				"item_id": "stone",
+				"max": 2,
+				"min": 1,
+				"weight": 30
+			}
+		],
+		"health": 8
+	},
+	"deer": {
+		"display_name": "Deer",
+		"drop_chance": 0.5,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"max": 3,
+				"min": 1,
+				"weight": 60
+			},
+			{
+				"item_id": "fennel_root",
+				"max": 1,
+				"min": 1,
+				"weight": 40
+			}
+		],
+		"health": 3
+	},
 	"dragon": {
 		"display_name": "Dragon",
 		"drop_chance": 1,
@@ -363,6 +403,66 @@
 			}
 		],
 		"health": 1
+	},
+	"sick_boar": {
+		"display_name": "Sick Boar",
+		"drop_chance": 0.6,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"max": 3,
+				"min": 1,
+				"weight": 50
+			},
+			{
+				"item_id": "contaminated_ore",
+				"max": 1,
+				"min": 1,
+				"weight": 50
+			}
+		],
+		"health": 12
+	},
+	"sick_deer": {
+		"display_name": "Sick Deer",
+		"drop_chance": 0.5,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"max": 2,
+				"min": 1,
+				"weight": 60
+			},
+			{
+				"item_id": "contaminated_ore",
+				"max": 1,
+				"min": 1,
+				"weight": 40
+			}
+		],
+		"health": 6
+	},
+	"sick_rat": {
+		"display_name": "Sick Rat",
+		"drop_chance": 0.4,
+		"drop_count": 1,
+		"drops": [
+			{
+				"item_id": "fiber",
+				"max": 1,
+				"min": 1,
+				"weight": 70
+			},
+			{
+				"item_id": "fennel_root",
+				"max": 1,
+				"min": 1,
+				"weight": 30
+			}
+		],
+		"health": 2
 	},
 	"skeleton": {
 		"display_name": "Skeleton",
