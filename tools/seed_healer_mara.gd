@@ -8,91 +8,110 @@ extends SceneTree
 
 
 func _init() -> void:
-	# Phase 4 -- post-completion
+	# ─── Phase 4: post-completion ──────────────────────────────────────────
 	var leaf_complete := _leaf("Mara",
-		"The valley owes you a debt it can never repay. The animals are recovering and the water runs clear again. If you ever need a tonic, you know where to find me.")
+		"The valley's breathing easier. Whatever was in that ore, you stopped it from spreading further. Come back when you need a tonic -- I'll always have one ready for you.")
 
-	# Phase 3 -- herbs gathering (show_evidence done this visit, not yet complete)
+	# ─── Phase 3: herbs gathering (evidence shown, quest not yet complete) ──
 	var herbs_return := _leaf("Mara",
-		"Yes! This ore is saturated with corrupted moonstone residue -- just as I feared. I need fennel root, a blue nightcap mushroom, and clean spring water -- not from the village well. The spring east of the birch grove is safe.")
+		"This ore -- I can smell the contamination from here. Moonstone residue, just as I suspected. To brew the remedy I need three things: fennel root from along the riverbank, a blue nightcap mushroom -- they grow in shaded spots -- and clean spring water. Not from the village well; it's still tainted. There's a spring to the southwest, past the old stone marker.")
 
-	# Phase 2 -- mine phase (quest started, evidence not yet collected)
+	# ─── Phase 2: mine reminder (quest started, evidence not yet shown) ─────
 	var mine_reminder := _leaf("Mara",
-		"The mine entrance is east of here, past the birch grove. Watch for sick wolves -- they don't run from people anymore. Seal whatever is leaking and bring back a piece of contaminated ore as proof.")
+		"The mine entrance is east of the birch grove. The sick wolves are still prowling nearby -- don't let them surround you. Find what's leaking inside, seal it, and bring back a piece of the ore. Come back to me when you have it.")
 
-	# Phase 1 -- intro terminal leaves
-	var leaf_clue := _leaf("Mara",
-		"The sickness started near the old mine in the eastern hills. Something seeped into the groundwater. If you go there, be careful -- the animals nearby have gone feral.")
-
-	var leaf_clue_herb := _leaf("Mara",
-		"I've been studying the well water. There's a strange residue -- almost like crushed moonstone. The mine used to produce that before it was abandoned. That's your lead.")
-
-	var leaf_clue_doubt := _leaf("Mara",
-		"I understand your scepticism. But three villages have lost livestock this moon alone. If you change your mind, you know where to find me.")
-
+	# ─── Terminal leaves ───────────────────────────────────────────────────
 	var leaf_accept := _leaf("Mara",
-		"Then go -- east past the birch grove. The mine entrance is hard to miss. Come back with ore from inside and I'll know what we're dealing with.")
+		"East of here, past the birch grove. The mine entrance is hard to miss -- there are sick wolves nearby, so stay ready. Find the leak, seal it, and bring back a piece of the ore. Come back to me when you have it.")
 
 	var leaf_accept_deal := _leaf("Mara",
-		"Fair enough. Bring me proof from the mine -- a piece of contaminated ore -- and I'll craft you a tonic that'll make you tougher than boiled leather.")
+		"East of here, past the birch grove. Sick wolves near the entrance, so stay sharp. Find the leak, seal it, bring back ore. I'll have your tonic waiting.")
 
-	var leaf_accept_push := _leaf("Mara",
-		"You drive a hard bargain, traveller. Fine -- bring evidence from the mine and I'll give you my last bottled antidote AND the tonic recipe. But don't dawdle.")
+	var leaf_soft_decline := _leaf("Mara",
+		"The offer stands. I'm here if you change your mind.")
 
-	var leaf_reward_walk := _leaf("Mara",
-		"Then we have nothing more to discuss. The animals keep dying and you want coin. I hope your conscience catches up with you.")
+	var leaf_walk := _leaf("Mara",
+		"Then animals keep dying. I hope you sleep well, traveller.")
 
-	# -- Wisdom path --
-	var know_d2 := DialogueNode.new()
-	know_d2.speaker = "Mara"
-	know_d2.text = "I've traced it to the water. Every sick animal drinks from streams fed by the eastern hills. The old moonstone mine was sealed twenty years ago, but something's broken through."
-	know_d2.choices = [
-		_choice("Where exactly is this mine?", leaf_clue),
-		_choice_stat(&"wisdom", 4, "Could the ore itself be toxic?",
-			leaf_clue_herb,
-			_leaf("Mara", "Hmm, I'm not sure what you mean. But the mine is east of here, past the birch grove. Start there.")),
-		_choice("I'm not sure I believe that.", leaf_clue_doubt),
+	var leaf_passing := _leaf("Mara",
+		"Then at least be careful east of the birch grove. The wolves there don't behave as wolves should. If you reconsider, you know where to find me.")
+
+	var leaf_push_fail := _leaf("Mara",
+		"That recipe is all that's standing between this valley and a real outbreak. The tonic is my offer -- take it or leave it.")
+
+	# ─── CHA≥5 push path (shared by explain and deal paths) ───────────────
+	# quest_herbalist_pushed_deal already set by the choice that leads here;
+	# this node sets quest_herbalist_main when the player formally accepts.
+	var push_node := DialogueNode.new()
+	push_node.speaker = "Mara"
+	push_node.text = "A hard bargain -- but you've got nerve. Bring me the ore from the mine and I'll give you both the tonic and my antidote recipe. Don't take too long."
+	push_node.choices = [
+		_choice_flag("Deal. I'll get the ore.", leaf_accept, "quest_herbalist_main"),
 	]
 
-	# -- Charisma path --
+	# ─── Task node: what the player needs to do ────────────────────────────
+	var task_node := DialogueNode.new()
+	task_node.speaker = "Mara"
+	task_node.text = "Get into the mine east of here, find what's leaking, and seal it if you can. Then bring me a piece of the contaminated ore -- I need it to identify the compound and brew the antidote. I'll give you one of my tonics as payment. Worth more than most coin on the road."
+	task_node.choices = [
+		_choice_flag("I'll do it.", leaf_accept, "quest_herbalist_main"),
+		_choice_stat_flag(&"charisma", 5, "A tonic isn't enough. I want your recipe too.",
+			push_node, leaf_push_fail, "quest_herbalist_pushed_deal"),
+		_choice("I'll think about it.", leaf_soft_decline),
+	]
+
+	# ─── Explain paths ─────────────────────────────────────────────────────
+	# WIS≥3: player noticed something was off before she asked.
+	var explain_wise := DialogueNode.new()
+	explain_wise.speaker = "Mara"
+	explain_wise.text = "So you've noticed too. Good -- I thought I was overreacting. I'm an herbalist; I've been studying this for weeks. The well water has a mineral residue that only comes from moonstone ore. The old mine east of here was sealed twenty years ago, but seals fail. Something's broken through and it's poisoning the groundwater."
+	explain_wise.choices = [
+		_choice("What do you need from me?", task_node),
+		_choice("That's not my problem.", leaf_walk),
+	]
+
+	# Neutral: player had no idea.
+	var explain_neutral := DialogueNode.new()
+	explain_neutral.speaker = "Mara"
+	explain_neutral.text = "I'm an herbalist. I've been in this valley most of my life and I've never seen animals behave like this. The well water tastes wrong too -- I've been testing it. I think it's coming from the old moonstone mine east of here. Something's breached the old seal and it's leaking into the groundwater. I need someone who can get inside and stop it."
+	explain_neutral.choices = [
+		_choice("What do you need me to do?", task_node),
+		_choice("That's not my problem.", leaf_walk),
+	]
+
+	# ─── CHA≥3 deal path ──────────────────────────────────────────────────
 	var deal_d2 := DialogueNode.new()
 	deal_d2.speaker = "Mara"
-	deal_d2.text = "I don't have much gold, but I can offer something better. I brew tonics that'll harden your skin and sharpen your senses. One batch is worth more than a sack of coin."
+	deal_d2.text = "More than fair to ask. There's something wrong in this valley -- animals going feral, the well water tainted -- and I think it traces back to the old moonstone mine east of here. I need someone to get inside, find what's leaking, and bring me contaminated ore so I can brew an antidote. I'll pay in tonics. I brew them myself; they strengthen the body in ways coin rarely does."
 	deal_d2.choices = [
-		_choice_flag("Sounds fair. What exactly do you need?", leaf_accept_deal, "quest_herbalist_main"),
-		_choice_stat_flag(&"charisma", 5, "I want the tonic AND your antidote recipe.",
-			leaf_accept_push,
-			_leaf("Mara", "That's too much to ask. The tonic or nothing, traveller."),
-			"quest_herbalist_pushed_deal"),
-		_choice("Forget it, I'm not doing charity work.", leaf_reward_walk),
+		_choice_flag("Fair enough. Where's this mine?", leaf_accept_deal, "quest_herbalist_main"),
+		_choice_stat_flag(&"charisma", 5, "A tonic alone isn't enough. I want the recipe too.",
+			push_node, leaf_push_fail, "quest_herbalist_pushed_deal"),
+		_choice("Not worth my time.", leaf_walk),
 	]
 
-	# -- Help path --
-	var help_d2 := DialogueNode.new()
-	help_d2.speaker = "Mara"
-	help_d2.text = "The old moonstone mine east of here is the source. Something's leaking into the groundwater. If you get in there, seal the leak, and bring back contaminated ore, I can work out the antidote."
-	help_d2.choices = [
-		_choice_flag("I'll investigate the mine.", leaf_accept, "quest_herbalist_main"),
-	]
-
-	# -- Root: phase router --
+	# ─── Root node ────────────────────────────────────────────────────────
+	# Mara flags the player down; routes by phase on return visits.
 	var root := DialogueNode.new()
 	root.speaker = "Mara"
-	root.text = "Ah, traveller! What brings you back to old Mara?"
+	root.text = "Traveller -- a moment. You look like you've been through the wilds. Have you seen anything strange east of here? Animals acting wrong -- wolves that won't back down, livestock that won't eat?"
 	root.choices = [
+		# Return-visit phase routing (shown in place of the intro choices).
 		_choice_require("How is the valley doing?", leaf_complete,
 			"quest_herbalist_remedy_complete", ""),
-		_choice_require("Here are the herbs and water you asked for.", herbs_return,
+		_choice_require("I have the herbs and water you asked for.", herbs_return,
 			"quest_herbalist_remedy_obj_show_evidence_done",
 			"quest_herbalist_remedy_complete"),
-		_choice_require("I'm on my way to the mine.", mine_reminder,
+		_choice_require("I haven't reached the mine yet.", mine_reminder,
 			"quest_herbalist_main",
 			"quest_herbalist_remedy_obj_show_evidence_done"),
+		# First-encounter choices (hidden once quest_herbalist_main is set).
 		_choice_stat_intro(&"wisdom", 3,
-			"What do you know about the cause of this sickness?", know_d2),
+			"Now that you mention it -- yes. What's going on?", explain_wise),
+		_choice_intro("Can't say I have. What's wrong?", explain_neutral),
 		_choice_stat_intro(&"charisma", 3,
-			"I might help -- but what's in it for me?", deal_d2),
-		_choice_intro("Tell me what you need. I'm here to help.", help_d2),
+			"Depends. Are you offering something for looking into it?", deal_d2),
+		_choice_intro("I'm just passing through.", leaf_passing),
 	]
 
 	var tree: DialogueTree = DialogueTree.new()
@@ -126,18 +145,6 @@ func _choice_flag(label: String, next: DialogueNode, flag: String) -> DialogueCh
 	c.label = label
 	c.next_node = next
 	c.set_flag = flag
-	return c
-
-
-func _choice_stat(stat: StringName, threshold: int, label: String,
-		success: DialogueNode, failure: DialogueNode) -> DialogueChoice:
-	var c: DialogueChoice = DialogueChoice.new()
-	c.label = label
-	c.stat_check = stat
-	c.stat_threshold = threshold
-	c.next_node = success
-	if failure != null:
-		c.failure_node = failure
 	return c
 
 

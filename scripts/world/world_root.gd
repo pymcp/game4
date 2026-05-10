@@ -1780,7 +1780,7 @@ func _maybe_inject_mara() -> void:
 	if _region.spawn_points.is_empty():
 		return
 	var centre: Vector2i = _region.spawn_points[0]
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(3, 2), 32, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(10, 4), 32, true)
 	_region.npcs_scatter.append({
 		"kind": &"villager",
 		"cell": cell,
@@ -1820,7 +1820,7 @@ func _inject_spring(centre: Vector2i) -> void:
 	for child in entities.get_children():
 		if child is QuestInteractable and child.objective_id == "get_water":
 			return
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(-5, 4), 32, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(-20, 12), 32, true)
 	var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
 	qi.quest_id = "herbalist_remedy"
 	qi.objective_id = "get_water"
@@ -1856,7 +1856,7 @@ func _inject_moonstone_mine(centre: Vector2i) -> void:
 			var rid2: Vector2i = _region.region_id
 			QuestTracker.register_objective_position("herbalist_remedy", "enter_mine", rid2, mine_cell)
 			return
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(12, 0), 32, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(40, 0), 32, true)
 	_region.dungeon_entrances.append({
 		"kind": &"maze",
 		"cell": cell,
@@ -1891,8 +1891,8 @@ func _inject_birch_grove(centre: Vector2i) -> void:
 		Vector2i(13, 10), Vector2i(17, 10),
 	]
 	const GROVE_OFFSETS: Array[Vector2i] = [
-		Vector2i(7, -2), Vector2i(7, -1), Vector2i(7, 0), Vector2i(7, 1),
-		Vector2i(8, -2), Vector2i(8, 0), Vector2i(9, -1), Vector2i(9, 1),
+		Vector2i(22, -2), Vector2i(22, -1), Vector2i(22, 0), Vector2i(22, 1),
+		Vector2i(23, -2), Vector2i(23, 0), Vector2i(24, -1), Vector2i(24, 1),
 	]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 0xB1C432
@@ -1915,7 +1915,7 @@ func _inject_village_well(centre: Vector2i) -> void:
 	for child in entities.get_children():
 		if child is QuestInteractable and child.objective_id == "village_well_flavour":
 			return
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(1, -3), 32, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(6, -8), 32, true)
 	var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
 	qi.quest_id = ""
 	qi.objective_id = "village_well_flavour"
