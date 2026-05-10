@@ -324,6 +324,11 @@ Starting region (0,0) subdivided by impassable barriers:
 <description>Use when working on item definitions, the inventory system, crafting recipes, loot pickups, or save/load of player belongings.</description>
 <file>/home/mpatterson/repos/game4/.github/skills/items-inventory-crafting/SKILL.md</file>
 </skill>
+<skill>
+<name>story-bible</name>
+<description>Use when writing quests, dialogue, NPC interactions, lore text, or any content that must be consistent with the game's narrative. Covers the Null contamination premise, Aetherian civilization, chapter structure, player knowledge-state rules, and continuity checklist. Full detail in docs/story.md.</description>
+<file>/home/mpatterson/repos/game4/.github/skills/story-bible/SKILL.md</file>
+</skill>
 </skills>
 ## Overview
 A 2D fantasy sandbox game with local split-screen co-op for two players. Built in **Godot 4.3 stable** using **GDScript** as the primary language UNLESS performance-critical systems require C#/GDExtension (chunked terrain, block grids). All art assets come from the **Kenney All-in-One** asset pack (CC0 license).
