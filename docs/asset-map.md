@@ -77,8 +77,8 @@ Unchanged from previous build:
 - **Character animation**: Roguelike Characters Pack provides only static
   facings. Locomotion = vertical bob (1–2 px sine while moving). 4-direction
   facing not used; left/right = horizontal flip.
-- **Pier sprites**: built from `assets/tiles/roguelike/overworld_sheet.png`
-  wood-plank tiles.
+- **Pier sprites**: `AtlasTexture` sliced from `assets/tiles/roguelike/overworld_sheet.png`
+  cell (8, 22) — sand/brown tile used as weathered dock planks.
 - **Boats**: also from the overworld sheet (Roguelike Base Pack contains a
   small sailboat / raft icon).
 - **Music**: not yet curated.

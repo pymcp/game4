@@ -16,7 +16,8 @@ theme_override_constants/shadow_offset_y = 1
 visible = false
 
 [node name="DetailPanel" type="PanelContainer" parent="."]
-custom_minimum_size = Vector2(320, 0)
+custom_minimum_size = Vector2(320, 400)
+size = Vector2(320, 400)
 visible = false
 mouse_filter = 0
 

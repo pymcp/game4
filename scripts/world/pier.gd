@@ -1,25 +1,28 @@
 ## Pier
 ##
-## A reusable pier prefab built procedurally from Kenney medieval-town wood
-## plates + railings. Phase 8 sailing system spawns one Pier on each shore
-## tile that connects to the harbor scene.
+## A reusable pier prefab built procedurally from tiles sliced out of the
+## existing overworld_sheet.png.  Spawned by WorldRoot on any land region
+## that has a recorded pier_position (set by WorldGenerator._place_pier).
 ##
 ## Public API:
-##   length      : how many planks deep the pier extends (away from shore).
-##   orientation : 0..3 — selects which Kenney rotation variant is used.
-##                 0 = pier extends towards iso (+x, -y) = screen-right;
-##                 1 = +y, +x; 2 = -x, +y; 3 = -y, -x. (Matches Kenney's
-##                 `_0/_1/_2/_3` convention so the asset itself rotates.)
+##   length      : how many plank tiles the pier extends into the water.
+##   orientation : 0..3 — cardinal direction the pier extends into:
+##                 0 = east (+x);  1 = south (+y);
+##                 2 = west (-x);  3 = north (-y).
+##   with_railings: reserved for future use, currently unused.
 extends Node2D
 class_name Pier
 
-const _MEDIEVAL: String = "res://assets/tiles/medieval/"
-const _PLATE_BASE: String = "plate_wood_01"
-const _RAIL_BASE: String = "wood_railing_01"
+const _SHEET: String = "res://assets/tiles/roguelike/overworld_sheet.png"
+const _TILE_PX: int = WorldConst.TILE_PX   # 16
+const _STRIDE: int = _TILE_PX + 1          # 17 (1 px gutter, no outer margin)
+
+## Sand tile (8, 22) — warm brown/tan, visually reads as weathered dock wood.
+const _PLANK_CELL: Vector2i = Vector2i(8, 22)
 
 @export var length: int = 4 : set = _set_length
 @export var orientation: int = 0 : set = _set_orientation
-@export var with_railings: bool = true
+@export var with_railings: bool = true  # reserved; no separate railing sprite yet
 
 
 func _ready() -> void:
@@ -41,33 +44,33 @@ func _set_orientation(v: int) -> void:
 func _rebuild() -> void:
 	for c in get_children():
 		c.queue_free()
-	var plate := load("%s%s_%d.png" % [_MEDIEVAL, _PLATE_BASE, orientation]) as Texture2D
-	var rail: Texture2D = null
-	if with_railings:
-		rail = load("%s%s_%d.png" % [_MEDIEVAL, _RAIL_BASE, orientation]) as Texture2D
-	if plate == null:
-		push_warning("[Pier] missing plate texture for orientation %d" % orientation)
+
+	var sheet: Texture2D = load(_SHEET) as Texture2D
+	if sheet == null:
+		push_warning("[Pier] overworld sheet not found: %s" % _SHEET)
 		return
-	# Step direction in iso tile coords for each orientation.
-	var step_iso: Vector2i
+
+	var plate := AtlasTexture.new()
+	plate.atlas = sheet
+	plate.region = Rect2(
+		_PLANK_CELL.x * _STRIDE,
+		_PLANK_CELL.y * _STRIDE,
+		_TILE_PX, _TILE_PX)
+
+	var step: Vector2i
 	match orientation:
-		0: step_iso = Vector2i(1, 0)
-		1: step_iso = Vector2i(0, 1)
-		2: step_iso = Vector2i(-1, 0)
-		3: step_iso = Vector2i(0, -1)
-		_: step_iso = Vector2i(1, 0)
+		0: step = Vector2i(1, 0)
+		1: step = Vector2i(0, 1)
+		2: step = Vector2i(-1, 0)
+		3: step = Vector2i(0, -1)
+		_: step = Vector2i(1, 0)
+
 	for i in length:
-		var cell: Vector2i = step_iso * i
+		var cell: Vector2i = step * i
 		var spr := Sprite2D.new()
 		spr.texture = plate
-		spr.position = Vector2(float(cell.x * WorldConst.TILE_PX), float(cell.y * WorldConst.TILE_PX))
-		spr.scale = Vector2(0.5, 0.5)
-		spr.offset = Vector2(0, -plate.get_height() * 0.25)
+		# Sprite2D centres by default; offset by half a tile so (0,0) aligns
+		# with the top-left corner of cell 0 (matching TileMapLayer convention).
+		spr.offset = Vector2(_TILE_PX * 0.5, _TILE_PX * 0.5)
+		spr.position = Vector2(float(cell.x * _TILE_PX), float(cell.y * _TILE_PX))
 		add_child(spr)
-		if rail != null and i > 0:
-			var r_spr := Sprite2D.new()
-			r_spr.texture = rail
-			r_spr.position = Vector2(float(cell.x * WorldConst.TILE_PX), float(cell.y * WorldConst.TILE_PX))
-			r_spr.scale = Vector2(0.5, 0.5)
-			r_spr.offset = Vector2(0, -rail.get_height() * 0.25)
-			add_child(r_spr)

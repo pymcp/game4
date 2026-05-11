@@ -64,6 +64,12 @@ var _math_death: MathDeathScreen = null
 var _debug_screen: DebugScreen = null
 var _tile_inspector: DebugTileInspector = null
 var _dying_players: Dictionary = {}  ## Tracks pids currently in death countdown.
+
+## Zoom step multipliers for Camera2D.zoom (applied on top of World's RENDER_ZOOM scale).
+## Index 2 (1.0) is the default — matches the legacy behaviour.
+const _ZOOM_STEPS: Array[float] = [0.5, 0.75, 1.0, 1.5, 2.0]
+var _zoom_index: int = 2
+
 var _map_p1: WorldMapView = null
 var _map_p2: WorldMapView = null
 var _dungeon_map_p1: DungeonMapView = null
@@ -258,11 +264,37 @@ func _wire_hud_and_cameras() -> void:
 ## [code]custom_viewport[/code]) to render into [param viewport]. This
 ## lets the shared world render twice — once per pane — with each pane
 ## centred on its respective player.
+func _unhandled_input(event: InputEvent) -> void:
+	if not event is InputEventKey:
+		return
+	var key := event as InputEventKey
+	if not key.pressed or key.echo:
+		return
+	if key.keycode == KEY_F8:
+		_zoom_index = mini(_zoom_index + 1, _ZOOM_STEPS.size() - 1)
+		_apply_zoom()
+		get_viewport().set_input_as_handled()
+	elif key.keycode == KEY_F9:
+		_zoom_index = maxi(_zoom_index - 1, 0)
+		_apply_zoom()
+		get_viewport().set_input_as_handled()
+
+
+func _apply_zoom() -> void:
+	var z: float = _ZOOM_STEPS[_zoom_index]
+	var zv := Vector2(z, z)
+	if _camera_p1 != null and is_instance_valid(_camera_p1):
+		_camera_p1.zoom = zv
+	if _camera_p2 != null and is_instance_valid(_camera_p2):
+		_camera_p2.zoom = zv
+
+
 func _make_camera(player: PlayerController, viewport: SubViewport) -> Camera2D:
 	var cam := Camera2D.new()
 	cam.name = "Camera2D"
 	cam.custom_viewport = viewport
-	cam.zoom = Vector2.ONE
+	var z: float = _ZOOM_STEPS[_zoom_index]
+	cam.zoom = Vector2(z, z)
 	cam.position_smoothing_enabled = false
 	player.add_child(cam)
 	cam.make_current()

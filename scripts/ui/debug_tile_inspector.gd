@@ -107,8 +107,9 @@ func _input(event: InputEvent) -> void:
 					if world_root != null and _hover_cell != Vector2i(-9999, -9999):
 						var info: Dictionary = world_root.get_tile_info_at_cell(_hover_cell)
 						_detail_label.text = _build_detail_text(info)
-						_pinned = true
 						_detail_panel.visible = true
+						_detail_panel.reset_size()
+						_pinned = true
 						# Position panel near click, clamped to screen.
 						var panel_pos: Vector2 = mouse_screen + Vector2(16, 16)
 						var vp_size: Vector2 = Vector2(get_viewport().size)
@@ -152,8 +153,21 @@ func _screen_to_tile(screen_pos: Vector2, pid: int) -> Vector2i:
 	var stretch: Vector2 = container_rect.size / vp_size
 	var viewport_local: Vector2 = container_local / stretch
 	# Camera offset: camera sits at the player world position.
-	# World node is scaled by RENDER_ZOOM, so one tile occupies TILE_PX * RENDER_ZOOM viewport pixels.
-	var world_pos: Vector2 = cam.global_position + (viewport_local - vp_size * 0.5)
+	# The World node is scaled by RENDER_ZOOM, so one tile occupies TILE_PX * RENDER_ZOOM
+	# canvas pixels.  WorldRoot instances are offset along X by N * INSTANCE_OFFSET_PX in
+	# global space so they never overlap.  We must subtract the WorldRoot's global_position
+	# before dividing so that the resulting cell is local to THIS instance (0-based), not
+	# the raw global canvas coordinate.  Without this, any non-overworld instance (dungeon,
+	# maze, house) returns a cell shifted by ~N * 1562 tiles.
+	var instance_origin: Vector2 = Vector2.ZERO
+	if World.instance() != null:
+		var wr: WorldRoot = World.instance().get_player_world(pid)
+		if wr != null:
+			instance_origin = wr.global_position
+	# Divide the viewport-local offset by cam.zoom so the tile lookup stays
+	# accurate regardless of zoom level.  cam.zoom > 1 means fewer canvas
+	# pixels per screen pixel (zoomed in); cam.zoom < 1 means more (zoomed out).
+	var world_pos: Vector2 = (cam.global_position - instance_origin) + (viewport_local - vp_size * 0.5) / cam.zoom.x
 	var tile_world_px: float = float(WorldConst.TILE_PX) * float(WorldConst.RENDER_ZOOM)
 	return Vector2i(int(floor(world_pos.x / tile_world_px)), int(floor(world_pos.y / tile_world_px)))
 
