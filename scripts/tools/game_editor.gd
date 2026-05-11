@@ -13,6 +13,10 @@
 ##   godot res://scenes/tools/GameEditor.tscn
 extends Control
 
+## Emitted when the embedded close button is clicked.  In standalone mode
+## nothing is connected; in in-game overlay mode Game hides the layer.
+signal close_requested
+
 const MAPPINGS_PATH: String = "res://resources/tilesets/tile_mappings.tres"
 
 # Mapping kinds. Each entry drives the tree, decides which sheet to show,
@@ -810,6 +814,11 @@ func _build_toolbar() -> Control:
 	path_lbl.text = "  " + MAPPINGS_PATH
 	path_lbl.add_theme_color_override("font_color", Color(0.6, 0.7, 0.9))
 	hb.add_child(path_lbl)
+	var close_btn := Button.new()
+	close_btn.text = "✕"
+	close_btn.tooltip_text = "Close Game Editor overlay"
+	close_btn.pressed.connect(func(): close_requested.emit())
+	hb.add_child(close_btn)
 	return hb
 
 
@@ -1488,6 +1497,12 @@ func _save() -> void:
 	_save_btn.disabled = true
 	_revert_btn.disabled = true
 	_status_label.text = "saved → %s" % MAPPINGS_PATH
+	# Notify any in-game WorldRoot instances so they can rebuild their
+	# tilesets in real time.  Load the canonical (non-duplicated) resource
+	# so the `changed` signal originates from the object that WorldRoot watches.
+	var canonical: Variant = ResourceLoader.load(MAPPINGS_PATH, "", ResourceLoader.CACHE_MODE_REUSE)
+	if canonical is Resource:
+		(canonical as Resource).emit_changed()
 
 
 func _revert() -> void:
@@ -2722,4 +2737,60 @@ func _select_tree_item_by_id(mapping_id: StringName) -> void:
 				child.select(0)
 				return
 			child = child.get_next()
+		item = item.get_next()
+
+
+# ─── In-game navigation API ────────────────────────────────────────────
+#
+# Called by the in-game overlay system to jump to the relevant editor
+# category when the player Ctrl+clicks a tile.
+
+## Navigate to the mapping category for [param sheet_field] and pre-select
+## the slot matching [param terrain].  If [param terrain] is empty the
+## category is still activated so the sheet is visible.
+func navigate_to(sheet_field: StringName, terrain: StringName) -> void:
+	# Find the mapping entry that owns this field.
+	var target_entry: Dictionary = {}
+	for entry in _MAPPINGS:
+		if entry["field"] == sheet_field:
+			target_entry = entry
+			break
+	if target_entry.is_empty():
+		push_warning("GameEditor.navigate_to: no mapping for field '%s'" % sheet_field)
+		return
+	# Select the tree item (visual highlight).
+	_select_tree_item_direct(target_entry["id"])
+	# Activate the mapping — builds slots and shows the sheet.
+	_select_mapping(target_entry)
+	# If a terrain was provided, try to activate the matching slot.
+	if terrain != &"":
+		for i in _slots.size():
+			if StringName(_slots[i]["label"]) == terrain or _slots[i]["label"] == String(terrain):
+				_on_slot_pressed(i)
+				break
+
+
+## Navigate to the Mineable Resources editor and select [param ref_id].
+func navigate_to_mineable(ref_id: StringName) -> void:
+	for entry in _MAPPINGS:
+		if entry["kind"] == &"mineable":
+			_select_tree_item_direct(entry["id"])
+			_select_mapping(entry)
+			break
+	if _mineable_editor != null:
+		_mineable_editor.select_resource(ref_id)
+
+
+## Select the tree item whose metadata matches [param mapping_id], looking
+## at root's direct children (which is where all mapping items live).
+func _select_tree_item_direct(mapping_id: StringName) -> void:
+	var root: TreeItem = _tree.get_root()
+	if root == null:
+		return
+	var item: TreeItem = root.get_first_child()
+	while item != null:
+		var meta: Variant = item.get_metadata(0)
+		if meta is StringName and (meta as StringName) == mapping_id:
+			_tree.set_selected(item, 0)
+			return
 		item = item.get_next()

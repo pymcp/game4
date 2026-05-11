@@ -704,6 +704,19 @@ static var _maze_ts: TileSet = null
 static var _interior_ts: TileSet = null
 static var _runes_ts: TileSet = null
 
+## Invalidate all cached TileSets and sheet overrides so the next call to
+## overworld() / city() / dungeon() / interior() rebuilds from fresh data.
+## Called by WorldRoot.rebuild_tileset() after TileMappings changes in-game.
+static func invalidate_cache() -> void:
+	_overworld_ts  = null
+	_city_ts       = null
+	_dungeon_ts    = null
+	_maze_ts       = null
+	_interior_ts   = null
+	_runes_ts      = null
+	_sheet_overrides.clear()  # Force reload from TileMappings on next access.
+	invalidate_deco_cache()
+
 
 static func overworld() -> TileSet:
 	_ensure_loaded()

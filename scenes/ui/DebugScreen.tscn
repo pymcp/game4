@@ -78,6 +78,11 @@ theme_type_variation = &"WoodButton"
 focus_mode = 0
 text = "Toggle Tile Labels"
 
+[node name="GameEditor" type="Button" parent="Center/Panel/Margin/VBox/MainButtons"]
+theme_type_variation = &"WoodButton"
+focus_mode = 0
+text = "Open Game Editor"
+
 [node name="Close" type="Button" parent="Center/Panel/Margin/VBox/MainButtons"]
 theme_type_variation = &"WoodButton"
 focus_mode = 0
