@@ -9,6 +9,10 @@
 extends CanvasLayer
 class_name DebugScreen
 
+## Emitted when the user presses "Open Game Editor" in this menu.
+## Game wires this to open_game_editor() on the Game node.
+signal open_game_editor_requested
+
 @onready var _main_buttons_box: VBoxContainer = $Center/Panel/Margin/VBox/MainButtons
 @onready var _sub_panel:        VBoxContainer = $Center/Panel/Margin/VBox/SubPanel
 @onready var _sub_list:         VBoxContainer = $Center/Panel/Margin/VBox/SubPanel/SubList
@@ -21,6 +25,7 @@ class_name DebugScreen
 @onready var _btn_debug_mode:  Button = $Center/Panel/Margin/VBox/MainButtons/DebugMode
 @onready var _btn_hitbox:      Button = $Center/Panel/Margin/VBox/MainButtons/HitboxOverlay
 @onready var _btn_tiles:       Button = $Center/Panel/Margin/VBox/MainButtons/TileLabels
+@onready var _btn_game_editor: Button = $Center/Panel/Margin/VBox/MainButtons/GameEditor
 @onready var _btn_close:       Button = $Center/Panel/Margin/VBox/MainButtons/Close
 
 var _is_open:      bool  = false
@@ -54,15 +59,16 @@ func _ready() -> void:
 	_btn_debug_mode.pressed.connect(_on_debug_mode_pressed)
 	_btn_hitbox.pressed.connect(_on_hitbox_pressed)
 	_btn_tiles.pressed.connect(_on_tiles_pressed)
+	_btn_game_editor.pressed.connect(_on_game_editor_pressed)
 	_btn_close.pressed.connect(close)
 
 	# Disable Godot built-in focus traversal — we manage cursor manually.
 	for btn: Button in [_btn_teleport, _btn_items, _btn_monsters, _btn_caravan,
-			_btn_dungeon, _btn_debug_mode, _btn_hitbox, _btn_tiles, _btn_close]:
+			_btn_dungeon, _btn_debug_mode, _btn_hitbox, _btn_tiles, _btn_game_editor, _btn_close]:
 		btn.focus_mode = Control.FOCUS_NONE
 
 	_main_nav = [_btn_teleport, _btn_items, _btn_monsters, _btn_caravan,
-			_btn_dungeon, _btn_debug_mode, _btn_hitbox, _btn_tiles, _btn_close]
+			_btn_dungeon, _btn_debug_mode, _btn_hitbox, _btn_tiles, _btn_game_editor, _btn_close]
 	_nav.setup(_main_nav)
 	_refresh_debug_mode_label()
 
@@ -268,6 +274,11 @@ func _on_tiles_pressed() -> void:
 	var world: World = World.instance()
 	if world != null:
 		world.debug_toggle_tile_labels()
+
+
+func _on_game_editor_pressed() -> void:
+	close()
+	open_game_editor_requested.emit()
 
 
 # ─── Sub-list handler ─────────────────────────────────────────────────────────

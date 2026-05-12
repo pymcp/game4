@@ -5,10 +5,20 @@
 ##
 ## Hover:   compact one-liner near the cursor.
 ## Right-click: pins / unpins a full detail panel showing every layer.
+## Ctrl+left-click: emits tile_edit_requested so the in-game Game Editor
+##   can open and navigate to the correct mapping category.
 ##
 ## Call [method setup] once after cameras and viewports are ready.
 extends CanvasLayer
 class_name DebugTileInspector
+
+## Emitted when the user Ctrl+left-clicks a tile and selects a layer to edit.
+## Parameters:
+##   sheet_field — TileMappings field name (e.g. &"overworld_terrain")
+##   terrain     — Terrain/kind tag (e.g. &"grass")
+##   is_mineable — true when the selected layer is a mineable decoration
+##   ref_id      — Mineable ref_id if is_mineable, otherwise &""
+signal tile_edit_requested(sheet_field: StringName, terrain: StringName, is_mineable: bool, ref_id: StringName)
 
 ## Cameras indexed by player_id (0 = P1, 1 = P2).
 var _cameras: Array[Camera2D] = [null, null]
@@ -22,6 +32,10 @@ var _hover_cell: Vector2i = Vector2i(-9999, -9999)
 ## True when the detail panel is pinned by a right-click.
 var _pinned: bool = false
 
+## Layer-picker popup shown on Ctrl+left-click when multiple layers exist.
+var _layer_picker: PanelContainer = null
+var _layer_picker_vbox: VBoxContainer = null
+
 @onready var _hover_label:   Label          = $HoverLabel
 @onready var _detail_panel:  PanelContainer = $DetailPanel
 @onready var _detail_label:  Label          = $DetailPanel/Margin/DetailLabel
@@ -32,6 +46,7 @@ func _ready() -> void:
 	visible = false
 	_hover_label.visible = false
 	_detail_panel.visible = false
+	_build_layer_picker()
 
 
 ## Provide cameras and viewport containers so the inspector can convert mouse
@@ -93,7 +108,24 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
+		# Ctrl + left-click → open layer picker / edit tile.
+		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed and mb.ctrl_pressed:
+			_layer_picker.visible = false
+			var mouse_screen: Vector2 = get_viewport().get_mouse_position()
+			var pid: int = _pid_from_screen_pos(mouse_screen)
+			if pid >= 0:
+				var world_root: WorldRoot = World.instance().get_player_world(pid) if World.instance() != null else null
+				if world_root != null and _hover_cell != Vector2i(-9999, -9999):
+					var info: Dictionary = world_root.get_tile_info_at_cell(_hover_cell)
+					_show_layer_picker(info, mouse_screen)
+			get_viewport().set_input_as_handled()
+			return
 		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+			# Dismiss layer picker on any right-click.
+			if _layer_picker.visible:
+				_layer_picker.visible = false
+				get_viewport().set_input_as_handled()
+				return
 			if _pinned:
 				# Right-click again → unpin.
 				_pinned = false
@@ -243,3 +275,63 @@ func _build_detail_text(info: Dictionary) -> String:
 			lines.append("")
 
 	return "\n".join(lines)
+
+
+# ─── Layer picker popup ───────────────────────────────────────────────────────
+
+func _build_layer_picker() -> void:
+	_layer_picker = PanelContainer.new()
+	_layer_picker.visible = false
+	_layer_picker.z_index = 10
+	add_child(_layer_picker)
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 8)
+	_layer_picker.add_child(margin)
+	_layer_picker_vbox = VBoxContainer.new()
+	margin.add_child(_layer_picker_vbox)
+
+
+func _show_layer_picker(info: Dictionary, screen_pos: Vector2) -> void:
+	var layers: Array = info.get("layers", [])
+	if layers.is_empty():
+		return
+	# Clear previous buttons.
+	for c in _layer_picker_vbox.get_children():
+		c.queue_free()
+	var title := Label.new()
+	title.text = "Edit which layer?"
+	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.5))
+	_layer_picker_vbox.add_child(title)
+	for layer_info: Dictionary in layers:
+		var layer_name: String = layer_info.get("layer", "?")
+		var terrain: StringName = layer_info.get("terrain", &"")
+		var sheet_field: StringName = layer_info.get("sheet_field", &"")
+		var mn: Variant = layer_info.get("mineable", null)
+		var is_mineable: bool = mn is Dictionary
+		var ref_id: StringName = &""
+		var btn_label: String
+		if is_mineable:
+			ref_id = StringName((mn as Dictionary).get("ref_id", ""))
+			var display: String = (mn as Dictionary).get("display_name", String(terrain))
+			btn_label = "%s: %s (mineable)" % [layer_name, display]
+		else:
+			btn_label = "%s: %s" % [layer_name, String(terrain) if terrain != &"" else "?"]
+		var btn := Button.new()
+		btn.text = btn_label
+		btn.pressed.connect(_on_layer_pick_pressed.bind(sheet_field, terrain, is_mineable, ref_id))
+		_layer_picker_vbox.add_child(btn)
+	# Position picker near click, clamped to screen.
+	_layer_picker.reset_size()
+	var vp_size: Vector2 = Vector2(get_viewport().size)
+	var picker_pos: Vector2 = screen_pos + Vector2(12, 12)
+	picker_pos.x = clampf(picker_pos.x, 0.0, vp_size.x - 300.0)
+	picker_pos.y = clampf(picker_pos.y, 0.0, vp_size.y - 200.0)
+	_layer_picker.position = picker_pos
+	_layer_picker.visible = true
+
+
+func _on_layer_pick_pressed(sheet_field: StringName, terrain: StringName,
+		is_mineable: bool, ref_id: StringName) -> void:
+	_layer_picker.visible = false
+	tile_edit_requested.emit(sheet_field, terrain, is_mineable, ref_id)

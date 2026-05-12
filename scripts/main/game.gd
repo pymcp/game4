@@ -23,6 +23,7 @@ static func instance() -> Game:
 const _MathDeathScene: PackedScene = preload("res://scenes/ui/MathDeathScreen.tscn")
 const _DebugScreenScene: PackedScene = preload("res://scenes/ui/DebugScreen.tscn")
 const _DebugTileInspectorScene: PackedScene = preload("res://scenes/ui/DebugTileInspector.tscn")
+const _GameEditorScene: PackedScene = preload("res://scenes/tools/GameEditor.tscn")
 const _FloorConfirmMenuScene: PackedScene = preload("res://scenes/ui/FloorConfirmMenu.tscn")
 const _CaravanMenuScene: PackedScene = preload("res://scenes/ui/CaravanMenu.tscn")
 
@@ -63,6 +64,10 @@ var _player_p2: PlayerController = null
 var _math_death: MathDeathScreen = null
 var _debug_screen: DebugScreen = null
 var _tile_inspector: DebugTileInspector = null
+## In-game Game Editor overlay.  Lazily instantiated on first use (Ctrl+click or
+## DebugScreen "Open Game Editor").  Hidden rather than freed on close.
+var _game_editor_layer: CanvasLayer = null
+var _game_editor: Control = null
 var _dying_players: Dictionary = {}  ## Tracks pids currently in death countdown.
 
 ## Zoom step multipliers for Camera2D.zoom (applied on top of World's RENDER_ZOOM scale).
@@ -111,9 +116,11 @@ func _ready() -> void:
 	add_child(_math_death)
 	_debug_screen = _DebugScreenScene.instantiate() as DebugScreen
 	_debug_screen.name = "DebugScreen"
+	_debug_screen.open_game_editor_requested.connect(open_game_editor)
 	add_child(_debug_screen)
 	_tile_inspector = _DebugTileInspectorScene.instantiate() as DebugTileInspector
 	_tile_inspector.name = "DebugTileInspector"
+	_tile_inspector.tile_edit_requested.connect(_on_tile_edit_requested)
 	add_child(_tile_inspector)
 	_map_p1 = _build_worldmap_view(_container_p1)
 	_map_p2 = _build_worldmap_view(_container_p2)
@@ -755,3 +762,47 @@ func _ensure_knockout_overlay(container: Control) -> Label:
 	overlay.add_child(lbl)
 	container.add_child(overlay)
 	return lbl
+
+
+# ─── In-game Game Editor overlay ─────────────────────────────────────────────
+
+## Lazily create the embedded Game Editor overlay (CanvasLayer 60).
+## Safe to call multiple times — only instantiates once.
+func _ensure_game_editor() -> void:
+	if _game_editor != null:
+		return
+	_game_editor_layer = CanvasLayer.new()
+	_game_editor_layer.name = "GameEditorLayer"
+	_game_editor_layer.layer = 60
+	_game_editor_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_game_editor_layer)
+	_game_editor = _GameEditorScene.instantiate()
+	_game_editor.name = "GameEditor"
+	# Make the editor fill the layer but leave a visible game strip at the bottom.
+	_game_editor.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_game_editor.close_requested.connect(_on_game_editor_closed)
+	_game_editor_layer.add_child(_game_editor)
+	_game_editor_layer.visible = false
+
+
+## Open the in-game Game Editor overlay without navigating to a specific mapping.
+func open_game_editor() -> void:
+	_ensure_game_editor()
+	_game_editor_layer.visible = true
+
+
+## Called by DebugTileInspector when the player Ctrl+clicks a tile layer.
+func _on_tile_edit_requested(sheet_field: StringName, terrain: StringName,
+		is_mineable: bool, ref_id: StringName) -> void:
+	_ensure_game_editor()
+	_game_editor_layer.visible = true
+	if is_mineable:
+		_game_editor.navigate_to_mineable(ref_id)
+	else:
+		_game_editor.navigate_to(sheet_field, terrain)
+
+
+## Called when the close button inside the embedded Game Editor is clicked.
+func _on_game_editor_closed() -> void:
+	if _game_editor_layer != null:
+		_game_editor_layer.visible = false

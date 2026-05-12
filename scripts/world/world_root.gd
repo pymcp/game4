@@ -113,6 +113,12 @@ func _ready() -> void:
 	entities.child_exiting_tree.connect(func(node: Node) -> void:
 		if node is PlayerController or node is Monster:
 			mark_entity_cache_dirty())
+	# Listen for TileMappings changes so the in-game editor can trigger a
+	# live tileset rebuild without reloading the scene.
+	var mappings_res: Variant = ResourceLoader.load(
+			"res://resources/tilesets/tile_mappings.tres", "", ResourceLoader.CACHE_MODE_REUSE)
+	if mappings_res is Resource:
+		(mappings_res as Resource).changed.connect(rebuild_tileset)
 
 
 # --- Entity cache + LOD -----------------------------------------
@@ -354,6 +360,28 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 
 
 # --- Overworld loading & painting ----------------------------------
+
+## Rebuild the TileSet for the currently active view and repaint all tiles.
+## Called when TileMappings changes via the in-game Game Editor overlay.
+func rebuild_tileset() -> void:
+	TilesetCatalog.invalidate_cache()
+	_clear_all_tilemaps()
+	if _last_view_kind == &"overworld":
+		_attach_overworld_tilesets()
+		if _region != null:
+			_paint_region(_region)
+	else:
+		_attach_interior_tilesets(_last_view_kind)
+		if _interior != null:
+			_paint_interior(_interior, _last_view_kind)
+	_build_mineable_index()
+
+
+func _clear_all_tilemaps() -> void:
+	for layer: TileMapLayer in [ground, patch, decoration, canopy]:
+		if layer != null:
+			layer.clear()
+
 
 static func _resolve_land_region(start: Region) -> Region:
 	if start != null and not start.is_ocean and not start.spawn_points.is_empty():
