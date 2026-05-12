@@ -13,7 +13,7 @@
         {"id": "enter_mine",    "type": "reach",    "location": "moonstone_mine",                "description": "Enter the old moonstone mine"},
         {"id": "seal_leak",     "type": "interact", "target":   "mine_leak",                     "description": "Seal the contamination source"},
         {"id": "get_evidence",  "type": "collect",  "item": "contaminated_ore",   "count": 1,    "description": "Collect contaminated ore as evidence"},
-        {"id": "show_evidence", "type": "talk",     "npc":  "Mara",                              "description": "Return to Mara and show her the ore"},
+        {"id": "show_evidence", "type": "talk", "npc": "Mara", "require_item": "contaminated_ore", "description": "Return to Mara and show her the ore"},
         {"id": "get_fennel",    "type": "collect",  "item": "fennel_root",        "count": 1,    "description": "Gather fennel root"},
         {"id": "get_mushroom",  "type": "collect",  "item": "blue_nightcap",      "count": 1,    "description": "Gather blue nightcap mushrooms"},
         {"id": "get_water",     "type": "collect",  "item": "clean_spring_water", "count": 1,    "description": "Collect clean spring water"},

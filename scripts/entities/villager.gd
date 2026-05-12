@@ -415,8 +415,8 @@ func interact(player: PlayerController) -> bool:
 func _setup_quest_indicator() -> void:
 	if quest_giver_name.is_empty():
 		return
-	# Cache which quests this villager gives.
-	_giver_quest_ids = QuestRegistry.get_quests_by_giver(quest_giver_name)
+	# Cache all quests this villager participates in: as giver OR as a talk target.
+	_giver_quest_ids = QuestRegistry.get_quests_involving_npc(quest_giver_name)
 	if _giver_quest_ids.is_empty():
 		return
 	# Build the indicator label.
@@ -490,6 +490,10 @@ func _try_quest_turn_in(_player: PlayerController) -> void:
 				continue
 			if QuestTracker.get_objective_progress(qid, obj["id"]) > 0:
 				continue  # already done — skip to next
+			# Optional item gate: "require_item" must be in the player's inventory.
+			var req_item: String = obj.get("require_item", "")
+			if req_item != "" and _player.inventory.count_of(StringName(req_item)) < 1:
+				break  # player doesn't have it yet — stop here, don't skip ahead
 			QuestTracker.mark_objective_done(qid, obj["id"])
 			break  # only advance the first incomplete talk objective per visit
 		# Auto-complete if all objectives now met.

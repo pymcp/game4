@@ -139,6 +139,28 @@ static func get_quests_by_giver(giver_name: String) -> Array[String]:
 	return out
 
 
+## Return all quest IDs where [param npc_name] appears as the giver OR as the
+## target of any "talk" objective in any branch. Used by Villager to know which
+## quests to scan for turn-in credit, regardless of who gave the quest.
+static func get_quests_involving_npc(npc_name: String) -> Array[String]:
+	_ensure_loaded()
+	var out: Array[String] = []
+	for qid in _quests:
+		var quest: Dictionary = _quests[qid] as Dictionary
+		if quest.get("giver", "") == npc_name:
+			out.append(qid)
+			continue
+		for bid in quest.get("branches", {}).keys():
+			var branch: Dictionary = quest["branches"][bid] as Dictionary
+			for obj in branch.get("objectives", []):
+				if obj.get("type", "") == "talk" and obj.get("npc", "") == npc_name:
+					out.append(qid)
+					break  # found in this branch, no need to check other branches
+			if out.has(qid):
+				break
+	return out
+
+
 ## Look up the quest and branch that uses [param flag] as its trigger_flag.
 ## Returns {"quest_id": String, "branch_id": String} or an empty Dictionary.
 static func get_quest_for_trigger_flag(flag: String) -> Dictionary:
