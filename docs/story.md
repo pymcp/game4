@@ -59,44 +59,56 @@ Epilogue   — The Long Mending       [PLANNED]
 
 ## Chapter 1 — The Quiet Sickness
 
-**Status:** Quest implemented (`herbalist_remedy`). Dialogue implemented.
+**Status:** Implemented. Quests: `herbalist_remedy`, `valley_witness`. All Ch1 NPCs placed.
 
 ### Premise
-The player arrives in a starting valley. Animals are behaving wrongly — wolves won't retreat, livestock won't eat. A herbalist named Mara has been quietly investigating and suspects the old moonstone mine east of the village is the culprit.
+The player arrives in a starting valley. Animals are behaving wrongly — wolves won't retreat, livestock won't eat. A herbalist named Mara has been quietly investigating and suspects the old moonstone mine east of the village is the culprit. A courier named Edda arrives with corroborating reports from other regions.
 
 ### Key Locations
 | Location | Description |
 |---|---|
 | Player spawn | Center of the starting valley. Village well, a few scattered buildings. |
 | Mara's position | ~10 tiles east-southeast of spawn, on the village edge. |
-| Village well | ~6 tiles northeast of spawn. Contaminated. |
+| Village well | ~6 tiles northeast of spawn. Contaminated. Quest interactable. |
 | Birch grove | ~22–24 tiles east. Landmark between village and mine. |
-| Moonstone mine | ~40 tiles east. Labyrinth entrance. Contains a Null leak point. |
+| Moonstone mine | ~40 tiles east. Labyrinth entrance. Contains a Null leak point. Aetherian rune tiles inside. |
 | Clean spring | ~20 tiles southwest. Uncontaminated water source. |
 
 ### Key NPCs
 | NPC | Role |
 |---|---|
-| Mara | Herbalist and quest giver. Practical, observant, not given to dramatics. She suspects the mine; she doesn't know about Null. |
-| Corrupted Golem (boss) | Guardian construct left by the Aetherians to protect the mine. Now malfunctioning and aggressive due to Null saturation. The player doesn't know this yet. |
+| Mara | Herbalist and quest giver (`herbalist_remedy`). Practical, observant. Suspects the mine; doesn't know about Null. Post-quest gives crystalline ore hint (sets `mara_crystalline_hint`). |
+| Edda | Traveling courier, quest giver (`valley_witness`). Placed near the well (~4 tiles NE of spawn). Has documented the same sickness across a dozen regions. Completion sets `aldric_known` (Ch2 seed). |
+| Farmer Ren | Ambient NPC (~8 tiles N of spawn). Worried about livestock. Quest step in `valley_witness`. |
+| Storyteller | Narrative recall NPC (~6 tiles NW of spawn). Speaks the highest-priority Ch1 event the player has witnessed. No quest giving. |
+| Corrupted Golem (boss) | Guardian construct left by the Aetherians. Now malfunctioning due to Null saturation. |
 
 ### Quest Flow
-1. Player meets Mara → she describes the symptoms and suspects the mine
-2. Player investigates mine → discovers a cracked ore seam leaking dark residue
+**herbalist_remedy** — Mara's quest (3 branches: herbs / mine / both)
+1. Player meets Mara → she describes symptoms and suspects the mine
+2. Player investigates mine → discovers cracked ore seam leaking dark residue
 3. Player seals the leak and retrieves contaminated ore as evidence
 4. Mara analyses the ore → identifies moonstone residue, brews a local remedy
 5. Player gathers herbs + clean water → Mara completes the antidote
 6. Wildlife in the valley begins to recover
 
+**valley_witness** — Edda's quest (single branch)
+1. Player meets Edda near the well → she describes the wider pattern
+2. Player examines the contaminated well
+3. Player speaks with Farmer Ren about his animals
+4. Player returns to Edda → she names Aldric Farrow in Tidehaven (Ch2 seed)
+
 ### What the Player Doesn't Know Yet
 - The seam they sealed is one of hundreds. The Null is in every moonstone vein across the world.
 - The corrupted golem was an Aetherian construct. The rune markings inside the mine are Aetherian script.
 - The "dark residue" is Null — the player has no word for it yet.
+- Aldric Farrow knows the eastern waters — but the player doesn't know why that matters.
 
 ### Seeds for Chapter 2
-- Mara notes: "This ore sample is strange. The contamination isn't just chemical — there's something almost... crystalline about it. I've never seen anything like it."
-- The rune tiles inside the mine are interactable. Touching them prints a cryptic message. The player can't read them yet.
-- A sailor NPC in the valley (or a notice board) mentions that coastal villages further east are reporting similar symptoms.
+- Mara (post-quest): "This ore is crystalline — not just contaminated. Structured. Like something refined it." Sets `mara_crystalline_hint`.
+- Edda (quest completion): Names Aldric Farrow in **Tidehaven** (the coastal city). Sets `aldric_known`.
+- Rune tiles inside the mine (Aetherian script, unreadable). Interaction sets `rune_tile_touched`.
+- Storyteller NPC recalls all Ch1 events in order of significance.
 
 ---
 
@@ -113,7 +125,7 @@ After solving the local crisis, the player learns the sickness isn't contained t
 ### Key Beats
 1. **Pattern emerges** — A travelling scholar (new NPC) arrives in the valley having mapped sickness reports from multiple regions. The reports cluster around areas with dense moonstone deposits. The scholar has also documented rune markers — they appear near every cluster.
 2. **Following the veins** — The player must travel through 2–3 regions, each with a local sickness quest variant (different animal, different terrain, same root cause). Each region contains a rune marker.
-3. **The coastal city** — A larger settlement on the coast. A cartographer NPC here has old nautical charts showing that the contamination pattern points to a chain of islands far to the east — beyond normal sailing routes. A retired captain knows the waters.
+3. **Tidehaven** (the coastal city) — A larger settlement on the coast. A cartographer NPC here has old nautical charts showing that the contamination pattern points to a chain of islands far to the east — beyond normal sailing routes. Aldric Farrow, a retired captain named by Edda, knows the waters.
 4. **Acquiring a better boat** — The player's current boat is insufficient. A sub-quest to repair or commission a vessel capable of open-ocean travel.
 5. **Chapter end** — The player sails east.
 
@@ -128,7 +140,7 @@ After solving the local crisis, the player learns the sickness isn't contained t
 | Location | Description |
 |---|---|
 | 2–3 mid-chapter regions | Each a new biome with a local sickness encounter. Rune markers present. |
-| Coastal city | Larger hub. Market, cartographer, docks, tavern with rumours. |
+| Tidehaven (coastal city) | Larger hub. Market, cartographer, docks, tavern with rumours. Home of Aldric Farrow. |
 | Open ocean crossing | Transition sequence. Possible encounter at sea (storm, creature, ghost ship). |
 
 ### Seeds for Chapter 3
@@ -283,7 +295,7 @@ The refineries are shut down. The players return through the fold-gate network �
 - Gates require Null power to operate — ironic given that Null is the cause of the problem
 
 ### Rune Markers in the Starting World
-Rune markers are already placed procedurally across all land regions. Their in-world explanation: they are Aetherian waypoints, placed centuries ago to guide travelers near fold-gate approach corridors. Most are near defunct gate sites. The cluster near the eastern coastal city is near a gate that is *almost* still active — which is why that marker glows slightly warmer than others. This is discoverable in chapter 2.
+Rune markers are already placed procedurally across all land regions. Their in-world explanation: they are Aetherian waypoints, placed centuries ago to guide travelers near fold-gate approach corridors. Most are near defunct gate sites. The cluster near Tidehaven is near a gate that is *almost* still active — which is why that marker glows slightly warmer than others. This is discoverable in chapter 2.
 
 ---
 

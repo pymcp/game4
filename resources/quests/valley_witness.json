@@ -1,0 +1,44 @@
+{
+  "id": "valley_witness",
+  "display_name": "The Word on the Wind",
+  "giver": "Edda",
+  "description": "A traveling courier named Edda has been charting the same sickness across a dozen regions. Help her document this valley before she moves on.",
+  "prerequisites": [],
+  "branches": {
+    "main": {
+      "display_name": "The Word on the Wind",
+      "description": "Help Edda gather evidence from the valley: examine the well, speak to the farmer, then report back.",
+      "trigger_flag": "quest_valley_witness_main",
+      "objectives": [
+        {"id": "talk_edda",    "type": "talk",    "npc": "Edda",         "description": "Speak with Edda the courier"},
+        {"id": "examine_well", "type": "interact", "target": "village_well", "description": "Examine the contaminated village well"},
+        {"id": "speak_farmer", "type": "talk",    "npc": "Ren",          "description": "Talk to Farmer Ren about his livestock"},
+        {"id": "return_edda",  "type": "talk",    "npc": "Edda",         "description": "Return to Edda with your findings"}
+      ],
+      "rewards": [
+        {"type": "flag", "flag": "edda_quest_complete"},
+        {"type": "flag", "flag": "aldric_known"}
+      ]
+    }
+  },
+  "reward_variants": {},
+  "requires": {
+    "npcs": [
+      {"id": "Edda",  "role": "quest giver and turn-in", "location_hint": "near village well", "status": "IMPLEMENTED"},
+      {"id": "Ren",   "role": "quest step NPC (farmer)",  "location_hint": "north of spawn",   "status": "IMPLEMENTED"}
+    ],
+    "items": [],
+    "locations": [
+      {"id": "village_well", "type": "interaction_point", "description": "contaminated well in starting area", "status": "IMPLEMENTED"}
+    ],
+    "entities": [],
+    "terrain_features": [],
+    "dialogue_updates": [
+      {"id": "edda_intro",      "description": "Edda intro + quest offer dialogue",           "status": "IMPLEMENTED"},
+      {"id": "edda_mid_quest",  "description": "Edda mid-quest reminder before return",       "status": "IMPLEMENTED"},
+      {"id": "edda_completion", "description": "Edda completion / Tidehaven / Aldric hint",  "status": "IMPLEMENTED"},
+      {"id": "farmer_ren",      "description": "Farmer Ren dialogue before/after Edda quest", "status": "IMPLEMENTED"}
+    ],
+    "notes": "Single linear branch. Player talks to Edda, examines well (via QuestInteractable.advances), talks to Farmer Ren, returns to Edda. Completion sets aldric_known for Ch2."
+  }
+}

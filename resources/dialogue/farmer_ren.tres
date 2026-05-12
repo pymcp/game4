@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="DialogueTree" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dialogue_node.gd" id="1_t1tko"]
+[ext_resource type="Script" path="res://scripts/data/dialogue_choice.gd" id="2_qigen"]
+[ext_resource type="Script" path="res://scripts/data/dialogue_tree.gd" id="3_hdaf8"]
+
+[sub_resource type="Resource" id="Resource_wgqyy"]
+script = ExtResource("1_t1tko")
+speaker = "Ren"
+text = "That courier woman came by — asked the same questions you did. At least someone's paying attention. Maybe things will change."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_exoo7"]
+script = ExtResource("2_qigen")
+label = "How are your animals doing?"
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_wgqyy")
+require_flag = "edda_quest_complete"
+require_flag_false = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_m2isx"]
+script = ExtResource("1_t1tko")
+speaker = "Ren"
+text = "My goat won't eat. Dog won't stop barking at the east pasture. Been like this since the mine started leaking again. Something's wrong with the land."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_y1ygv"]
+script = ExtResource("2_qigen")
+label = "How are your animals doing?"
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_m2isx")
+require_flag = ""
+require_flag_false = ""
+set_flag = "farmer_ren_spoken"
+
+[sub_resource type="Resource" id="Resource_w1lrs"]
+script = ExtResource("1_t1tko")
+speaker = "Ren"
+text = "Aye?"
+choices = Array[Resource]([SubResource("Resource_exoo7"), SubResource("Resource_y1ygv")])
+condition_flag = ""
+condition_flag_false = ""
+
+[resource]
+script = ExtResource("3_hdaf8")
+root = SubResource("Resource_w1lrs")

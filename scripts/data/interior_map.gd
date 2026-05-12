@@ -75,6 +75,9 @@ const MAX_SIZE: int = 96
 ## a dungeon or labyrinth. WorldRoot uses room-wall tiles for cells inside
 ## these rects instead of the cave autotile.
 @export var chamber_rects: Array = []  # Array of Rect2i
+## Aetherian rune markers inside the interior.
+## Each entry: {cell: Vector2i, source: int, atlas: Vector2i} — same format as Region.runes.
+@export var runes: Array = []
 
 
 func _init() -> void:

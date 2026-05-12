@@ -119,6 +119,8 @@ static func generate(seed_val: int, width: int, height: int,
 
 	_scatter_enemies(rng, m, junctions, entry_idx, floor_num)
 
+	_place_runes(rng, m, junctions, entry_idx)
+
 	return m
 
 
@@ -309,6 +311,54 @@ static func _scatter_enemies(rng: RandomNumberGenerator, m: InteriorMap,
 			"cell": jcell,
 			"tier": MonsterTier.roll_tier(floor_num, rng),
 		})
+
+
+# ─── Rune placement ──────────────────────────────────────────────────────
+
+## Place 2–4 blue Aetherian rune markers on floor cells inside the maze.
+## Uses source=2 (blue/classified) to distinguish from overworld runes.
+## Avoids entry cell, boss room cells, and cells adjacent to the entry junction.
+static func _place_runes(rng: RandomNumberGenerator, m: InteriorMap,
+		junctions: Array, entry_idx: int) -> void:
+	var count: int = rng.randi_range(2, 4)
+	var boss_cells: Dictionary = {}
+	for cell in m.boss_room_cells:
+		boss_cells[cell] = true
+	# Atlas variants: 9 cells available (col 0-2, row 0-2) on the rune sheet.
+	const ATLAS_VARIANTS: Array[Vector2i] = [
+		Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0),
+		Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1),
+		Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2),
+	]
+	var entry_junction: Vector2i = junctions[entry_idx]
+	var placed: int = 0
+	var attempts: int = 0
+	const MAX_ATTEMPTS: int = 200
+	while placed < count and attempts < MAX_ATTEMPTS:
+		attempts += 1
+		var idx: int = rng.randi_range(0, junctions.size() - 1)
+		if idx == entry_idx:
+			continue
+		var cell: Vector2i = junctions[idx]
+		if m.at(cell) != TerrainCodes.INTERIOR_FLOOR:
+			continue
+		if boss_cells.has(cell):
+			continue
+		# Avoid placing too close to the entry.
+		var dist: int = abs(cell.x - entry_junction.x) + abs(cell.y - entry_junction.y)
+		if dist < 6:
+			continue
+		# Avoid duplicate cells.
+		var already: bool = false
+		for r in m.runes:
+			if r["cell"] == cell:
+				already = true
+				break
+		if already:
+			continue
+		var atlas: Vector2i = ATLAS_VARIANTS[rng.randi_range(0, ATLAS_VARIANTS.size() - 1)]
+		m.runes.append({"cell": cell, "source": 2, "atlas": atlas})
+		placed += 1
 
 
 # ─── Room chambers ────────────────────────────────────────────────────────

@@ -22,6 +22,13 @@ extends Node2D
 @export var give_item_count: int = 1
 ## When true the node is NOT removed after interaction (use for permanent fixtures).
 @export var persistent: bool = false
+## Additional quest objectives to advance on interact (beyond the primary quest_id/objective_id pair).
+## Each entry: {quest_id: String, objective_id: String}
+@export var advances: Array = []
+## Optional GameState flag: if set and true, show [member conditional_text] instead of [member interact_text].
+@export var condition_flag: String = ""
+## Text shown when [member condition_flag] is set and true.
+@export var conditional_text: String = ""
 
 var _used: bool = false
 
@@ -32,18 +39,28 @@ func interact(player: Node) -> void:
 	_used = true
 	if quest_id != "" and objective_id != "":
 		QuestTracker.mark_objective_done(quest_id, objective_id)
+	# Advance any additional quest objectives.
+	for entry in advances:
+		var qid: String = entry.get("quest_id", "")
+		var oid: String = entry.get("objective_id", "")
+		if qid != "" and oid != "":
+			QuestTracker.mark_objective_done(qid, oid)
 	if give_item_id != &"" and player is PlayerController:
 		var pc := player as PlayerController
 		if pc.inventory != null:
 			pc.inventory.add(give_item_id, give_item_count)
 			QuestTracker.notify_item_collected(give_item_id, give_item_count)
+	# Pick the appropriate display text.
+	var display_text: String = interact_text
+	if condition_flag != "" and GameState.get_flag(condition_flag):
+		display_text = conditional_text
 	# Show a one-liner via WorldRoot.
 	var wr: Node = self
 	while wr != null and not (wr is WorldRoot):
 		wr = wr.get_parent()
 	if wr != null and player is PlayerController:
 		var pc := player as PlayerController
-		(wr as WorldRoot).show_dialogue(pc.player_id, interact_speaker, interact_text, self)
+		(wr as WorldRoot).show_dialogue(pc.player_id, interact_speaker, display_text, self)
 	if persistent:
 		_used = false  # Allow re-interaction on next visit
 		return

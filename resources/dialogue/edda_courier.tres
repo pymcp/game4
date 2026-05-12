@@ -1,0 +1,183 @@
+[gd_resource type="Resource" script_class="DialogueTree" load_steps=23 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dialogue_node.gd" id="1_vtbkn"]
+[ext_resource type="Script" path="res://scripts/data/dialogue_choice.gd" id="2_364rs"]
+[ext_resource type="Script" path="res://scripts/data/dialogue_tree.gd" id="3_v3je5"]
+
+[sub_resource type="Resource" id="Resource_vnmj0"]
+script = ExtResource("1_vtbkn")
+speaker = "Edda"
+text = "I'll be moving on soon. Safe roads to you, traveller."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_5x0lo"]
+script = ExtResource("2_364rs")
+label = "Anything else I should know?"
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_vnmj0")
+require_flag = "edda_quest_complete"
+require_flag_false = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_kpo1y"]
+script = ExtResource("1_vtbkn")
+speaker = "Edda"
+text = "The well, the farm, the mine — it's the same story I've heard in a dozen valleys. Something is wrong with the land here, and it's not local. If you're ever heading east, find the docks at Tidehaven. Ask for Aldric Farrow. He knows those waters better than anyone alive. Tell him Edda sent you."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_q3ron"]
+script = ExtResource("2_364rs")
+label = "I've checked the well and spoken to the farmer."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_kpo1y")
+require_flag = "quest_valley_witness_obj_speak_farmer_done"
+require_flag_false = "edda_quest_complete"
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_aowug"]
+script = ExtResource("1_vtbkn")
+speaker = "Edda"
+text = "I still need both: what you saw at the well, and what the farmer told you. Come back when you have both."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_vjx5j"]
+script = ExtResource("2_364rs")
+label = "I spoke to the farmer, but haven't checked the well yet."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_aowug")
+require_flag = "quest_valley_witness_obj_speak_farmer_done"
+require_flag_false = "quest_valley_witness_obj_examine_well_done"
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_eisb3"]
+script = ExtResource("2_364rs")
+label = "I checked the well, but haven't spoken to the farmer yet."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_aowug")
+require_flag = "quest_valley_witness_obj_examine_well_done"
+require_flag_false = "quest_valley_witness_obj_speak_farmer_done"
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_edcc0"]
+script = ExtResource("2_364rs")
+label = "I'm still working on it."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_aowug")
+require_flag = "quest_valley_witness_main"
+require_flag_false = "edda_quest_complete"
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_2t0be"]
+script = ExtResource("2_364rs")
+label = "Understood. I'll get both."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_aowug")
+require_flag = ""
+require_flag_false = ""
+set_flag = "quest_valley_witness_main"
+
+[sub_resource type="Resource" id="Resource_ryc4l"]
+script = ExtResource("1_vtbkn")
+speaker = "Edda"
+text = "Information. The kind that might keep you alive east of here. Now go."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_fc1fx"]
+script = ExtResource("2_364rs")
+label = "What's in it for me?"
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_ryc4l")
+require_flag = ""
+require_flag_false = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_muqnq"]
+script = ExtResource("1_vtbkn")
+speaker = "Edda"
+text = "Two things: examine the village well and tell me what you smell on the water, then find whoever farms nearest to the mine and ask them what's changed with their animals. I'll wait here."
+choices = Array[Resource]([SubResource("Resource_2t0be"), SubResource("Resource_fc1fx")])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_myt2n"]
+script = ExtResource("2_364rs")
+label = "What do you need?"
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_muqnq")
+require_flag = ""
+require_flag_false = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_u6dg5"]
+script = ExtResource("1_vtbkn")
+speaker = "Edda"
+text = "Your loss. The valley will be worse off for it."
+choices = Array[Resource]([])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_0visj"]
+script = ExtResource("2_364rs")
+label = "I'm not interested."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_u6dg5")
+require_flag = ""
+require_flag_false = ""
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_abxdy"]
+script = ExtResource("1_vtbkn")
+speaker = "Edda"
+text = "You. You've come through the wilds recently — I can tell. I've been mapping this sickness across a dozen regions. It's always the same: animals go feral near old mines, the water turns, the farmers start losing livestock. I need this valley documented before I move on. You can help."
+choices = Array[Resource]([SubResource("Resource_myt2n"), SubResource("Resource_0visj")])
+condition_flag = ""
+condition_flag_false = ""
+
+[sub_resource type="Resource" id="Resource_kfl3c"]
+script = ExtResource("2_364rs")
+label = "Yes — what's going on?"
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_abxdy")
+require_flag = ""
+require_flag_false = "quest_valley_witness_main"
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_kbfi3"]
+script = ExtResource("2_364rs")
+label = "I can't say I have."
+stat_check = &""
+stat_threshold = 0
+next_node = SubResource("Resource_abxdy")
+require_flag = ""
+require_flag_false = "quest_valley_witness_main"
+set_flag = ""
+
+[sub_resource type="Resource" id="Resource_jswev"]
+script = ExtResource("1_vtbkn")
+speaker = "Edda"
+text = "The water in that well tastes wrong. You've noticed, haven't you?"
+choices = Array[Resource]([SubResource("Resource_5x0lo"), SubResource("Resource_q3ron"), SubResource("Resource_vjx5j"), SubResource("Resource_eisb3"), SubResource("Resource_edcc0"), SubResource("Resource_kfl3c"), SubResource("Resource_kbfi3")])
+condition_flag = ""
+condition_flag_false = ""
+
+[resource]
+script = ExtResource("3_v3je5")
+root = SubResource("Resource_jswev")

@@ -12,6 +12,11 @@ func _init() -> void:
 	var leaf_complete := _leaf("Mara",
 		"The valley's breathing easier. Whatever was in that ore, you stopped it from spreading further. Come back when you need a tonic -- I'll always have one ready for you.")
 
+	# ─── Phase 4b: crystalline reflection (post-completion, sets Ch2 seed) ─
+	# Shown once after valley_remedy_brewed; flag mara_crystalline_hint prevents repeat.
+	var leaf_crystalline := _leaf("Mara",
+		"I keep thinking about that ore you brought me. The contamination isn't just chemical — there's something almost... crystalline about it. I've never seen anything like it. It makes me wonder how far back this goes.")
+
 	# ─── Phase 3: herbs gathering (evidence shown, quest not yet complete) ──
 	var herbs_return := _leaf("Mara",
 		"This ore -- I can smell the contamination from here. Moonstone residue, just as I suspected. To brew the remedy I need three things: fennel root from along the riverbank, a blue nightcap mushroom -- they grow in shaded spots -- and clean spring water. Not from the village well; it's still tainted. There's a spring to the southwest, past the old stone marker.")
@@ -99,6 +104,8 @@ func _init() -> void:
 		# Return-visit phase routing (shown in place of the intro choices).
 		_choice_require("How is the valley doing?", leaf_complete,
 			"quest_herbalist_remedy_complete", ""),
+		_choice_require_flag("About that ore sample...", leaf_crystalline,
+			"valley_remedy_brewed", "mara_crystalline_hint", "mara_crystalline_hint"),
 		_choice_require("I have the herbs and water you asked for.", herbs_return,
 			"quest_herbalist_remedy_obj_show_evidence_done",
 			"quest_herbalist_remedy_complete"),
@@ -188,4 +195,15 @@ func _choice_stat_intro(stat: StringName, threshold: int, label: String,
 	c.stat_threshold = threshold
 	c.next_node = next
 	c.require_flag_false = "quest_herbalist_main"
+	return c
+
+
+func _choice_require_flag(label: String, next: DialogueNode,
+		require: String, require_false: String, flag: String) -> DialogueChoice:
+	var c: DialogueChoice = DialogueChoice.new()
+	c.label = label
+	c.next_node = next
+	c.require_flag = require
+	c.require_flag_false = require_false
+	c.set_flag = flag
 	return c

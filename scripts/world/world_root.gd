@@ -748,6 +748,10 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 	_paint_dungeon_floor_border(interior, floor_border)
 	_paint_dungeon_corridor_frames(interior)
 	_paint_dungeon_stair_markers(interior)
+	# Paint Aetherian rune markers on the Overlay layer.
+	for rune in interior.runes:
+		var rc: Vector2i = rune["cell"]
+		overlay.set_cell(rc, int(rune["source"]), rune["atlas"], 0)
 
 
 ## Paint chamber_rects inside a dungeon/labyrinth with stone room-wall tiles.
@@ -1428,7 +1432,7 @@ func _build_door_index(view_kind: StringName) -> void:
 				_doors[c] = {"kind": &"dungeon_enter", "cell": c}
 		for rune in _region.runes:
 			var rc: Vector2i = rune["cell"]
-			_doors[rc] = {"kind": &"rune", "cell": rc, "source": int(rune["source"])}
+			_doors[rc] = {"kind": &"rune", "cell": rc, "source": int(rune["source"]), "atlas": rune.get("atlas", Vector2i.ZERO)}
 	elif _interior != null:
 		if view_kind == &"dungeon" or view_kind == &"maze":
 			_doors[_interior.entry_cell] = {"kind": &"stairs_up"}
@@ -1438,6 +1442,10 @@ func _build_door_index(view_kind: StringName) -> void:
 				_doors[_interior.exit_cell] = {"kind": &"stairs_down"}
 			else:
 				_doors[_interior.exit_cell] = {"kind": &"stairs_exit"}
+			# Register rune markers as walkable interactables.
+			for rune in _interior.runes:
+				var rc: Vector2i = rune["cell"]
+				_doors[rc] = {"kind": &"rune", "cell": rc, "source": int(rune["source"]), "atlas": rune.get("atlas", Vector2i.ZERO)}
 		else:
 			_doors[_interior.exit_cell] = {"kind": &"interior_exit"}
 
@@ -1445,8 +1453,22 @@ func _build_door_index(view_kind: StringName) -> void:
 func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) -> void:
 	match door["kind"]:
 		&"rune":
-			last_rune_message = "Player %d touched an ancient symbol (color=%d)" % [player.player_id + 1, int(door["source"])]
-			print(last_rune_message)
+			# Select one of three messages based on atlas hash so different runes
+			# feel distinct without needing per-cell scripting.
+			const RUNE_MESSAGES: Array[String] = [
+				"An ancient symbol. The script is angular and precise — nothing like any language you know. Some symbols glow faintly blue.",
+				"An ancient symbol, different from the last. The lines are deliberate — someone carved these to last.",
+				"A third ancient symbol. The blue glow is faint but unmistakable. Whatever this says, it was important.",
+			]
+			var atlas_hash: int = 0
+			if door.has("atlas") and door["atlas"] is Vector2i:
+				var a: Vector2i = door["atlas"] as Vector2i
+				atlas_hash = a.x + a.y * 3
+			var msg: String = RUNE_MESSAGES[atlas_hash % RUNE_MESSAGES.size()]
+			last_rune_message = msg
+			show_dialogue(player.player_id, "", msg, null)
+			if not GameState.get_flag("rune_tile_touched"):
+				GameState.set_flag("rune_tile_touched")
 		&"dungeon_enter":
 			_handle_enter_interior(player, cell, &"dungeon")
 		&"house_enter":
@@ -1715,6 +1737,9 @@ const _TreasureChestScene: PackedScene = preload("res://scenes/entities/Treasure
 
 func _spawn_scattered_npcs() -> void:
 	_maybe_inject_mara()
+	_maybe_inject_edda()
+	_maybe_inject_farmer_ren()
+	_maybe_inject_storyteller()
 	_maybe_inject_quest_interactables()
 	# Increment the visit counter for overworld regions so the respawn logic
 	# can tell "killed this visit" from "killed a previous visit".
@@ -1820,7 +1845,93 @@ func _maybe_inject_mara() -> void:
 	QuestTracker.register_objective_position("herbalist_remedy", "return_mara", rid, cell)
 
 
+func _maybe_inject_edda() -> void:
+	# Only inject Edda on the overworld starting region.
+	if _interior != null or _region == null:
+		return
+	var rid: Vector2i = _region.region_id
+	if abs(rid.x) > 1 or abs(rid.y) > 1:
+		return
+	for entry in _region.npcs_scatter:
+		if typeof(entry) == TYPE_DICTIONARY \
+				and entry.get("dialogue", "") == "res://resources/dialogue/edda_courier.tres":
+			var edda_cell: Vector2i = entry.get("cell", Vector2i.ZERO)
+			QuestTracker.register_objective_position("valley_witness", "talk_edda", rid, edda_cell)
+			QuestTracker.register_objective_position("valley_witness", "return_edda", rid, edda_cell)
+			return
+	if _region.spawn_points.is_empty():
+		return
+	var centre: Vector2i = _region.spawn_points[0]
+	# Place near the village well (north-northwest of spawn).
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(4, -10), 32, true)
+	_region.npcs_scatter.append({
+		"kind": &"villager",
+		"cell": cell,
+		"seed": 0xE1D3A,  # Deterministic seed for Edda's appearance.
+		"dialogue": "res://resources/dialogue/edda_courier.tres",
+		"quest_giver_name": "Edda",
+	})
+	QuestTracker.register_objective_position("valley_witness", "talk_edda", rid, cell)
+	QuestTracker.register_objective_position("valley_witness", "return_edda", rid, cell)
+
+
+func _maybe_inject_farmer_ren() -> void:
+	# Only inject Farmer Ren on the overworld starting region.
+	if _interior != null or _region == null:
+		return
+	var rid: Vector2i = _region.region_id
+	if abs(rid.x) > 1 or abs(rid.y) > 1:
+		return
+	for entry in _region.npcs_scatter:
+		if typeof(entry) == TYPE_DICTIONARY \
+				and entry.get("dialogue", "") == "res://resources/dialogue/farmer_ren.tres":
+			var ren_cell: Vector2i = entry.get("cell", Vector2i.ZERO)
+			QuestTracker.register_objective_position("valley_witness", "speak_farmer", rid, ren_cell)
+			return
+	if _region.spawn_points.is_empty():
+		return
+	var centre: Vector2i = _region.spawn_points[0]
+	# Place north-northeast of spawn, near a field area.
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(8, -15), 32, true)
+	_region.npcs_scatter.append({
+		"kind": &"villager",
+		"cell": cell,
+		"seed": 0xF2B1C,  # Deterministic seed for Ren's appearance.
+		"dialogue": "res://resources/dialogue/farmer_ren.tres",
+		"quest_giver_name": "Ren",
+	})
+	QuestTracker.register_objective_position("valley_witness", "speak_farmer", rid, cell)
+
+
 const _QuestInteractableScene: PackedScene = preload("res://scenes/entities/QuestInteractable.tscn")
+const _StorytellerScript: GDScript = preload("res://scripts/entities/storyteller.gd")
+
+
+func _maybe_inject_storyteller() -> void:
+	# Only on the overworld starting region (≤1 region away from origin).
+	if _interior != null or _region == null:
+		return
+	var rid: Vector2i = _region.region_id
+	if abs(rid.x) > 1 or abs(rid.y) > 1:
+		return
+	if _region.spawn_points.is_empty():
+		return
+	# Check already placed (re-visit guard).
+	for entry in _region.npcs_scatter:
+		if typeof(entry) == TYPE_DICTIONARY and entry.get("is_storyteller", false):
+			return
+	var centre: Vector2i = _region.spawn_points[0]
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(-6, -12), 32, true)
+	var entities: Node2D = get_node("Entities") as Node2D
+	if entities == null:
+		return
+	var st: Node2D = Node2D.new()
+	st.set_script(_StorytellerScript)
+	st.name = "Storyteller"
+	st.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+	entities.add_child(st)
+	# Record in scatter so re-visits skip re-injection.
+	_region.npcs_scatter.append({"is_storyteller": true, "cell": cell})
 
 
 func _maybe_inject_quest_interactables() -> void:
@@ -1948,7 +2059,10 @@ func _inject_village_well(centre: Vector2i) -> void:
 	qi.quest_id = ""
 	qi.objective_id = "village_well_flavour"
 	qi.interact_speaker = ""
-	qi.interact_text = "The well water looks murky and smells faintly of minerals. Don't drink this."
+	qi.interact_text = "The water is clear but has a faint mineral tang. Animals won't come near it."
+	qi.condition_flag = "mine_sealed"
+	qi.conditional_text = "The water tastes cleaner now. The well is recovering — slowly."
+	qi.advances = [{"quest_id": "valley_witness", "objective_id": "examine_well"}]
 	qi.persistent = true
 	qi.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
 	# Visual: world_objects sheet cell [7, 0] = village_well.
