@@ -41,9 +41,6 @@ const OVERWORLD_PNG: String = "res://assets/tiles/roguelike/overworld_sheet.png"
 const CITY_PNG: String      = "res://assets/tiles/roguelike/city_sheet.png"
 const DUNGEON_PNG: String   = "res://assets/tiles/roguelike/dungeon_sheet.png"
 const INTERIOR_PNG: String  = "res://assets/tiles/roguelike/interior_sheet.png"
-const RUNES_BLACK_PNG: String = "res://assets/tiles/runes/runes_black_tile.png"
-const RUNES_GREY_PNG: String  = "res://assets/tiles/runes/runes_grey_tile.png"
-const RUNES_BLUE_PNG: String  = "res://assets/tiles/runes/runes_blue_tile.png"
 const MEDIEVAL_RTS_PNG: String = "res://assets/tiles/rts/medieval_tilesheet.png"
 ## 64×64 tiles, 32px leading gutter. Tile address (col, row) 1-based → pixel = 32 + (n-1)*96.
 ## House: col=6, row=7 (1-based) → x=512, y=608.
@@ -702,7 +699,6 @@ static var _city_ts: TileSet = null
 static var _dungeon_ts: TileSet = null
 static var _maze_ts: TileSet = null
 static var _interior_ts: TileSet = null
-static var _runes_ts: TileSet = null
 
 ## Invalidate all cached TileSets and sheet overrides so the next call to
 ## overworld() / city() / dungeon() / interior() rebuilds from fresh data.
@@ -713,7 +709,6 @@ static func invalidate_cache() -> void:
 	_dungeon_ts    = null
 	_maze_ts       = null
 	_interior_ts   = null
-	_runes_ts      = null
 	_sheet_overrides.clear()  # Force reload from TileMappings on next access.
 	invalidate_deco_cache()
 
@@ -797,13 +792,6 @@ static func _add_dungeon_source_to(ts: TileSet) -> void:
 			var td: TileData = src.get_tile_data(Vector2i(x, y), 0)
 			if td != null:
 				td.set_custom_data(CUSTOM_WALKABLE, walkable)
-
-
-## Returns the rune overlay TileSet (uses 3 atlases — one per color).
-static func runes() -> TileSet:
-	if _runes_ts == null:
-		_runes_ts = _build_runes()
-	return _runes_ts
 
 
 ## Returns the scale factor a TileMapLayer should use for the given sheet path.
@@ -942,28 +930,6 @@ static func _get_mineable_sprites(rid: StringName) -> Array[Vector2i]:
 	return out
 
 
-
-
-static func _build_runes() -> TileSet:
-	var ts := TileSet.new()
-	ts.tile_size = Vector2i(WorldConst.TILE_PX, WorldConst.TILE_PX)
-	var paths: Array[String] = [RUNES_BLACK_PNG, RUNES_GREY_PNG, RUNES_BLUE_PNG]
-	for i in paths.size():
-		var tex: Texture2D = load(paths[i]) as Texture2D
-		if tex == null:
-			continue
-		var src := TileSetAtlasSource.new()
-		src.texture = tex
-		src.texture_region_size = Vector2i(WorldConst.TILE_PX, WorldConst.TILE_PX)
-		src.margins = Vector2i(0, 0)
-		src.separation = Vector2i(WorldConst.TILESHEET_MARGIN, WorldConst.TILESHEET_MARGIN)
-		var cols: int = (tex.get_width() + WorldConst.TILESHEET_MARGIN) / (WorldConst.TILE_PX + WorldConst.TILESHEET_MARGIN)
-		var rows: int = (tex.get_height() + WorldConst.TILESHEET_MARGIN) / (WorldConst.TILE_PX + WorldConst.TILESHEET_MARGIN)
-		for y in rows:
-			for x in cols:
-				src.create_tile(Vector2i(x, y))
-		ts.add_source(src, i)
-	return ts
 
 
 ## Returns the canonical filled-center atlas cell for `terrain` in the

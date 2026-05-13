@@ -245,6 +245,9 @@ var _sheet_selector: OptionButton = null  ## Spritesheet dropdown.
 var _available_sheets: Array[String] = []  ## Discovered PNGs.
 var _middle_pane: Control = null
 var _right_pane: Control = null
+var _context_banner: PanelContainer = null
+var _context_banner_label: Label = null
+var _active_slot_btn: Button = null
 
 
 # ─── Inner class: SheetView ─────────────────────────────────────────────
@@ -770,6 +773,8 @@ func _build_ui() -> void:
 	add_child(root)
 
 	root.add_child(_build_toolbar())
+	_context_banner = _build_context_banner()
+	root.add_child(_context_banner)
 
 	var split := HSplitContainer.new()
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -820,6 +825,20 @@ func _build_toolbar() -> Control:
 	close_btn.pressed.connect(func(): close_requested.emit())
 	hb.add_child(close_btn)
 	return hb
+
+
+func _build_context_banner() -> PanelContainer:
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.85, 0.65, 0.05)
+	style.set_content_margin_all(6.0)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.visible = false
+	_context_banner_label = Label.new()
+	_context_banner_label.add_theme_color_override("font_color", Color(0.05, 0.02, 0.0))
+	_context_banner_label.add_theme_font_size_override("font_size", 14)
+	panel.add_child(_context_banner_label)
+	return panel
 
 
 func _build_left_pane() -> Control:
@@ -1237,6 +1256,7 @@ static func _key_str(k: Variant) -> String:
 # ─── Slot UI ───────────────────────────────────────────────────────────
 
 func _rebuild_slot_ui() -> void:
+	_active_slot_btn = null
 	for c in _slot_root.get_children():
 		c.queue_free()
 	# "Add" row for named-kind mappings (lets user create new dictionary keys).
@@ -1268,6 +1288,8 @@ func _rebuild_slot_ui() -> void:
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.pressed.connect(_on_slot_pressed.bind(i))
+		if i == _active_slot:
+			_active_slot_btn = btn
 		row.add_child(btn)
 		# Autotile rows get Flip V and Flip H checkboxes.
 		if slot.get("flip_v", -1) >= 0:
@@ -1295,6 +1317,8 @@ func _on_slot_pressed(idx: int) -> void:
 	_active_slot = idx
 	_rebuild_slot_ui()
 	_refresh_marks()
+	if _active_slot_btn != null and _slot_scroll != null:
+		_slot_scroll.ensure_control_visible(_active_slot_btn)
 	if idx >= 0 and idx < _slots.size():
 		_status_label.text = "active slot: %s = %s" % [
 				_slots[idx]["label"], _str_cell(_get_slot_cell(idx))]
@@ -2768,6 +2792,7 @@ func navigate_to(sheet_field: StringName, terrain: StringName) -> void:
 			if StringName(_slots[i]["label"]) == terrain or _slots[i]["label"] == String(terrain):
 				_on_slot_pressed(i)
 				break
+	set_tile_context(target_entry["label"], String(terrain))
 
 
 ## Navigate to the Mineable Resources editor and select [param ref_id].
@@ -2779,6 +2804,25 @@ func navigate_to_mineable(ref_id: StringName) -> void:
 			break
 	if _mineable_editor != null:
 		_mineable_editor.select_resource(ref_id)
+	set_tile_context("Mineable Resources", String(ref_id))
+
+
+## Show a banner at the top of the editor indicating the tile that triggered
+## this session (set automatically by navigate_to / navigate_to_mineable).
+func set_tile_context(category: String, slot_name: String) -> void:
+	if _context_banner == null:
+		return
+	var text: String = "▶  Tile context:  %s" % category
+	if not slot_name.is_empty():
+		text += "  →  %s" % slot_name
+	_context_banner_label.text = text
+	_context_banner.visible = true
+
+
+## Hide the context banner.  Call when opening the editor without a Ctrl+click tile.
+func clear_tile_context() -> void:
+	if _context_banner != null:
+		_context_banner.visible = false
 
 
 ## Select the tree item whose metadata matches [param mapping_id], looking

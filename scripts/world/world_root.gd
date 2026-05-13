@@ -63,9 +63,6 @@ var _last_view_kind: StringName = &"overworld"
 ## once per cell-step (PlayerController -> Vector2i).
 var _last_door_cell_per_player: Dictionary = {}
 var _mineable: Dictionary = {}  ## Vector2i -> {kind: StringName, hp: int}
-## Last rune touched in this instance (test hook). Re-set per-touch
-## with the touching player's id baked in.
-var last_rune_message: String = ""
 var _dialogue_box: DialogueBox = null  ## Per-instance dialogue UI.
 var _active_tree_player: PlayerController = null  ## Player driving branching dialogue.
 var _active_dialogue_npc: Node2D = null  ## NPC/entity the player is talking to.
@@ -318,7 +315,7 @@ func _attach_overworld_tilesets() -> void:
 	decoration.scale = sv
 	canopy.tile_set = ts
 	canopy.scale = sv
-	overlay.tile_set = TilesetCatalog.runes()
+	overlay.tile_set = null
 	overlay.scale = Vector2.ONE
 
 
@@ -355,7 +352,7 @@ func _attach_interior_tilesets(view_kind: StringName) -> void:
 	patch.scale = Vector2.ONE
 	canopy.tile_set = ts
 	canopy.scale = sv
-	overlay.tile_set = TilesetCatalog.runes()
+	overlay.tile_set = null
 	overlay.scale = Vector2.ONE
 
 
@@ -513,9 +510,7 @@ func _paint_region(region: Region) -> void:
 			var tile: Variant = corners.get(corner_dir, null)
 			if tile is Vector2i:
 				ground.set_cell(Vector2i(x3, y3), 0, tile, 0)
-	for rune in region.runes:
-		var rc: Vector2i = rune["cell"]
-		overlay.set_cell(rc, int(rune["source"]), rune["atlas"], 0)
+	_inject_rune_interactables(region.runes)
 	_paint_overworld_entrance_markers(region)
 
 
@@ -748,10 +743,7 @@ func _paint_dungeon_interior(interior: InteriorMap, view_kind: StringName = &"du
 	_paint_dungeon_floor_border(interior, floor_border)
 	_paint_dungeon_corridor_frames(interior)
 	_paint_dungeon_stair_markers(interior)
-	# Paint Aetherian rune markers on the Overlay layer.
-	for rune in interior.runes:
-		var rc: Vector2i = rune["cell"]
-		overlay.set_cell(rc, int(rune["source"]), rune["atlas"], 0)
+	_inject_rune_interactables(interior.runes)
 
 
 ## Paint chamber_rects inside a dungeon/labyrinth with stone room-wall tiles.
@@ -1430,9 +1422,6 @@ func _build_door_index(view_kind: StringName) -> void:
 				_doors[c] = door_data
 			else:
 				_doors[c] = {"kind": &"dungeon_enter", "cell": c}
-		for rune in _region.runes:
-			var rc: Vector2i = rune["cell"]
-			_doors[rc] = {"kind": &"rune", "cell": rc, "source": int(rune["source"]), "atlas": rune.get("atlas", Vector2i.ZERO)}
 	elif _interior != null:
 		if view_kind == &"dungeon" or view_kind == &"maze":
 			_doors[_interior.entry_cell] = {"kind": &"stairs_up"}
@@ -1442,33 +1431,12 @@ func _build_door_index(view_kind: StringName) -> void:
 				_doors[_interior.exit_cell] = {"kind": &"stairs_down"}
 			else:
 				_doors[_interior.exit_cell] = {"kind": &"stairs_exit"}
-			# Register rune markers as walkable interactables.
-			for rune in _interior.runes:
-				var rc: Vector2i = rune["cell"]
-				_doors[rc] = {"kind": &"rune", "cell": rc, "source": int(rune["source"]), "atlas": rune.get("atlas", Vector2i.ZERO)}
 		else:
 			_doors[_interior.exit_cell] = {"kind": &"interior_exit"}
 
 
 func _handle_door(player: PlayerController, door: Dictionary, cell: Vector2i) -> void:
 	match door["kind"]:
-		&"rune":
-			# Select one of three messages based on atlas hash so different runes
-			# feel distinct without needing per-cell scripting.
-			const RUNE_MESSAGES: Array[String] = [
-				"An ancient symbol. The script is angular and precise — nothing like any language you know. Some symbols glow faintly blue.",
-				"An ancient symbol, different from the last. The lines are deliberate — someone carved these to last.",
-				"A third ancient symbol. The blue glow is faint but unmistakable. Whatever this says, it was important.",
-			]
-			var atlas_hash: int = 0
-			if door.has("atlas") and door["atlas"] is Vector2i:
-				var a: Vector2i = door["atlas"] as Vector2i
-				atlas_hash = a.x + a.y * 3
-			var msg: String = RUNE_MESSAGES[atlas_hash % RUNE_MESSAGES.size()]
-			last_rune_message = msg
-			show_dialogue(player.player_id, "", msg, null)
-			if not GameState.get_flag("rune_tile_touched"):
-				GameState.set_flag("rune_tile_touched")
 		&"dungeon_enter":
 			_handle_enter_interior(player, cell, &"dungeon")
 		&"house_enter":
@@ -2077,6 +2045,44 @@ func _inject_village_well(centre: Vector2i) -> void:
 			img.fill(Color(0.5, 0.4, 0.3, 0.9))
 			spr.texture = ImageTexture.create_from_image(img)
 	entities.add_child(qi)
+
+
+const _RUNE_OBJECT_IDS: Array[StringName] = [&"rune_black", &"rune_grey", &"rune_blue"]
+const _RUNE_TEXTS: Array[String] = [
+	"An ancient symbol. The script is angular and precise — nothing like any language you know.",
+	"An ancient symbol, different from the last. The lines are deliberate — someone carved these to last.",
+	"An ancient symbol. The blue glow is faint but unmistakable. Whatever this says, it was important.",
+]
+const _WORLD_OBJECTS_CELLS_PATH: String = "res://assets/icons/hires/world_objects_cells.json"
+
+
+func _inject_rune_interactables(runes: Array) -> void:
+	for child in entities.get_children():
+		if child is QuestInteractable and child.objective_id.begins_with("rune_interactable_"):
+			child.queue_free()
+	if runes.is_empty():
+		return
+	var raw: String = FileAccess.get_file_as_string(_WORLD_OBJECTS_CELLS_PATH)
+	var cells: Dictionary = JSON.parse_string(raw) as Dictionary
+	for rune in runes:
+		var rc: Vector2i = rune["cell"]
+		var source_idx: int = clampi(int(rune["source"]), 0, 2)
+		var type_id: StringName = _RUNE_OBJECT_IDS[source_idx]
+		var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
+		qi.objective_id = "rune_interactable_%d_%d" % [rc.x, rc.y]
+		qi.interact_text = _RUNE_TEXTS[source_idx]
+		qi.persistent = true
+		qi.on_interact_flag = "rune_tile_touched"
+		qi.position = (Vector2(rc) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
+		var spr: Sprite2D = qi.get_node("Sprite2D") as Sprite2D
+		if spr != null:
+			var info: Dictionary = (cells as Dictionary).get(type_id, {})
+			var c: Array = info.get("cell", [0, 0])
+			var tex: Texture2D = HiresIconRegistry._from_cell("world_objects", int(c[0]), int(c[1]))
+			if tex != null:
+				spr.texture = tex
+				spr.scale = Vector2(0.25, 0.25)
+		entities.add_child(qi)
 
 
 func _spawn_villager(entry: Dictionary) -> void:
@@ -2761,7 +2767,7 @@ func _resolve_tile_sheet_field(layer_name: String) -> StringName:
 		&"overworld":
 			match layer_name:
 				"Ground":     return &"overworld_terrain"
-				"Patch":      return &"overworld_terrain"
+				"Patch":      return &"overworld_overlay_sets"
 				"Decoration": return &"overworld_decoration"
 				"Canopy":     return &"overworld_decoration"
 				_:            return &"overworld_terrain"

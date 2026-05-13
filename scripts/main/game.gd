@@ -789,6 +789,7 @@ func _ensure_game_editor() -> void:
 func open_game_editor() -> void:
 	_ensure_game_editor()
 	_game_editor_layer.visible = true
+	_game_editor.clear_tile_context()
 
 
 ## Called by DebugTileInspector when the player Ctrl+clicks a tile layer.

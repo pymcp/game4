@@ -10,13 +10,12 @@ func _find_world(_node: Node) -> WorldRoot:
 	return w.get_player_world(0)
 
 
-func test_runes_generate_and_paint_and_trigger_on_step() -> void:
+func test_runes_generate_and_inject_quest_interactables() -> void:
 	# Find a seed where region (0,0) has at least one rune.
 	var found_seed: int = -1
 	var rune_cell: Vector2i = Vector2i.ZERO
 	for s in [1, 2, 3, 5, 7, 11, 17, 23, 31, 42, 99, 137, 271, 333, 511, 999]:
 		WorldManager.reset(s)
-		# Scan a small window for a non-ocean region with runes.
 		for dy in range(-2, 3):
 			for dx in range(-2, 3):
 				var r: Region = WorldManager.get_or_generate(Vector2i(dx, dy))
@@ -41,16 +40,23 @@ func test_runes_generate_and_paint_and_trigger_on_step() -> void:
 	assert_not_null(world, "WorldRoot found")
 	assert_false(world._region.runes.is_empty(), "region has runes")
 
-	# The first rune in the live region — verify overlay was painted.
+	# Verify QuestInteractable nodes were injected for each rune.
 	var live_rune: Dictionary = world._region.runes[0]
-	var src_id: int = world.overlay.get_cell_source_id(live_rune["cell"])
-	assert_eq(src_id, int(live_rune["source"]),
-		"overlay layer painted with the rune's source id")
+	var expected_oid: String = "rune_interactable_%d_%d" % [
+		live_rune["cell"].x, live_rune["cell"].y
+	]
+	var found_qi: QuestInteractable = null
+	for child in world.entities.get_children():
+		if child is QuestInteractable and child.objective_id == expected_oid:
+			found_qi = child
+			break
+	assert_not_null(found_qi, "QuestInteractable injected for first rune")
+	assert_true(found_qi.interact_text.contains("ancient symbol"),
+		"rune text is flavour, got: '%s'" % found_qi.interact_text)
 
-	# Step the player onto the rune.
-	var px := float(WorldConst.TILE_PX)
-	World.instance().get_player(0).position = (Vector2(live_rune["cell"]) + Vector2(0.5, 0.5)) * px
-	await get_tree().physics_frame
-	await get_tree().process_frame
-	assert_true(world.last_rune_message.contains("ancient symbol"),
-		"rune message logged, got: '%s'" % world.last_rune_message)
+	# Interact with the rune and verify flag is set.
+	GameState.set_flag("rune_tile_touched", false)
+	var player: PlayerController = World.instance().get_player(0)
+	found_qi.interact(player)
+	assert_true(GameState.get_flag("rune_tile_touched"),
+		"rune_tile_touched flag set after interaction")

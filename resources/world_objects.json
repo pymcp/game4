@@ -40,5 +40,17 @@
 		"display_name": "Maze Entrance",
 		"description": "A glowing mystical portal leading into a labyrinthine maze.",
 		"size": [2, 3]
+	},
+	"rune_black": {
+		"display_name": "Aetherian Rune (Dark)",
+		"description": "An ancient rune carved in dark stone. Its meaning is lost to time."
+	},
+	"rune_grey": {
+		"display_name": "Aetherian Rune (Worn)",
+		"description": "A weathered rune, worn smooth by centuries. Someone carved this to last."
+	},
+	"rune_blue": {
+		"display_name": "Aetherian Rune (Active)",
+		"description": "An Aetherian glyph, still faintly luminescent. This was important."
 	}
 }

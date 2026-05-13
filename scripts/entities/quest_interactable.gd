@@ -29,6 +29,8 @@ extends Node2D
 @export var condition_flag: String = ""
 ## Text shown when [member condition_flag] is set and true.
 @export var conditional_text: String = ""
+## Optional GameState flag to set on first interaction.
+@export var on_interact_flag: String = ""
 
 var _used: bool = false
 
@@ -45,6 +47,8 @@ func interact(player: Node) -> void:
 		var oid: String = entry.get("objective_id", "")
 		if qid != "" and oid != "":
 			QuestTracker.mark_objective_done(qid, oid)
+	if on_interact_flag != "" and not GameState.get_flag(on_interact_flag):
+		GameState.set_flag(on_interact_flag)
 	if give_item_id != &"" and player is PlayerController:
 		var pc := player as PlayerController
 		if pc.inventory != null:
