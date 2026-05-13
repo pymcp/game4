@@ -1935,6 +1935,7 @@ func _inject_spring(centre: Vector2i) -> void:
 	qi.interact_text = "You fill a vial with clear spring water."
 	qi.give_item_id = &"clean_spring_water"
 	qi.give_item_count = 1
+	qi.persistent = true
 	qi.position = (Vector2(cell) + Vector2(0.5, 0.5)) * float(WorldConst.TILE_PX)
 	# Visual: world_objects sheet cell [6, 0] = spring.
 	var spr: Sprite2D = qi.get_node("Sprite2D") as Sprite2D

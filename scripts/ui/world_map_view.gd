@@ -19,6 +19,16 @@ const BIOME_COLORS: Dictionary = {
 	&"ocean":  Color(0.08, 0.25, 0.60),
 }
 const BIOME_COLOR_FALLBACK: Color = Color(0.25, 0.25, 0.25)
+const TERRAIN_COLORS: Dictionary = {
+	TerrainCodes.OCEAN: Color(0.05, 0.15, 0.50),
+	TerrainCodes.WATER: Color(0.18, 0.42, 0.80),
+	TerrainCodes.SAND:  Color(0.85, 0.78, 0.45),
+	TerrainCodes.GRASS: Color(0.28, 0.60, 0.20),
+	TerrainCodes.DIRT:  Color(0.52, 0.36, 0.18),
+	TerrainCodes.ROCK:  Color(0.52, 0.50, 0.47),
+	TerrainCodes.SNOW:  Color(0.88, 0.92, 0.98),
+	TerrainCodes.SWAMP: Color(0.22, 0.35, 0.18),
+}
 ## Background fill: deep ocean (darker than the ocean biome color).
 const SKY_COLOR: Color = Color(0.04, 0.10, 0.25, 1.0)
 ## Edge-of-world / no-plan fallback: slightly lighter than SKY_COLOR so
@@ -27,12 +37,13 @@ const VOID_COLOR: Color = Color(0.06, 0.14, 0.32, 1.0)
 const LANDMARK_COLOR: Color = Color(0.8, 0.3, 0.3)
 const OBJECTIVE_STAR_COLOR: Color = Color(1.0, 0.85, 0.1, 1.0)
 ## Opacity of the black fog overlay on unexplored tiles (0=clear, 1=solid black).
-const FOG_ALPHA: float = 0.65
+const FOG_ALPHA: float = 1.0
 
 var _player: PlayerController = null
 var _player_id: int = 0
 ## Fog alpha-mask textures per region: black pixels, alpha=0 revealed / FOG_ALPHA fogged.
-var _fog_textures: Dictionary = {}  # Vector2i → ImageTexture
+var _fog_textures: Dictionary = {}     # Vector2i → ImageTexture
+var _terrain_textures: Dictionary = {} # Vector2i → ImageTexture
 var _textures_dirty: bool = true
 var _is_animating: bool = false
 
@@ -157,12 +168,14 @@ func _draw() -> void:
 			(size.x - total_w) * 0.5 - float(bbox.position.x * 128) * tile_px,
 			(size.y - total_h) * 0.5 - float(bbox.position.y * 128) * tile_px
 		)
-	# Draw each visited region: biome fill via draw_rect (no sRGB issues),
-	# then fog alpha-mask texture on top.
+	# Draw each visited region: terrain texture (per-cell colors) then fog mask on top.
 	for region_id: Vector2i in _fog_textures.keys():
 		var rpos: Vector2 = map_origin + Vector2(region_id.x * 128, region_id.y * 128) * tile_px
 		var rsz: Vector2 = Vector2(128.0, 128.0) * tile_px
-		draw_rect(Rect2(rpos, rsz), _biome_color_for(region_id))
+		if _terrain_textures.has(region_id):
+			draw_texture_rect(_terrain_textures[region_id], Rect2(rpos, rsz), false)
+		else:
+			draw_rect(Rect2(rpos, rsz), _biome_color_for(region_id))
 		draw_texture_rect(_fog_textures[region_id], Rect2(rpos, rsz), false)
 	# Draw dungeon landmark icons (red circles at revealed entrance cells).
 	for rid: Vector2i in WorldManager.regions.keys():
@@ -187,10 +200,13 @@ func _draw() -> void:
 
 func _rebuild_fog_textures() -> void:
 	_fog_textures.clear()
+	_terrain_textures.clear()
 	if _player == null:
 		return
 	for region_id: Vector2i in _player.fog_of_war.get_all_region_ids():
 		_fog_textures[region_id] = _build_fog_texture(region_id)
+		if WorldManager.regions.has(region_id):
+			_terrain_textures[region_id] = _build_terrain_texture(region_id)
 
 
 ## Builds a 128×128 pure-black alpha-mask Image: transparent where revealed,
@@ -206,6 +222,16 @@ func _build_fog_texture(region_id: Vector2i) -> ImageTexture:
 				img.set_pixel(x, y, clear_pixel)
 			else:
 				img.set_pixel(x, y, fog_pixel)
+	return ImageTexture.create_from_image(img)
+
+
+func _build_terrain_texture(region_id: Vector2i) -> ImageTexture:
+	var region: Region = WorldManager.regions[region_id]
+	var img: Image = Image.create(128, 128, false, Image.FORMAT_RGBA8)
+	for y in 128:
+		for x in 128:
+			var code: int = region.at(Vector2i(x, y))
+			img.set_pixel(x, y, TERRAIN_COLORS.get(code, BIOME_COLOR_FALLBACK))
 	return ImageTexture.create_from_image(img)
 
 
