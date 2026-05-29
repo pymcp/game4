@@ -435,6 +435,16 @@ static func _place_dungeon_entrances(region: Region) -> void:
 			if abs(cell.x - center.x) + abs(cell.y - center.y) < 16:
 				continue
 			candidates.append(cell)
+	# Drop candidates on isolated land patches (not reachable from spawn).
+	var connected: Dictionary = _connected_from_spawn(region)
+	if not connected.is_empty():
+		var filtered: Array[Vector2i] = []
+		for c: Vector2i in candidates:
+			if connected.has(c):
+				filtered.append(c)
+		if not filtered.is_empty():
+			candidates = filtered
+
 	# Shuffle deterministically and take target_count (but enforce a
 	# minimum spacing so entrances don't cluster).
 	for i in range(candidates.size() - 1, 0, -1):
@@ -498,6 +508,17 @@ static func _place_maze_entrances(region: Region) -> void:
 			candidates.append(cell)
 	if candidates.is_empty():
 		return
+	# Drop candidates on isolated land patches.
+	var connected: Dictionary = _connected_from_spawn(region)
+	if not connected.is_empty():
+		var filtered: Array[Vector2i] = []
+		for c: Vector2i in candidates:
+			if connected.has(c):
+				filtered.append(c)
+		if not filtered.is_empty():
+			candidates = filtered
+	if candidates.is_empty():
+		return
 	# Deterministic shuffle.
 	for i in range(candidates.size() - 1, 0, -1):
 		var j: int = rng.randi_range(0, i)
@@ -516,6 +537,31 @@ static func _place_maze_entrances(region: Region) -> void:
 static func _region_seed(world_seed: int, region_id: Vector2i) -> int:
 	# Cheap deterministic mix; bits are ample for FastNoiseLite + RNG.
 	return (world_seed * 73856093) ^ (region_id.x * 19349663) ^ (region_id.y * 83492791)
+
+
+## BFS from all spawn points over terrain-walkable tiles. Returns a Dictionary
+## (Vector2i → true) of every cell reachable on foot from spawn. Used to
+## filter placement so dungeons / mazes never land on isolated land patches.
+static func _connected_from_spawn(region: Region) -> Dictionary:
+	if region.spawn_points.is_empty():
+		return {}
+	var visited: Dictionary = {}
+	var queue: Array[Vector2i] = []
+	for sp: Vector2i in region.spawn_points:
+		if not visited.has(sp) and region.is_walkable_at(sp):
+			visited[sp] = true
+			queue.append(sp)
+	var offsets: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	while not queue.is_empty():
+		var current: Vector2i = queue.pop_front()
+		for off: Vector2i in offsets:
+			var n: Vector2i = current + off
+			if visited.has(n):
+				continue
+			if region.is_walkable_at(n):
+				visited[n] = true
+				queue.append(n)
+	return visited
 
 
 static func _pick_biome(rng: RandomNumberGenerator) -> StringName:
@@ -575,6 +621,7 @@ static func _generate_starting_region_features(region: Region) -> void:
 	# _place_dungeon_entrances only drops entrances on ROCK/DIRT cells, which
 	# are rare in the default grass biome. Force-place one if missing.
 	if region.dungeon_entrances.is_empty():
+		var connected: Dictionary = _connected_from_spawn(region)
 		var goal: Vector2i = Vector2i(-1, -1)
 		var attempts: int = 0
 		while goal == Vector2i(-1, -1) and attempts < 500:
@@ -584,7 +631,7 @@ static func _generate_starting_region_features(region: Region) -> void:
 			var cx: int = clamp(anchor.x + int(cos(angle) * float(dist)), 4, size - 5)
 			var cy: int = clamp(anchor.y + int(sin(angle) * float(dist)), 4, size - 5)
 			var c := Vector2i(cx, cy)
-			if TerrainCodes.is_walkable(region.at(c)):
+			if TerrainCodes.is_walkable(region.at(c)) and (connected.is_empty() or connected.has(c)):
 				goal = c
 		if goal != Vector2i(-1, -1):
 			region.dungeon_entrances.append({"kind": &"dungeon", "cell": goal})

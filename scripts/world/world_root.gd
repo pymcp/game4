@@ -66,6 +66,9 @@ var _mineable: Dictionary = {}  ## Vector2i -> {kind: StringName, hp: int}
 var _dialogue_box: DialogueBox = null  ## Per-instance dialogue UI.
 var _active_tree_player: PlayerController = null  ## Player driving branching dialogue.
 var _active_dialogue_npc: Node2D = null  ## NPC/entity the player is talking to.
+## Set of overworld cells reachable on foot from the spawn point.
+## Rebuilt by _compute_spawn_reachable() before NPC/quest injection.
+var _spawn_reachable: Dictionary = {}
 
 ## Entity cache for fast per-frame lookups.
 var _player_cache: Array[PlayerController] = []
@@ -205,6 +208,30 @@ func is_walkable(cell: Vector2i) -> bool:
 		return false
 	var gv: Variant = ground_data.get_custom_data(TilesetCatalog.CUSTOM_WALKABLE)
 	return bool(gv)
+
+
+## BFS from every spawn point using the full is_walkable check (terrain +
+## decorations). Populates _spawn_reachable so find_safe_spawn_cell can
+## guarantee quest NPCs / objectives land on connected, accessible tiles.
+func _compute_spawn_reachable() -> void:
+	_spawn_reachable.clear()
+	if _region == null or _region.spawn_points.is_empty():
+		return
+	var queue: Array[Vector2i] = []
+	for sp: Vector2i in _region.spawn_points:
+		if not _spawn_reachable.has(sp) and is_walkable(sp):
+			_spawn_reachable[sp] = true
+			queue.append(sp)
+	var offsets: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	while not queue.is_empty():
+		var current: Vector2i = queue.pop_front()
+		for off: Vector2i in offsets:
+			var n: Vector2i = current + off
+			if _spawn_reachable.has(n):
+				continue
+			if is_walkable(n):
+				_spawn_reachable[n] = true
+				queue.append(n)
 
 
 ## Returns true if a door entry exists at [param cell].
@@ -1261,12 +1288,12 @@ static func _cell_hash(cell: Vector2i, seed_value: int) -> int:
 # --- Spawn helpers -------------------------------------------------
 
 func find_safe_spawn_cell(centre: Vector2i, max_radius: int = 16,
-		avoid_doors: bool = true) -> Vector2i:
+		avoid_doors: bool = true, require_connected: bool = false) -> Vector2i:
 	if avoid_doors:
-		var c1: Variant = _scan_for(centre, max_radius, true)
+		var c1: Variant = _scan_for(centre, max_radius, true, require_connected)
 		if c1 != null:
 			return c1
-	var c2: Variant = _scan_for(centre, max_radius, false)
+	var c2: Variant = _scan_for(centre, max_radius, false, require_connected)
 	if c2 != null:
 		return c2
 	# Nothing valid near centre — fall back to a known-safe spawn point so we
@@ -1278,8 +1305,9 @@ func find_safe_spawn_cell(centre: Vector2i, max_radius: int = 16,
 	return centre
 
 
-func _scan_for(centre: Vector2i, max_radius: int, avoid_doors: bool) -> Variant:
-	if is_walkable(centre) and (not avoid_doors or not _doors.has(centre)):
+func _scan_for(centre: Vector2i, max_radius: int, avoid_doors: bool, require_connected: bool = false) -> Variant:
+	if is_walkable(centre) and (not avoid_doors or not _doors.has(centre)) \
+			and (not require_connected or _spawn_reachable.has(centre)):
 		return centre
 	for r in range(1, max_radius):
 		for dy in range(-r, r + 1):
@@ -1287,7 +1315,8 @@ func _scan_for(centre: Vector2i, max_radius: int, avoid_doors: bool) -> Variant:
 				if max(abs(dx), abs(dy)) != r:
 					continue
 				var c := centre + Vector2i(dx, dy)
-				if is_walkable(c) and (not avoid_doors or not _doors.has(c)):
+				if is_walkable(c) and (not avoid_doors or not _doors.has(c)) \
+						and (not require_connected or _spawn_reachable.has(c)):
 					return c
 	return null
 
@@ -1704,6 +1733,7 @@ const _MonsterScene: PackedScene = preload("res://scenes/entities/Monster.tscn")
 const _TreasureChestScene: PackedScene = preload("res://scenes/entities/TreasureChest.tscn")
 
 func _spawn_scattered_npcs() -> void:
+	_compute_spawn_reachable()
 	_maybe_inject_mara()
 	_maybe_inject_edda()
 	_maybe_inject_farmer_ren()
@@ -1801,7 +1831,7 @@ func _maybe_inject_mara() -> void:
 	if _region.spawn_points.is_empty():
 		return
 	var centre: Vector2i = _region.spawn_points[0]
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(10, 4), 32, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(10, 4), 32, true, true)
 	_region.npcs_scatter.append({
 		"kind": &"villager",
 		"cell": cell,
@@ -1831,7 +1861,7 @@ func _maybe_inject_edda() -> void:
 		return
 	var centre: Vector2i = _region.spawn_points[0]
 	# Place near the village well (north-northwest of spawn).
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(4, -10), 32, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(4, -10), 32, true, true)
 	_region.npcs_scatter.append({
 		"kind": &"villager",
 		"cell": cell,
@@ -1860,7 +1890,7 @@ func _maybe_inject_farmer_ren() -> void:
 		return
 	var centre: Vector2i = _region.spawn_points[0]
 	# Place north-northeast of spawn, near a field area.
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(8, -15), 32, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(8, -15), 32, true, true)
 	_region.npcs_scatter.append({
 		"kind": &"villager",
 		"cell": cell,
@@ -1889,7 +1919,7 @@ func _maybe_inject_storyteller() -> void:
 		if typeof(entry) == TYPE_DICTIONARY and entry.get("is_storyteller", false):
 			return
 	var centre: Vector2i = _region.spawn_points[0]
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(-6, -12), 32, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(-6, -12), 32, true, true)
 	var entities: Node2D = get_node("Entities") as Node2D
 	if entities == null:
 		return
@@ -1927,7 +1957,7 @@ func _inject_spring(centre: Vector2i) -> void:
 	for child in entities.get_children():
 		if child is QuestInteractable and child.objective_id == "get_water":
 			return
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(-20, 12), 32, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(-20, 12), 32, true, true)
 	var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
 	qi.quest_id = "herbalist_remedy"
 	qi.objective_id = "get_water"
@@ -1964,7 +1994,7 @@ func _inject_moonstone_mine(centre: Vector2i) -> void:
 			var rid2: Vector2i = _region.region_id
 			QuestTracker.register_objective_position("herbalist_remedy", "enter_mine", rid2, mine_cell)
 			return
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(40, 0), 32, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(40, 0), 32, true, true)
 	_region.dungeon_entrances.append({
 		"kind": &"maze",
 		"cell": cell,
@@ -1983,11 +2013,11 @@ func _inject_moonstone_mine(centre: Vector2i) -> void:
 	const RAT_COUNT: int = 2
 	for i in SICK_WOLF_COUNT:
 		var offset := Vector2i(rng.randi_range(-3, 3), rng.randi_range(-3, 3))
-		var monstercell: Vector2i = find_safe_spawn_cell(cell + offset, 2, true)
+		var monstercell: Vector2i = find_safe_spawn_cell(cell + offset, 2, true, true)
 		_spawn_monster({"cell": monstercell, "monster_kind": &"sick_wolf", "tier": 0})
 	for i in RAT_COUNT:
 		var offset := Vector2i(rng.randi_range(-4, 4), rng.randi_range(-4, 4))
-		var monstercell: Vector2i = find_safe_spawn_cell(cell + offset, 2, true)
+		var monstercell: Vector2i = find_safe_spawn_cell(cell + offset, 2, true, true)
 		_spawn_monster({"cell": monstercell, "monster_kind": &"rat", "tier": 0})
 
 
@@ -2023,7 +2053,7 @@ func _inject_village_well(centre: Vector2i) -> void:
 	for child in entities.get_children():
 		if child is QuestInteractable and child.objective_id == "village_well_flavour":
 			return
-	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(6, -8), 32, true)
+	var cell: Vector2i = find_safe_spawn_cell(centre + Vector2i(6, -8), 32, true, true)
 	var qi: QuestInteractable = _QuestInteractableScene.instantiate() as QuestInteractable
 	qi.quest_id = ""
 	qi.objective_id = "village_well_flavour"
